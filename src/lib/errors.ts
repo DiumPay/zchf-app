@@ -1,5 +1,6 @@
 // Turns viem's noisy errors into clean, user-friendly messages.
 //
+//
 // Why: viem errors include the full request body, docs URL, viem version,
 // and stack — fine for logs, terrible for a toast. This module extracts
 // the one-line summary and flags benign cases (user rejected the popup).
