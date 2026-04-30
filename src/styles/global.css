@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+
+@theme {
+  --font-sans: 'Manrope Variable', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', monospace;
+ 
+  --color-crimson: #A71622;
+  --color-crimson-600: #961722;
+  --color-crimson-700: #7C131C;
+  --color-offwhite: #FAF7F2;
+  --color-offwhite-200: #F0EDE6;
+  --color-ink: #1A1A1A;
+  --color-ink-soft: #4A4A4A;
+}
+ 
+body {
+  background-color: var(--color-offwhite);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+ 
   body {
     font-family: 'Manrope Variable', sans-serif;
   }
