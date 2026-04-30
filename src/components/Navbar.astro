@@ -4,6 +4,7 @@ import menuIcon from "@assets/icons/menu.svg?url";
 import closeIcon from "@assets/icons/close.svg?url";
 import Wallet from "@assets/icons/wallet.svg";
 import LanguageSelector from "@components/LanguageSelector.astro";
+import ModeToggle from "@components/ModeToggle.astro";
 
 const navItems = [
 	{ label: "Borrow", href: "/" },
@@ -45,6 +46,7 @@ const currentPath = Astro.url.pathname;
 		</ul>
 
 		<div class="ml-auto flex items-center gap-2">
+			<ModeToggle />
 			<LanguageSelector />
 
 			<button
