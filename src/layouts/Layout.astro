@@ -1,36 +1,42 @@
 ---
 import "../styles/global.css";
-import '@fontsource-variable/jetbrains-mono/wght.css';
-import '@fontsource-variable/manrope/wght.css'; // styles at global.css
+import "@fontsource-variable/jetbrains-mono/wght.css";
+import "@fontsource-variable/manrope/wght.css";
 import Navbar from "@components/Navbar.astro";
 
 interface Props {
-	title?: string;
+    title?: string;
+    description?: string;
 }
 
-const { title = "Frankencoin (ZCHF) - dApp" } = Astro.props;
+const {
+    title = "Frankencoin (ZCHF) - dApp",
+    description = "Borrow ZCHF against collateral. No governance, no admin keys, immutable forever.",
+} = Astro.props;
 ---
+
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>{title}</title>
-	</head>
-	<body>
-		<Navbar />
-		<main>
-			<slot />
-		</main>
-	</body>
+    <head>
+        <meta charset="utf-8" />
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="icon" href="/favicon.ico" />
+        <meta name="viewport" content="width=device-width" />
+        <meta name="generator" content={Astro.generator} />
+        <meta name="description" content={description} />
+        <title>{title}</title>
+    </head>
+    <body>
+        <Navbar />
+        <main>
+            <slot />
+        </main>
+    </body>
 </html>
 
 <script is:inline>
-	const stored = localStorage.getItem("theme");
-	const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-	if (stored === "dark" || (!stored && prefersDark)) {
-		document.documentElement.classList.add("dark");
-	}
+    const stored = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if (stored === "dark" || (!stored && prefersDark)) {
+        document.documentElement.classList.add("dark");
+    }
 </script>

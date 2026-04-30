@@ -6,7 +6,8 @@
       "@assets/*": ["./src/assets/*"],
       "@layouts/*": ["./src/layouts/*"],
       "@lib/*": ["./src/lib/*"],
-      "@config/*": ["./src/lib/*"],
+      "@config/*": ["./src/config/*"],
+      "@abi/*": ["./src/abi/*"],
       "@pages/*": ["./src/pages/*"]
     }
   },

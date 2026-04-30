@@ -186,7 +186,6 @@ function prefetchDns(urls: string[]) {
             fetch(url, {
                 method: "HEAD",
                 signal: ctrl.signal,
-                // @ts-expect-error keepalive hint
                 keepalive: true,
             })
                 .catch(() => {})
@@ -460,9 +459,9 @@ class RpcBalancer {
 export function balancedTransport(config: BalancedTransportConfig): Transport {
     const balancer = new RpcBalancer(config);
 
-    const request: EIP1193RequestFn = async ({ method, params }) => {
-        return balancer.request(method, (params as unknown[]) ?? []);
-    };
-
-    return custom({ request });
+    return custom({
+        async request({ method, params }: { method: string; params?: unknown }) {
+            return balancer.request(method, (params as unknown[]) ?? []);
+        },
+    } as { request: EIP1193RequestFn });
 }
