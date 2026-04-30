@@ -9,7 +9,7 @@ const currentLang = "EN";
 	<button
 		id="lang-toggle"
 		type="button"
-		class="group inline-flex items-center gap-1.5 rounded-md border border-ink/20 px-3 py-2.5 text-[15px] font-medium text-ink hover:border-ink/40 hover:bg-offwhite-200 aria-expanded:border-ink/40 aria-expanded:bg-offwhite-200"
+		class="group inline-flex items-center gap-1.5 rounded-md border border-foreground/20 px-3 py-2.5 text-[15px] font-medium text-foreground hover:border-foreground/40 hover:bg-muted aria-expanded:border-foreground/40 aria-expanded:bg-muted"
 		aria-haspopup="listbox"
 		aria-expanded="false"
 	>
@@ -32,7 +32,7 @@ const currentLang = "EN";
 
 	<ul
 		id="lang-menu"
-		class="absolute right-0 top-full z-10 mt-1 hidden min-w-20 overflow-hidden rounded-md border border-ink/10 bg-offwhite shadow-md"
+		class="absolute right-0 top-full z-10 mt-1 hidden min-w-20 overflow-hidden rounded-md border border-foreground/10 bg-background shadow-md"
 		role="listbox"
 	>
 		{
@@ -45,12 +45,12 @@ const currentLang = "EN";
 							role="option"
 							aria-selected={isCurrent}
 							class:list={[
-								"flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-[14px] hover:bg-offwhite-200",
-								isCurrent ? "font-semibold text-crimson" : "text-ink",
+								"flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-[14px] hover:bg-muted",
+								isCurrent ? "font-semibold text-primary" : "text-foreground",
 							]}
 						>
 							<span>{lang}</span>
-							{isCurrent && <Tulip class="h-3.5 w-3.5 text-crimson" aria-hidden="true" />}
+							{isCurrent && <Tulip class="h-3.5 w-3.5 text-primary" aria-hidden="true" />}
 						</button>
 					</li>
 				);
