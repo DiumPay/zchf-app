@@ -5,6 +5,8 @@
       "@components/*": ["./src/components/*"],
       "@assets/*": ["./src/assets/*"],
       "@layouts/*": ["./src/layouts/*"],
+      "@lib/*": ["./src/lib/*"],
+      "@config/*": ["./src/lib/*"],
       "@pages/*": ["./src/pages/*"]
     }
   },

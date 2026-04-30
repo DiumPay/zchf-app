@@ -2,8 +2,8 @@
 import chFlag from "@assets/flags/ch.svg?url";
 import Menu from "@assets/icons/menu.svg";
 import Close from "@assets/icons/close.svg";
-import Wallet from "@assets/icons/wallet.svg";
 import ModeToggle from "@components/ModeToggle.astro";
+import WalletConnect from "@components/WalletConnect.astro";
 
 const navItems = [
     { label: "Borrow", href: "/" },
@@ -46,13 +46,10 @@ const currentPath = Astro.url.pathname;
 
         <div class="ml-auto flex items-center gap-2">
             <ModeToggle />
-            <button
-                type="button"
-                class="hidden items-center gap-2 rounded-md border border-transparent bg-primary px-5 py-2.5 text-[15px] font-semibold text-[#FAF7F2] dark:text-[#030303] hover:bg-primary-hover md:inline-flex"
-            >
-                <span>Connect</span>
-                <Wallet class="h-4 w-4 text-[#FAF7F2] dark:text-[#030303]" aria-hidden="true" />
-            </button>
+
+            <div class="hidden md:block">
+                <WalletConnect />
+            </div>
 
             <button
                 id="menu-toggle"
@@ -91,13 +88,7 @@ const currentPath = Astro.url.pathname;
             }
         </ul>
         <div class="border-t border-foreground/10 px-4 py-4">
-            <button
-                type="button"
-                class="inline-flex w-full items-center justify-center gap-2 rounded-md border border-transparent bg-primary px-5 py-2.5 text-[15px] font-semibold text-[#FAF7F2] dark:text-[#030303] hover:bg-primary-hover"
-            >
-                <span>Connect</span>
-                <Wallet class="h-4 w-4 text-[#FAF7F2] dark:text-[#030303]" aria-hidden="true" />
-            </button>
+            <WalletConnect fullWidth />
         </div>
     </div>
 </nav>
