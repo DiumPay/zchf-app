@@ -1,324 +1,403 @@
 ---
 import Layout from "@layouts/Layout.astro";
+import Card from "@components/Card.astro";
+import Button from "@components/Button.astro";
+import PiggyBank from "@assets/icons/piggy-bank.svg";
+import Deposit from "@assets/icons/deposit.svg";
+import Withdraw from "@assets/icons/withdraw.svg";
+import Compound from "@assets/icons/compound.svg";
+import { t, getLocale } from "@i18n/t";
+
+const tt = t(Astro.url);
+const locale = getLocale(Astro.url);
+
+const clientStrings = {
+    err_amount: tt("earn_err_amount"),
+    err_wallet_too_low: tt("earn_err_wallet_too_low"),
+    err_saved_too_low: tt("earn_err_saved_too_low"),
+    err_target: tt("earn_err_target"),
+    err_not_connected: tt("wallet_not_connected"),
+    cancelled: tt("common_cancelled"),
+    btn_depositing: tt("earn_btn_depositing"),
+    btn_withdrawing: tt("earn_btn_withdrawing"),
+    btn_compounding: tt("earn_btn_compounding"),
+    toast_deposit_done: tt("earn_toast_deposit_done"),
+    toast_withdraw_done: tt("earn_toast_withdraw_done"),
+    toast_compound_done: tt("earn_toast_compound_done"),
+    status_locked: tt("earn_status_locked"),
+    status_withdrawable: tt("earn_status_withdrawable"),
+};
 ---
 
-<Layout
-    title="Earn | Frankencoin dApp"
-    description="Earn ZCHF!"
->
-    <section style="padding: 24px; max-width: 720px; margin: 0 auto; font-family: monospace; font-size: 14px;">
-        <h1 style="font-size: 22px; margin-bottom: 16px;">Earn (Savings)</h1>
+<Layout title={`${tt("earn_title")} | Frankencoin dApp`} description="Earn ZCHF.">
+    <main class="mx-auto max-w-5xl px-4 py-10 md:px-6 md:py-12">
+        <h1 class="mb-8 flex items-center gap-3 text-[28px] font-bold tracking-tight">
+            <PiggyBank class="h-7 w-7" aria-hidden="true" />
+            {tt("earn_title")}
+        </h1>
 
-        <h2 style="margin-top: 24px;">Module</h2>
-        <div>Current rate: <span id="rate">—</span></div>
-        <div>Next rate: <span id="next-rate">—</span></div>
-        <div>Next change: <span id="next-change">—</span></div>
-        <div>Interest delay: <span id="delay">—</span></div>
-        <div>Current ticks: <span id="ticks">—</span></div>
+        <div class="flex flex-col gap-6">
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <Card title={tt("earn_rate_title")}>
+                    <div class="mb-2 text-[28px] font-bold leading-none">
+                        <span id="rate">—</span>
+                    </div>
+                    <div class="text-[14px] font-normal opacity-80">
+                        {tt("earn_rate_caption")}
+                    </div>
+                </Card>
 
-        <h2 style="margin-top: 24px;">Account</h2>
-        <div>Address: <span id="addr">not connected</span></div>
-        <div>ZCHF balance: <span id="zchf-balance">—</span></div>
-        <div>Allowance (savings): <span id="allowance">—</span></div>
-        <div>Saved: <span id="saved">—</span></div>
-        <div>Account ticks: <span id="acc-ticks">—</span></div>
-        <div>Accrued interest: <span id="accrued">—</span></div>
-        <div>Locked: <span id="locked">—</span></div>
+                <Card title={tt("earn_tvl_title")}>
+                    <div class="mb-2 text-[28px] font-bold leading-none">
+                        <span id="tvl">—</span>
+                    </div>
+                    <div class="text-[14px] font-normal opacity-80">
+                        {tt("earn_tvl_caption")}
+                    </div>
+                </Card>
+            </div>
 
-        <h2 style="margin-top: 24px;">Actions</h2>
-        <div style="display: flex; flex-direction: column; gap: 8px; max-width: 320px;">
-            <input
-                id="amount"
-                type="text"
-                placeholder="amount in ZCHF (e.g. 10)"
-                style="padding: 6px; border: 1px solid #888;"
-            />
-            <button id="btn-approve" type="button" style="padding: 6px;">Approve max</button>
-            <button id="btn-save" type="button" style="padding: 6px;">Save (deposit)</button>
-            <button id="btn-withdraw" type="button" style="padding: 6px;">Withdraw</button>
-            <button id="btn-adjust" type="button" style="padding: 6px;">Adjust to amount</button>
-            <button id="btn-refresh-balance" type="button" style="padding: 6px;">Refresh balance (on-chain)</button>
-            <button id="btn-reload" type="button" style="padding: 6px;">Reload reads</button>
+            <Card title={tt("earn_manage_title")}>
+                <div class="grid grid-cols-1 gap-12 md:grid-cols-2">
+                    <div>
+                        <div class="mb-3 text-[14px] font-bold opacity-70">{tt("earn_balances_heading")}</div>
+                        <div class="space-y-3">
+                            <div class="flex justify-between"><span>{tt("earn_balance_wallet")}</span><span id="wallet-balance">—</span></div>
+                            <div class="flex justify-between"><span>{tt("earn_balance_saved")}</span><span id="saved">—</span></div>
+                            <div class="flex justify-between"><span>{tt("earn_balance_accrued")}</span><span id="accrued">—</span></div>
+                            <div class="flex justify-between border-t border-foreground/10 pt-3"><span class="font-bold">{tt("earn_balance_total")}</span><span id="total" class="font-bold">—</span></div>
+                            <div class="flex justify-between pt-1"><span>{tt("earn_balance_status")}</span><span id="locked">—</span></div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-6">
+                        <div>
+                            <div class="mb-2 flex items-center justify-between text-[14px]">
+                                <label for="amount" class="font-bold opacity-70">{tt("earn_amount_label")}</label>
+                                <div class="flex gap-3">
+                                    <button id="btn-max-wallet" type="button" class="text-primary hover:underline disabled:opacity-50">{tt("earn_max_wallet")}</button>
+                                    <span class="opacity-30">·</span>
+                                    <button id="btn-max-saved" type="button" class="text-primary hover:underline disabled:opacity-50">{tt("earn_max_saved")}</button>
+                                </div>
+                            </div>
+                            <div class="relative">
+                                <input
+                                    id="amount"
+                                    type="text"
+                                    placeholder="0.00"
+                                    class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 pr-16 text-[15px] font-medium focus:border-foreground/40 focus:outline-none disabled:opacity-50"
+                                />
+                                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[14px] opacity-60">ZCHF</span>
+                            </div>
+                            <div id="amount-error" class="mt-2 hidden text-[13px] text-primary">—</div>
+                        </div>
+
+                        <div>
+                            <label class="flex cursor-pointer items-center gap-2 text-[14px]">
+                                <input id="toggle-onbehalf" type="checkbox" class="h-4 w-4" />
+                                <span>{tt("earn_recipient_toggle")}</span>
+                            </label>
+                            <div id="onbehalf-row" class="mt-3 hidden">
+                                <input
+                                    id="target-address"
+                                    type="text"
+                                    placeholder={tt("earn_recipient_placeholder")}
+                                    class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 text-[14px] font-medium focus:border-foreground/40 focus:outline-none"
+                                />
+                            </div>
+                        </div>
+
+                     <!-- Connected: 3 action buttons -->
+                  <div id="actions-connected" class="hidden space-y-3">
+                      <div class="flex gap-3">
+                         <Button id="btn-save" fullWidth>
+                         <Deposit class="h-4 w-4" aria-hidden="true" />
+                         {tt("earn_btn_deposit")}
+                         </Button>
+                         <Button id="btn-withdraw" variant="secondary" fullWidth>
+                         <Withdraw class="h-4 w-4" aria-hidden="true" />
+                         {tt("earn_btn_withdraw")}
+                         </Button>
+                       </div>
+                        <Button id="btn-compound" variant="secondary" fullWidth>
+                       <Compound class="h-4 w-4" aria-hidden="true" />
+                     {tt("earn_btn_compound")}
+                   </Button>
+                 </div>
+
+                        <!-- Disconnected: single Connect button -->
+                        <div id="actions-disconnected">
+                            <Button id="btn-connect" fullWidth>
+                                {tt("wallet_connect")}
+                            </Button>
+                        </div>
+
+                        <p class="text-[13px] leading-relaxed opacity-70">
+                            {tt("earn_footnote")}
+                        </p>
+                    </div>
+                </div>
+            </Card>
         </div>
-
-        <h2 style="margin-top: 24px;">Status</h2>
-        <pre
-            id="status"
-            style="background: #0001; padding: 8px; min-height: 60px; white-space: pre-wrap; word-break: break-all;"></pre>
-    </section>
+    </main>
 </Layout>
 
+<script id="earn-i18n" type="application/json" set:html={JSON.stringify(clientStrings)}></script>
+<script id="earn-locale" type="application/json" set:html={JSON.stringify(locale)}></script>
+
 <script>
-    import { formatUnits, parseUnits, maxUint256, type Address } from "viem";
+    import { formatUnits, parseUnits, maxUint256, isAddress, type Address, erc20Abi } from "viem";
     import { publicClient, makeWalletClient } from "@lib/client";
     import { getOnboard } from "@lib/onboard";
-    import { toast, debugToast } from "@lib/toast";
+    import { toast } from "@lib/toast";
     import { friendlyError } from "@lib/errors";
     import { ADDRESSES } from "@config/addresses";
     import { SAVINGS_ABI } from "@abi/savings";
-    import { erc20Abi } from "viem";
 
-    const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
-        document.getElementById(id) as T;
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+
+    const i18n = JSON.parse($("earn-i18n").textContent || "{}") as Record<string, string>;
+    const locale = JSON.parse($("earn-locale").textContent || '"en"') as string;
 
     const els = {
-        rate: $("rate"),
-        nextRate: $("next-rate"),
-        nextChange: $("next-change"),
-        delay: $("delay"),
-        ticks: $("ticks"),
-        addr: $("addr"),
-        zchfBalance: $("zchf-balance"),
-        allowance: $("allowance"),
-        saved: $("saved"),
-        accTicks: $("acc-ticks"),
-        accrued: $("accrued"),
-        locked: $("locked"),
-        amount: $<HTMLInputElement>("amount"),
-        status: $("status"),
-        btnApprove: $<HTMLButtonElement>("btn-approve"),
+        rate: $("rate"), tvl: $("tvl"), saved: $("saved"), accrued: $("accrued"),
+        walletBalance: $("wallet-balance"), total: $("total"), locked: $("locked"),
+        amount: $<HTMLInputElement>("amount"), amountError: $("amount-error"),
+        toggleOnBehalf: $<HTMLInputElement>("toggle-onbehalf"),
+        onBehalfRow: $("onbehalf-row"), targetAddress: $<HTMLInputElement>("target-address"),
+        actionsConnected: $("actions-connected"),
+        actionsDisconnected: $("actions-disconnected"),
         btnSave: $<HTMLButtonElement>("btn-save"),
         btnWithdraw: $<HTMLButtonElement>("btn-withdraw"),
-        btnAdjust: $<HTMLButtonElement>("btn-adjust"),
-        btnRefreshBalance: $<HTMLButtonElement>("btn-refresh-balance"),
-        btnReload: $<HTMLButtonElement>("btn-reload"),
+        btnCompound: $<HTMLButtonElement>("btn-compound"),
+        btnConnect: $<HTMLButtonElement>("btn-connect"),
+        btnMaxWallet: $<HTMLButtonElement>("btn-max-wallet"),
+        btnMaxSaved: $<HTMLButtonElement>("btn-max-saved"),
     };
 
     let connected: Address | null = null;
+    let walletBalRaw = 0n, savedRaw = 0n, accruedRaw = 0n;
+    let lastIntent: "deposit" | "withdraw" = "deposit";
 
-    const log = (msg: string) => {
-        els.status.textContent =
-            `[${new Date().toLocaleTimeString()}] ${msg}\n` + els.status.textContent;
-        console.log(msg);
+    const numberLocale = ({ en: "en-US", de: "de-CH", fr: "fr-CH", it: "it-CH", es: "es-ES" } as Record<string, string>)[locale] ?? "en-US";
+
+    const fmtZCHF = (v: bigint) =>
+        `${Number(formatUnits(v, 18)).toLocaleString(numberLocale, { maximumFractionDigits: 2 })} ZCHF`;
+    const fmtPct = (v: bigint | number) => `${(Number(v) / 10_000).toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+    const parseAmount = () => {
+        try { return parseUnits(els.amount.value.trim() || "0", 18); }
+        catch { return 0n; }
     };
 
-    const fmtZCHF = (v: bigint) => `${formatUnits(v, 18)} ZCHF`;
-    const fmtPPM = (v: bigint | number) => `${Number(v) / 10_000}% (${v} ppm)`;
-    const fmtTime = (sec: bigint | number) =>
-        new Date(Number(sec) * 1000).toLocaleString();
-    const parseAmount = () => parseUnits(els.amount.value.trim() || "0", 18);
-
-    function requireConnected(): Address {
-        if (!connected) {
-            toast("Wallet not connected", "warning");
-            throw new Error("Wallet not connected");
-        }
-        return connected;
-    }
-
-    function getWalletClient() {
-        const onboard = getOnboard();
-        const w = onboard.state.get().wallets[0];
-        if (!w) throw new Error("Wallet not connected");
+    const getWC = () => {
+        const w = getOnboard().state.get().wallets[0];
+        if (!w) throw new Error(i18n.err_not_connected);
         return makeWalletClient(w.provider);
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tx = async (args: any) => {
+        const hash = await getWC().writeContract(args);
+        await publicClient.waitForTransactionReceipt({ hash });
+        return hash;
+    };
+
+    const lockBtns = (active: HTMLButtonElement, label: string) => {
+        const all = [els.btnSave, els.btnWithdraw, els.btnCompound];
+        const labelEl = active.querySelector(".btn-label") as HTMLElement;
+        const original = labelEl.textContent ?? "";
+        active.dataset.loading = "1";
+        labelEl.textContent = label;
+        all.forEach(b => b.disabled = true);
+        return () => {
+            delete active.dataset.loading;
+            labelEl.textContent = original;
+            all.forEach(b => b.disabled = false);
+        };
+    };
+
+    const run = (btn: HTMLButtonElement, label: string, fn: () => Promise<unknown>) => async () => {
+        const unlock = lockBtns(btn, label);
+        try { await fn(); }
+        catch (e) {
+            const { message, isUserCancel } = friendlyError(e);
+            toast(isUserCancel ? i18n.cancelled : message, isUserCancel ? "info" : "error", isUserCancel ? 2500 : 6500);
+        }
+        finally { unlock(); }
+    };
+
+    const showError = (msg: string | null) => {
+        els.amountError.classList.toggle("hidden", !msg);
+        els.amountError.textContent = msg ?? "";
+    };
+
+    function validate() {
+        if (!connected) return showError(null);
+        const amount = parseAmount();
+        if (amount === 0n) return showError(null);
+        if (lastIntent === "deposit" && amount > walletBalRaw) showError(i18n.err_wallet_too_low);
+        else if (lastIntent === "withdraw" && amount > savedRaw) showError(i18n.err_saved_too_low);
+        else showError(null);
     }
 
     async function loadModule() {
-        const results = await publicClient.multicall({
+        const [rate, tvl] = await publicClient.multicall({
             contracts: [
                 { address: ADDRESSES.savings, abi: SAVINGS_ABI, functionName: "currentRatePPM" },
-                { address: ADDRESSES.savings, abi: SAVINGS_ABI, functionName: "nextRatePPM" },
-                { address: ADDRESSES.savings, abi: SAVINGS_ABI, functionName: "nextChange" },
-                { address: ADDRESSES.savings, abi: SAVINGS_ABI, functionName: "INTEREST_DELAY" },
-                { address: ADDRESSES.savings, abi: SAVINGS_ABI, functionName: "currentTicks" },
+                { address: ADDRESSES.zchf, abi: erc20Abi, functionName: "balanceOf", args: [ADDRESSES.savings] },
             ],
             allowFailure: false,
         });
-        const [rate, nextRate, nextChange, delay, ticks] = results;
-        els.rate.textContent = fmtPPM(rate);
-        els.nextRate.textContent = fmtPPM(nextRate);
-        els.nextChange.textContent = fmtTime(nextChange);
-        els.delay.textContent = `${delay}s (${Number(delay) / 86400} days)`;
-        els.ticks.textContent = String(ticks);
+        els.rate.textContent = fmtPct(rate);
+        els.tvl.textContent = fmtZCHF(tvl);
     }
 
     async function loadAccount(addr: Address) {
-        const results = await publicClient.multicall({
+        const [walletBal, account, accrued, currTicks, rate] = await publicClient.multicall({
             contracts: [
                 { address: ADDRESSES.zchf, abi: erc20Abi, functionName: "balanceOf", args: [addr] },
-                { address: ADDRESSES.zchf, abi: erc20Abi, functionName: "allowance", args: [addr, ADDRESSES.savings] },
                 { address: ADDRESSES.savings, abi: SAVINGS_ABI, functionName: "savings", args: [addr] },
                 { address: ADDRESSES.savings, abi: SAVINGS_ABI, functionName: "accruedInterest", args: [addr] },
                 { address: ADDRESSES.savings, abi: SAVINGS_ABI, functionName: "currentTicks" },
+                { address: ADDRESSES.savings, abi: SAVINGS_ABI, functionName: "currentRatePPM" },
             ],
             allowFailure: false,
         });
-        const [zchfBal, allow, account, accrued, currTicks] = results;
         const [saved, accTicks] = account;
+        walletBalRaw = walletBal; savedRaw = saved; accruedRaw = accrued;
 
-        els.zchfBalance.textContent = fmtZCHF(zchfBal);
-        els.allowance.textContent = fmtZCHF(allow);
+        els.walletBalance.textContent = fmtZCHF(walletBal);
         els.saved.textContent = fmtZCHF(saved);
-        els.accTicks.textContent = String(accTicks);
         els.accrued.textContent = fmtZCHF(accrued);
+        els.total.textContent = fmtZCHF(saved + accrued);
+        els.locked.textContent = accTicks > currTicks
+            ? `${i18n.status_locked} ${(accTicks - currTicks) / BigInt(rate || 1)}s`
+            : i18n.status_withdrawable;
 
-        if (accTicks > currTicks) {
-            const rate = await publicClient.readContract({
-                address: ADDRESSES.savings,
-                abi: SAVINGS_ABI,
-                functionName: "currentRatePPM",
-            });
-            const remainingSec = (accTicks - currTicks) / BigInt(rate || 1);
-            els.locked.textContent = `locked for ${remainingSec}s`;
-        } else {
-            els.locked.textContent = "unlocked";
-        }
+        validate();
     }
 
     function clearAccount() {
-        els.addr.textContent = "not connected";
-        els.zchfBalance.textContent = "—";
-        els.allowance.textContent = "—";
+        walletBalRaw = 0n; savedRaw = 0n; accruedRaw = 0n;
+        els.walletBalance.textContent = "—";
         els.saved.textContent = "—";
-        els.accTicks.textContent = "—";
         els.accrued.textContent = "—";
+        els.total.textContent = "—";
         els.locked.textContent = "—";
+        els.amount.value = "";
+        showError(null);
     }
 
-    async function reloadAll() {
-        await loadModule();
-        if (connected) await loadAccount(connected);
+    function setConnectedUI(isConnected: boolean) {
+        // Inputs
+        els.amount.disabled = !isConnected;
+        els.toggleOnBehalf.disabled = !isConnected;
+        els.targetAddress.disabled = !isConnected;
+        els.btnMaxWallet.disabled = !isConnected;
+        els.btnMaxSaved.disabled = !isConnected;
+
+        // Swap action area
+        els.actionsConnected.classList.toggle("hidden", !isConnected);
+        els.actionsDisconnected.classList.toggle("hidden", isConnected);
     }
 
-    async function approveMax() {
-        const addr = requireConnected();
-        const wc = getWalletClient();
-        log("Sending approve(max)...");
-        const hash = await wc.writeContract({
-            address: ADDRESSES.zchf,
-            abi: erc20Abi,
-            functionName: "approve",
-            args: [ADDRESSES.savings, maxUint256],
-            account: addr,
-            chain: null,
+    function getTarget(): Address {
+        if (els.toggleOnBehalf.checked) {
+            const v = els.targetAddress.value.trim();
+            if (!isAddress(v)) throw new Error(i18n.err_target);
+            return v as Address;
+        }
+        return connected!;
+    }
+
+    async function approveIfNeeded(amount: bigint) {
+        const allowance = await publicClient.readContract({
+            address: ADDRESSES.zchf, abi: erc20Abi, functionName: "allowance",
+            args: [connected!, ADDRESSES.savings],
         });
-        log(`approve tx: ${hash}`);
-        await publicClient.waitForTransactionReceipt({ hash });
-        log("approve confirmed");
-        toast("Approve confirmed", "success");
-        await loadAccount(addr);
+        if (allowance >= amount) return;
+        await tx({
+            address: ADDRESSES.zchf, abi: erc20Abi, functionName: "approve",
+            args: [ADDRESSES.savings, maxUint256], account: connected!, chain: null,
+        });
     }
 
     async function save() {
-        const addr = requireConnected();
+        if (!connected) throw new Error(i18n.err_not_connected);
         const amount = parseAmount();
-        if (amount <= 0n) { toast("amount must be > 0", "warning"); return; }
-        const wc = getWalletClient();
-        log(`Sending save(${amount})...`);
-        const hash = await wc.writeContract({
-            address: ADDRESSES.savings,
-            abi: SAVINGS_ABI,
-            functionName: "save",
-            args: [amount],
-            account: addr,
-            chain: null,
+        if (amount <= 0n) throw new Error(i18n.err_amount);
+        if (amount > walletBalRaw) throw new Error(i18n.err_wallet_too_low);
+        await approveIfNeeded(amount);
+        await tx({
+            address: ADDRESSES.savings, abi: SAVINGS_ABI, functionName: "save",
+            args: [amount], account: connected, chain: null,
         });
-        log(`save tx: ${hash}`);
-        await publicClient.waitForTransactionReceipt({ hash });
-        log("save confirmed");
-        toast("Save confirmed", "success");
-        await loadAccount(addr);
+        toast(i18n.toast_deposit_done, "success");
+        await loadAccount(connected);
     }
 
     async function withdraw() {
-        const addr = requireConnected();
+        if (!connected) throw new Error(i18n.err_not_connected);
         const amount = parseAmount();
-        if (amount <= 0n) { toast("amount must be > 0", "warning"); return; }
-        const wc = getWalletClient();
-        log(`Sending withdraw(${addr}, ${amount})...`);
-        const hash = await wc.writeContract({
-            address: ADDRESSES.savings,
-            abi: SAVINGS_ABI,
-            functionName: "withdraw",
-            args: [addr, amount],
-            account: addr,
-            chain: null,
+        if (amount <= 0n) throw new Error(i18n.err_amount);
+        if (amount > savedRaw) throw new Error(i18n.err_saved_too_low);
+        await tx({
+            address: ADDRESSES.savings, abi: SAVINGS_ABI, functionName: "withdraw",
+            args: [getTarget(), amount], account: connected, chain: null,
         });
-        log(`withdraw tx: ${hash}`);
-        await publicClient.waitForTransactionReceipt({ hash });
-        log("withdraw confirmed");
-        toast("Withdraw confirmed", "success");
-        await loadAccount(addr);
+        toast(i18n.toast_withdraw_done, "success");
+        await loadAccount(connected);
     }
 
-    async function adjust() {
-        const addr = requireConnected();
-        const target = parseAmount();
-        const wc = getWalletClient();
-        log(`Sending adjust(${target})...`);
-        const hash = await wc.writeContract({
-            address: ADDRESSES.savings,
-            abi: SAVINGS_ABI,
-            functionName: "adjust",
-            args: [target],
-            account: addr,
-            chain: null,
+    async function compound() {
+        if (!connected) throw new Error(i18n.err_not_connected);
+        await tx({
+            address: ADDRESSES.savings, abi: SAVINGS_ABI, functionName: "refreshBalance",
+            args: [connected], account: connected, chain: null,
         });
-        log(`adjust tx: ${hash}`);
-        await publicClient.waitForTransactionReceipt({ hash });
-        log("adjust confirmed");
-        toast("Adjust confirmed", "success");
-        await loadAccount(addr);
+        toast(i18n.toast_compound_done, "success");
+        await loadAccount(connected);
     }
 
-    async function refreshBalance() {
-        const addr = requireConnected();
-        const wc = getWalletClient();
-        log("Sending refreshBalance...");
-        const hash = await wc.writeContract({
-            address: ADDRESSES.savings,
-            abi: SAVINGS_ABI,
-            functionName: "refreshBalance",
-            args: [addr],
-            account: addr,
-            chain: null,
-        });
-        log(`refreshBalance tx: ${hash}`);
-        await publicClient.waitForTransactionReceipt({ hash });
-        log("refreshBalance confirmed");
-        toast("Refresh confirmed", "success");
-        await loadAccount(addr);
-    }
+    els.btnConnect.addEventListener("click", () => {
+        getOnboard().connectWallet();
+    });
 
-    function safeRun(fn: () => Promise<unknown>) {
-        return async () => {
-            try {
-                await fn();
-            } catch (e) {
-                const { message, isUserCancel } = friendlyError(e);
-                log(`Error: ${message}`);
-                if (isUserCancel) {
-                    toast("Cancelled", "info", 2500);
-                } else {
-                    toast(message, "error", 6500);
-                }
-            }
-        };
-    }
+    els.btnSave.addEventListener("click", () => {
+        lastIntent = "deposit"; validate();
+        run(els.btnSave, i18n.btn_depositing, save)();
+    });
+    els.btnWithdraw.addEventListener("click", () => {
+        lastIntent = "withdraw"; validate();
+        run(els.btnWithdraw, i18n.btn_withdrawing, withdraw)();
+    });
+    els.btnCompound.addEventListener("click", run(els.btnCompound, i18n.btn_compounding, compound));
 
-    els.btnApprove.addEventListener("click", safeRun(approveMax));
-    els.btnSave.addEventListener("click", safeRun(save));
-    els.btnWithdraw.addEventListener("click", safeRun(withdraw));
-    els.btnAdjust.addEventListener("click", safeRun(adjust));
-    els.btnRefreshBalance.addEventListener("click", safeRun(refreshBalance));
-    els.btnReload.addEventListener("click", safeRun(reloadAll));
+    els.btnMaxWallet.addEventListener("click", () => {
+        els.amount.value = formatUnits(walletBalRaw, 18); lastIntent = "deposit"; validate();
+    });
+    els.btnMaxSaved.addEventListener("click", () => {
+        els.amount.value = formatUnits(savedRaw, 18); lastIntent = "withdraw"; validate();
+    });
 
-    const onboard = getOnboard();
-    onboard.state.select("wallets").subscribe((wallets) => {
+    els.amount.addEventListener("input", validate);
+    els.toggleOnBehalf.addEventListener("change", () => {
+        els.onBehalfRow.classList.toggle("hidden", !els.toggleOnBehalf.checked);
+    });
+
+    getOnboard().state.select("wallets").subscribe((wallets) => {
         const w = wallets[0];
-        if (w && w.accounts[0]) {
+        if (w?.accounts[0]) {
             connected = w.accounts[0].address as Address;
-            els.addr.textContent = connected;
-            loadAccount(connected).catch((e) => {
-                const { message } = friendlyError(e);
-                log(`Account load error: ${message}`);
-                debugToast(`Account load error: ${message}`, "error");
-            });
+            setConnectedUI(true);
+            loadAccount(connected).catch(() => {});
         } else {
             connected = null;
             clearAccount();
+            setConnectedUI(false);
         }
     });
 
-    safeRun(reloadAll)();
+    setConnectedUI(false);
+    loadModule().catch(() => {});
 </script>

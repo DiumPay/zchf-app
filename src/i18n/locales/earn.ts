@@ -1,0 +1,224 @@
+//
+// Strings for the /earn page (savings module).
+
+export const earn = {
+    en: {
+        earn_title: "Earn",
+        earn_disconnected: "Connect your wallet to deposit, withdraw, and view your balance.",
+
+        earn_rate_title: "Current savings rate",
+        earn_rate_caption: "Interest accrues as time passes.",
+        earn_tvl_title: "Total value locked",
+        earn_tvl_caption: "ZCHF staked across all savers.",
+
+        earn_manage_title: "Manage your savings",
+
+        earn_balances_heading: "Your balances",
+        earn_balance_wallet: "Wallet balance",
+        earn_balance_saved: "Deposited in savings",
+        earn_balance_accrued: "Interest to be collected",
+        earn_balance_total: "Your total balance",
+        earn_balance_status: "Status",
+        earn_status_locked: "Locked",
+        earn_status_withdrawable: "Withdrawable",
+
+        earn_amount_label: "Amount",
+        earn_max_wallet: "Max wallet",
+        earn_max_saved: "Max saved",
+        earn_recipient_toggle: "Use a different recipient address",
+        earn_recipient_placeholder: "0x… target address",
+
+        earn_btn_deposit: "Deposit",
+        earn_btn_withdraw: "Withdraw",
+        earn_btn_compound: "Compound",
+        earn_btn_depositing: "Depositing…",
+        earn_btn_withdrawing: "Withdrawing…",
+        earn_btn_compounding: "Compounding…",
+
+        earn_toast_deposit_done: "Deposit confirmed",
+        earn_toast_withdraw_done: "Withdraw confirmed",
+        earn_toast_compound_done: "Interest compounded",
+
+        earn_err_amount: "Enter an amount",
+        earn_err_wallet_too_low: "Not enough ZCHF in your wallet.",
+        earn_err_saved_too_low: "Not enough deposited in savings.",
+        earn_err_target: "Invalid target address",
+        earn_footnote: "New deposits lock for up to 3 days. Compound to add earned interest into your balance.",
+    },
+
+    de: {
+        earn_title: "Sparen",
+        earn_disconnected: "Verbinden Sie Ihre Wallet, um einzuzahlen, abzuheben und Ihren Kontostand einzusehen.",
+
+        earn_rate_title: "Aktueller Sparzins",
+        earn_rate_caption: "Zinsen fallen laufend an.",
+        earn_tvl_title: "Verwaltetes Vermögen",
+        earn_tvl_caption: "Total in der Sparlösung gehaltene ZCHF.",
+
+        earn_manage_title: "Sparen verwalten",
+
+        earn_balances_heading: "Ihre Bestände",
+        earn_balance_wallet: "Wallet-Saldo",
+        earn_balance_saved: "Im Sparen eingezahlt",
+        earn_balance_accrued: "Aufgelaufene Zinsen",
+        earn_balance_total: "Gesamtbestand",
+        earn_balance_status: "Status",
+        earn_status_locked: "Gesperrt",
+        earn_status_withdrawable: "Verfügbar",
+
+        earn_amount_label: "Betrag",
+        earn_max_wallet: "Wallet-Max.",
+        earn_max_saved: "Spar-Max.",
+        earn_recipient_toggle: "Andere Empfängeradresse verwenden",
+        earn_recipient_placeholder: "0x… Zieladresse",
+
+        earn_btn_deposit: "Einzahlen",
+        earn_btn_withdraw: "Auszahlen",
+        earn_btn_compound: "Zinsen gutschreiben",
+        earn_btn_depositing: "Einzahlung läuft…",
+        earn_btn_withdrawing: "Auszahlung läuft…",
+        earn_btn_compounding: "Wird gutgeschrieben…",
+
+        earn_toast_deposit_done: "Einzahlung bestätigt",
+        earn_toast_withdraw_done: "Auszahlung bestätigt",
+        earn_toast_compound_done: "Zinsen gutgeschrieben",
+
+        earn_err_amount: "Bitte Betrag eingeben",
+        earn_err_wallet_too_low: "Nicht genügend ZCHF in der Wallet.",
+        earn_err_saved_too_low: "Nicht genügend Guthaben im Sparen.",
+        earn_err_target: "Ungültige Zieladresse",
+        earn_footnote: "Neue Einzahlungen sind bis zu 3 Tage gesperrt. Mit «Zinsen gutschreiben» werden aufgelaufene Zinsen Ihrem Bestand hinzugefügt.",
+    },
+
+    fr: {
+        earn_title: "Épargner",
+        earn_disconnected: "Connectez votre portefeuille pour déposer, retirer et consulter votre solde.",
+
+        earn_rate_title: "Taux d'épargne actuel",
+        earn_rate_caption: "Les intérêts s'accumulent au fil du temps.",
+        earn_tvl_title: "Encours total",
+        earn_tvl_caption: "ZCHF placés sur le module d'épargne.",
+
+        earn_manage_title: "Gérer votre épargne",
+
+        earn_balances_heading: "Vos avoirs",
+        earn_balance_wallet: "Solde du portefeuille",
+        earn_balance_saved: "Déposé dans l'épargne",
+        earn_balance_accrued: "Intérêts à percevoir",
+        earn_balance_total: "Solde total",
+        earn_balance_status: "Statut",
+        earn_status_locked: "Bloqué",
+        earn_status_withdrawable: "Disponible",
+
+        earn_amount_label: "Montant",
+        earn_max_wallet: "Max portefeuille",
+        earn_max_saved: "Max épargne",
+        earn_recipient_toggle: "Utiliser une autre adresse de destinataire",
+        earn_recipient_placeholder: "0x… adresse de destination",
+
+        earn_btn_deposit: "Déposer",
+        earn_btn_withdraw: "Retirer",
+        earn_btn_compound: "Capitaliser",
+        earn_btn_depositing: "Dépôt en cours…",
+        earn_btn_withdrawing: "Retrait en cours…",
+        earn_btn_compounding: "Capitalisation…",
+
+        earn_toast_deposit_done: "Dépôt confirmé",
+        earn_toast_withdraw_done: "Retrait confirmé",
+        earn_toast_compound_done: "Intérêts capitalisés",
+
+        earn_err_amount: "Veuillez saisir un montant",
+        earn_err_wallet_too_low: "ZCHF insuffisants dans votre portefeuille.",
+        earn_err_saved_too_low: "Solde d'épargne insuffisant.",
+        earn_err_target: "Adresse de destination invalide",
+        earn_footnote: "Les nouveaux dépôts sont bloqués jusqu'à 3 jours. La capitalisation ajoute les intérêts perçus à votre solde.",
+    },
+
+    it: {
+        earn_title: "Risparmi",
+        earn_disconnected: "Connetti il tuo wallet per depositare, prelevare e visualizzare il saldo.",
+
+        earn_rate_title: "Tasso di risparmio attuale",
+        earn_rate_caption: "Gli interessi maturano nel tempo.",
+        earn_tvl_title: "Patrimonio in deposito",
+        earn_tvl_caption: "ZCHF complessivamente depositati nel risparmio.",
+
+        earn_manage_title: "Gestisci i tuoi risparmi",
+
+        earn_balances_heading: "I tuoi saldi",
+        earn_balance_wallet: "Saldo del wallet",
+        earn_balance_saved: "Depositato nel risparmio",
+        earn_balance_accrued: "Interessi maturati",
+        earn_balance_total: "Saldo totale",
+        earn_balance_status: "Stato",
+        earn_status_locked: "Bloccato",
+        earn_status_withdrawable: "Disponibile",
+
+        earn_amount_label: "Importo",
+        earn_max_wallet: "Max wallet",
+        earn_max_saved: "Max risparmio",
+        earn_recipient_toggle: "Usa un altro indirizzo di destinazione",
+        earn_recipient_placeholder: "0x… indirizzo destinazione",
+
+        earn_btn_deposit: "Deposita",
+        earn_btn_withdraw: "Preleva",
+        earn_btn_compound: "Capitalizza",
+        earn_btn_depositing: "Deposito in corso…",
+        earn_btn_withdrawing: "Prelievo in corso…",
+        earn_btn_compounding: "Capitalizzazione…",
+
+        earn_toast_deposit_done: "Deposito confermato",
+        earn_toast_withdraw_done: "Prelievo confermato",
+        earn_toast_compound_done: "Interessi capitalizzati",
+
+        earn_err_amount: "Inserisci un importo",
+        earn_err_wallet_too_low: "ZCHF insufficienti nel wallet.",
+        earn_err_saved_too_low: "Saldo nel risparmio insufficiente.",
+        earn_err_target: "Indirizzo destinazione non valido",
+        earn_footnote: "I nuovi depositi sono bloccati fino a 3 giorni. Capitalizzando, gli interessi maturati vengono aggiunti al saldo.",
+    },
+
+    es: {
+        earn_title: "Ahorros",
+        earn_disconnected: "Conecta tu wallet para depositar, retirar y ver tu saldo.",
+
+        earn_rate_title: "Tipo de interés actual",
+        earn_rate_caption: "Los intereses se acumulan con el tiempo.",
+        earn_tvl_title: "Patrimonio depositado",
+        earn_tvl_caption: "ZCHF totales en el módulo de ahorro.",
+
+        earn_manage_title: "Gestionar tus ahorros",
+
+        earn_balances_heading: "Tus saldos",
+        earn_balance_wallet: "Saldo del wallet",
+        earn_balance_saved: "Depositado en ahorro",
+        earn_balance_accrued: "Intereses por cobrar",
+        earn_balance_total: "Saldo total",
+        earn_balance_status: "Estado",
+        earn_status_locked: "Bloqueado",
+        earn_status_withdrawable: "Disponible",
+
+        earn_amount_label: "Importe",
+        earn_max_wallet: "Máx. wallet",
+        earn_max_saved: "Máx. ahorro",
+        earn_recipient_toggle: "Usar otra dirección de destino",
+        earn_recipient_placeholder: "0x… dirección de destino",
+
+        earn_btn_deposit: "Depositar",
+        earn_btn_withdraw: "Retirar",
+        earn_btn_compound: "Capitalizar",
+        earn_btn_depositing: "Depositando…",
+        earn_btn_withdrawing: "Retirando…",
+        earn_btn_compounding: "Capitalizando…",
+
+        earn_toast_deposit_done: "Depósito confirmado",
+        earn_toast_withdraw_done: "Retirada confirmada",
+        earn_toast_compound_done: "Intereses capitalizados",
+
+        earn_err_amount: "Introduce un importe",
+        earn_err_wallet_too_low: "ZCHF insuficientes en tu wallet.",
+        earn_err_saved_too_low: "Saldo de ahorro insuficiente.",
+        earn_err_target: "Dirección de destino no válida",
+        earn_footnote: "Los nuevos depósitos quedan bloqueados hasta 3 días. Al capitalizar, los intereses generados se añaden al saldo.",
+    },
+} as const;

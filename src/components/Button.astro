@@ -1,0 +1,57 @@
+---
+// src/components/Button.astro
+//
+// Variants: primary (red CTA), secondary (bordered)
+// Loading state: pass `loading` to disable + show spinner.
+//   In JS, toggle via: btn.dataset.loading = "1"  /  delete btn.dataset.loading
+
+import Spinner from "@components/Spinner.astro";
+
+interface Props {
+    id?: string;
+    type?: "button" | "submit" | "reset";
+    variant?: "primary" | "secondary";
+    fullWidth?: boolean;
+    disabled?: boolean;
+    class?: string;
+}
+
+const {
+    id,
+    type = "button",
+    variant = "primary",
+    fullWidth = false,
+    disabled = false,
+    class: className = "",
+} = Astro.props;
+
+const base =
+    "relative inline-flex items-center justify-center gap-2 rounded-md px-5 py-2.5 text-[15px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 data-[loading]:cursor-wait";
+
+const variants = {
+    primary:
+        "border border-transparent bg-primary text-[#FAF7F2] dark:text-[#030303] hover:bg-primary-hover",
+    secondary:
+        "border border-foreground/20 bg-background text-foreground hover:border-foreground/40 hover:bg-muted",
+};
+---
+
+<button
+    id={id}
+    type={type}
+    disabled={disabled}
+    class:list={[base, variants[variant], fullWidth ? "w-full" : "", className]}
+>
+    <span class="btn-spinner hidden" aria-hidden="true">
+        <Spinner size={16} />
+    </span>
+    <span class="btn-label inline-flex items-center gap-2">
+        <slot />
+    </span>
+</button>
+
+<style>
+    button[data-loading] .btn-spinner {
+        display: inline-flex;
+    }
+</style>

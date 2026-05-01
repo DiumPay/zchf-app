@@ -12,7 +12,6 @@
     "astro": "astro"
   },
   "dependencies": {
-    "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/manrope": "^5.2.8",
     "@tailwindcss/vite": "^4.2.4",
     "@web3-onboard/core": "^2.24.1",
