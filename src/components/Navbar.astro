@@ -3,13 +3,19 @@ import chFlag from "@assets/flags/ch.svg?url";
 import Menu from "@assets/icons/menu.svg";
 import Close from "@assets/icons/close.svg";
 import ModeToggle from "@components/ModeToggle.astro";
+import LanguageSelector from "@components/LanguageSelector.astro";
 import WalletConnect from "@components/WalletConnect.astro";
+import { t, getLocale, localePath } from "@i18n/t";
+import type { MessageKey } from "@i18n/messages";
 
-const navItems = [
-    { label: "Borrow", href: "/" },
-    { label: "Earn", href: "/earn" },
-    { label: "Dashboard", href: "#" },
-    { label: "Bridge", href: "#" },
+const tt = t(Astro.url);
+const locale = getLocale(Astro.url);
+
+const navItems: { key: MessageKey; path: string }[] = [
+    { key: "nav_borrow", path: "/" },
+    { key: "nav_earn", path: "/earn" },
+    { key: "nav_dashboard", path: "#" },
+    { key: "nav_bridge", path: "#" },
 ];
 
 const currentPath = Astro.url.pathname;
@@ -17,7 +23,7 @@ const currentPath = Astro.url.pathname;
 
 <nav class="border-b border-foreground/10 bg-background">
     <div class="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4 md:gap-10 md:px-6">
-        <a href="/" class="flex items-center gap-2.5 text-foreground">
+        <a href={localePath(locale, "/")} class="flex items-center gap-2.5 text-foreground">
             <img src={chFlag} alt="" class="h-5 w-5 rounded-sm" aria-hidden="true" />
             <span class="text-[20px] font-bold tracking-tight">Frankencoin</span>
         </a>
@@ -25,18 +31,19 @@ const currentPath = Astro.url.pathname;
         <ul class="hidden items-center gap-8 md:flex">
             {
                 navItems.map((item) => {
-                    const isActive = currentPath === item.href;
+                    const href = localePath(locale, item.path);
+                    const isActive = currentPath === href;
                     return (
                         <li>
                             <a
-                                href={item.href}
+                                href={href}
                                 class:list={[
                                     "text-[16px] hover:text-primary",
                                     isActive ? "font-semibold text-primary" : "font-medium text-foreground",
                                 ]}
                                 aria-current={isActive ? "page" : undefined}
                             >
-                                {item.label}
+                                {tt(item.key)}
                             </a>
                         </li>
                     );
@@ -46,6 +53,7 @@ const currentPath = Astro.url.pathname;
 
         <div class="ml-auto flex items-center gap-2">
             <ModeToggle />
+            <LanguageSelector />
 
             <div class="hidden md:block">
                 <WalletConnect />
@@ -55,7 +63,7 @@ const currentPath = Astro.url.pathname;
                 id="menu-toggle"
                 type="button"
                 class="inline-flex items-center justify-center text-foreground md:hidden"
-                aria-label="Toggle menu"
+                aria-label={tt("menu_toggle")}
                 aria-expanded="false"
                 aria-controls="mobile-menu"
             >
@@ -69,18 +77,19 @@ const currentPath = Astro.url.pathname;
         <ul class="flex flex-col">
             {
                 navItems.map((item) => {
-                    const isActive = currentPath === item.href;
+                    const href = localePath(locale, item.path);
+                    const isActive = currentPath === href;
                     return (
                         <li>
                             <a
-                                href={item.href}
+                                href={href}
                                 class:list={[
                                     "block px-4 py-4 text-[16px] hover:bg-muted",
                                     isActive ? "font-semibold text-primary" : "font-medium text-foreground",
                                 ]}
                                 aria-current={isActive ? "page" : undefined}
                             >
-                                {item.label}
+                                {tt(item.key)}
                             </a>
                         </li>
                     );

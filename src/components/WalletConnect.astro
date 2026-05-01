@@ -1,11 +1,13 @@
 ---
 import Wallet from "@assets/icons/wallet.svg";
+import { t } from "@i18n/t";
 
 interface Props {
     fullWidth?: boolean;
 }
 
 const { fullWidth = false } = Astro.props;
+const tt = t(Astro.url);
 
 const baseClasses =
     "items-center gap-2 rounded-md border border-transparent bg-primary px-5 py-2.5 text-[15px] font-semibold text-[#FAF7F2] dark:text-[#030303] hover:bg-primary-hover";
@@ -13,16 +15,17 @@ const baseClasses =
 const layoutClasses = fullWidth ? "inline-flex w-full justify-center" : "inline-flex";
 ---
 
-<button
-    type="button"
-    class:list={["wallet-connect-btn", baseClasses, layoutClasses]}
->
-    <span class="wallet-connect-label">Connect</span>
+<button type="button" class:list={["wallet-connect-btn", baseClasses, layoutClasses]}>
+    <span class="wallet-connect-label">{tt("wallet_connect")}</span>
     <Wallet class="h-4 w-4 text-background dark:text-[#030303]" aria-hidden="true" />
 </button>
 
 <script>
     import { getOnboard } from "@lib/onboard";
+    import { t } from "@i18n/t";
+
+    // Re-detect locale client-side from current URL
+    const tt = t(window.location.pathname);
 
     const SHORT = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
@@ -34,7 +37,13 @@ const layoutClasses = fullWidth ? "inline-flex w-full justify-center" : "inline-
             .forEach((span) => (span.textContent = text));
     }
 
-    function applyState(wallets: ReturnType<typeof getOnboard>["state"] extends { get: () => infer S } ? (S extends { wallets: infer W } ? W : never) : never) {
+    function applyState(
+        wallets: ReturnType<typeof getOnboard>["state"] extends { get: () => infer S }
+            ? S extends { wallets: infer W }
+                ? W
+                : never
+            : never
+    ) {
         if (wallets.length > 0) {
             const w = wallets[0];
             connectedLabel = w.label;
@@ -42,7 +51,7 @@ const layoutClasses = fullWidth ? "inline-flex w-full justify-center" : "inline-
             setAllLabels(address ? SHORT(address) : connectedLabel);
         } else {
             connectedLabel = null;
-            setAllLabels("Connect");
+            setAllLabels(tt("wallet_connect"));
         }
     }
 
@@ -50,7 +59,7 @@ const layoutClasses = fullWidth ? "inline-flex w-full justify-center" : "inline-
         const onboard = getOnboard();
 
         if (connectedLabel) {
-            const confirmed = window.confirm("Are you sure you want to disconnect your wallet?");
+            const confirmed = window.confirm(tt("wallet_disconnect_confirm"));
             if (!confirmed) return;
             await onboard.disconnectWallet({ label: connectedLabel });
             return;
@@ -63,11 +72,8 @@ const layoutClasses = fullWidth ? "inline-flex w-full justify-center" : "inline-
         .querySelectorAll<HTMLButtonElement>(".wallet-connect-btn")
         .forEach((btn) => btn.addEventListener("click", handleClick));
 
-    // Subscribe to wallet state - fires on initial autoConnect AND on connect/disconnect
     const onboard = getOnboard();
     const wallets$ = onboard.state.select("wallets");
     wallets$.subscribe((wallets) => applyState(wallets));
-
-    // Apply current state immediately in case subscription missed initial value
     applyState(onboard.state.get().wallets);
 </script>

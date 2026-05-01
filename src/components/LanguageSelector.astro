@@ -1,78 +1,79 @@
 ---
 import Tulip from "@assets/icons/tulip.svg";
+import { SUPPORTED_LOCALES, getLocale, switchLocaleUrl } from "@i18n/t";
 
-const languages = ["EN", "DE", "FR", "IT", "ES"];
-const currentLang = "EN";
+const currentLocale = getLocale(Astro.url);
 ---
 
 <div class="relative">
-	<button
-		id="lang-toggle"
-		type="button"
-		class="group inline-flex items-center gap-1.5 rounded-md border border-foreground/20 px-3 py-2.5 text-[15px] font-medium text-foreground hover:border-foreground/40 hover:bg-muted aria-expanded:border-foreground/40 aria-expanded:bg-muted"
-		aria-haspopup="listbox"
-		aria-expanded="false"
-	>
-		<span>{currentLang}</span>
-		<svg
-			viewBox="0 0 12 12"
-			class="h-3 w-3 transition-transform duration-150 group-aria-expanded:rotate-180"
-			aria-hidden="true"
-		>
-			<path
-				d="M3 4.5 L6 7.5 L9 4.5"
-				stroke="currentColor"
-				stroke-width="1.5"
-				fill="none"
-				stroke-linecap="round"
-				stroke-linejoin="round"
-			/>
-		</svg>
-	</button>
+    <button
+        id="lang-toggle"
+        type="button"
+        class="group inline-flex items-center gap-1.5 rounded-md border border-foreground/20 px-3 py-2.5 text-[15px] font-medium text-foreground hover:border-foreground/40 hover:bg-muted aria-expanded:border-foreground/40 aria-expanded:bg-muted"
+        aria-haspopup="listbox"
+        aria-expanded="false"
+    >
+        <span>{currentLocale.toUpperCase()}</span>
+        <svg
+            viewBox="0 0 12 12"
+            class="h-3 w-3 transition-transform duration-150 group-aria-expanded:rotate-180"
+            aria-hidden="true"
+        >
+            <path
+                d="M3 4.5 L6 7.5 L9 4.5"
+                stroke="currentColor"
+                stroke-width="1.5"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+            />
+        </svg>
+    </button>
 
-	<ul
-		id="lang-menu"
-		class="absolute right-0 top-full z-10 mt-1 hidden min-w-20 overflow-hidden rounded-md border border-foreground/10 bg-background shadow-md"
-		role="listbox"
-	>
-		{
-			languages.map((lang) => {
-				const isCurrent = lang === currentLang;
-				return (
-					<li>
-						<button
-							type="button"
-							role="option"
-							aria-selected={isCurrent}
-							class:list={[
-								"flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-[14px] hover:bg-muted",
-								isCurrent ? "font-semibold text-primary" : "text-foreground",
-							]}
-						>
-							<span>{lang}</span>
-							{isCurrent && <Tulip class="h-3.5 w-3.5 text-primary" aria-hidden="true" />}
-						</button>
-					</li>
-				);
-			})
-		}
-	</ul>
+    <ul
+        id="lang-menu"
+        class="absolute right-0 top-full z-10 mt-1 hidden min-w-20 overflow-hidden rounded-md border border-foreground/10 bg-background shadow-md"
+        role="listbox"
+    >
+        {
+            SUPPORTED_LOCALES.map((lang) => {
+                const isCurrent = lang === currentLocale;
+                const href = switchLocaleUrl(Astro.url, lang);
+                return (
+                    <li>
+                        <a
+                            href={href}
+                            role="option"
+                            aria-selected={isCurrent}
+                            class:list={[
+                                "flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-[14px] hover:bg-muted",
+                                isCurrent ? "font-semibold text-primary" : "text-foreground",
+                            ]}
+                        >
+                            <span>{lang.toUpperCase()}</span>
+                            {isCurrent && <Tulip class="h-3.5 w-3.5 text-primary" aria-hidden="true" />}
+                        </a>
+                    </li>
+                );
+            })
+        }
+    </ul>
 </div>
 
 <script>
-	const toggle = document.getElementById("lang-toggle");
-	const menu = document.getElementById("lang-menu");
+    const toggle = document.getElementById("lang-toggle");
+    const menu = document.getElementById("lang-menu");
 
-	toggle?.addEventListener("click", (e) => {
-		e.stopPropagation();
-		const isOpen = menu?.classList.toggle("hidden") === false;
-		toggle.setAttribute("aria-expanded", String(isOpen));
-	});
+    toggle?.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const isOpen = menu?.classList.toggle("hidden") === false;
+        toggle.setAttribute("aria-expanded", String(isOpen));
+    });
 
-	document.addEventListener("click", (e) => {
-		if (!menu?.contains(e.target as Node)) {
-			menu?.classList.add("hidden");
-			toggle?.setAttribute("aria-expanded", "false");
-		}
-	});
+    document.addEventListener("click", (e) => {
+        if (!menu?.contains(e.target as Node)) {
+            menu?.classList.add("hidden");
+            toggle?.setAttribute("aria-expanded", "false");
+        }
+    });
 </script>

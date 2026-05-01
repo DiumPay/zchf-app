@@ -8,6 +8,7 @@
       "@lib/*": ["./src/lib/*"],
       "@config/*": ["./src/config/*"],
       "@abi/*": ["./src/abi/*"],
+      "@i18n/*": ["./src/i18n/*"],
       "@pages/*": ["./src/pages/*"]
     }
   },

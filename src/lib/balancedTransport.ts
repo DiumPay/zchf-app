@@ -1,26 +1,18 @@
-// src/lib/balancedTransport.ts
 // -------------------------------------------------------------
 // Multi-endpoint balanced transport for viem.
-// Wraps a pool of HTTPS JSON-RPC endpoints behind a single Transport
-// with: hedged racing, EWMA scoring, circuit breakers, sticky primary,
-// block-aware cache, in-flight dedup, retries with jitter, DNS warmup.
 //
-// Usage:
-//   const transport = balancedTransport({ pool: [...] });
-//   const client = createPublicClient({ chain: mainnet, transport });
-//
-// Viem handles encoding/decoding (readContract, multicall, etc.).
-// This transport only owns the HTTP racing + endpoint health layer.
+// Two-tier strategy:
+//   Tier 1 — User-supplied RPC (if set in localStorage["userRpc"])
+//            Tried alone, no fanout. Saves user's compute units.
+//   Tier 2 — Public pool fallback. Hedged racing, EWMA scoring, breakers.
 // -------------------------------------------------------------
 
 import { custom, type Transport, type EIP1193RequestFn } from "viem";
 
-// --------------------------- Types ---------------------------
 export interface BalancedTransportConfig {
     pool: string[];
     chainIdHex?: string;
 
-    // timing
     perAttemptMs?: number;
     totalBudgetMs?: number;
     maxRetries?: number;
@@ -29,38 +21,34 @@ export interface BalancedTransportConfig {
     promoteWins?: number;
     stickyTtlMs?: number;
 
-    // cache
     callTtlMs?: number;
     blockAwareCache?: boolean;
     maxCacheEntries?: number;
 
-    // health
     ewmaAlpha?: number;
     cooldownMs?: number;
     unhealthyThreshold?: number;
 
-    // retry jitter
     jitterMinMs?: number;
     jitterMaxMs?: number;
 
-    // method-specific overrides
     methodPerAttemptMs?: Record<string, number>;
     methodFanout?: Record<string, number>;
 
-    // DNS prefetch on construction
     dnsWarmup?: boolean;
-
-    // staleness scoring
     stalenessBlockPenalty?: number;
 
-    // observability
-    onWin?: (e: { url: string; ms: number; method: string }) => void;
-    onFail?: (e: { url: string; err: unknown; method: string }) => void;
+    persistKey?: string;
+    userRpcKey?: string;
+    userRpcTimeoutMs?: number;
+    userRpcFailThreshold?: number;
+    userRpcCooldownMs?: number;
+
+    onWin?: (e: { url: string; ms: number; method: string; tier: "user" | "pool" }) => void;
+    onFail?: (e: { url: string; err: unknown; method: string; tier: "user" | "pool" }) => void;
     onBreaker?: (e: { url: string; open: boolean }) => void;
 }
 
-// Methods that must hit the wallet, not public RPC.
-// Exported for guards in app code.
 export const WALLET_ONLY_METHODS = new Set<string>([
     "eth_sendTransaction",
     "eth_sendRawTransaction",
@@ -78,7 +66,6 @@ export const WALLET_ONLY_METHODS = new Set<string>([
     "eth_accounts",
 ]);
 
-// Methods that should never be cached or deduped (state-changing or volatile).
 const NEVER_CACHE = new Set<string>([
     "eth_sendTransaction",
     "eth_sendRawTransaction",
@@ -90,9 +77,9 @@ const NEVER_CACHE = new Set<string>([
 
 const DEFAULTS = {
     perAttemptMs: 1500,
-    totalBudgetMs: 10000,
+    totalBudgetMs: 10_000,
     maxRetries: 3,
-    coldFanout: 4,
+    coldFanout: 3,
     warmFanout: 2,
     promoteWins: 2,
     stickyTtlMs: 60_000,
@@ -106,9 +93,15 @@ const DEFAULTS = {
     jitterMaxMs: 300,
     dnsWarmup: true,
     stalenessBlockPenalty: 2,
+    persistKey: "rpc-balancer-breakers",
+    userRpcKey: "userRpc",
+    userRpcTimeoutMs: 3000,
+    userRpcFailThreshold: 3,
+    userRpcCooldownMs: 30_000,
 } as const;
 
-// -------------------- Endpoint Health/Scoring ----------------
+const MAX_RATE_LIMIT_COOLDOWN_MS = 5 * 60_000;
+
 interface EndpointState {
     url: string;
     latEwma: number;
@@ -122,15 +115,7 @@ interface EndpointState {
 const nowMs = () => Date.now();
 
 function makeEndpoint(url: string): EndpointState {
-    return {
-        url,
-        latEwma: 800,
-        errEwma: 0,
-        wins: 0,
-        breakerUntil: 0,
-        lastBlockSeen: 0,
-        lastBlockSeenAt: 0,
-    };
+    return { url, latEwma: 800, errEwma: 0, wins: 0, breakerUntil: 0, lastBlockSeen: 0, lastBlockSeenAt: 0 };
 }
 
 const ewma = (prev: number, sample: number, alpha: number) =>
@@ -147,7 +132,6 @@ function endpointScore(e: EndpointState, tipBlock: number | undefined, staleThre
     const latScore = 1 / (1 + e.latEwma);
     const ok = 1 - e.errEwma;
     const healthy = e.breakerUntil > nowMs() ? 0.01 : 1;
-
     let freshness = 1;
     if (tipBlock && e.lastBlockSeen > 0 && e.lastBlockSeenAt > nowMs() - 30_000) {
         const behind = tipBlock - e.lastBlockSeen;
@@ -158,12 +142,7 @@ function endpointScore(e: EndpointState, tipBlock: number | undefined, staleThre
     return latScore * ok * healthy * freshness;
 }
 
-function weightedSample(
-    arr: EndpointState[],
-    k: number,
-    tipBlock: number | undefined,
-    staleThreshold: number
-): EndpointState[] {
+function weightedSample(arr: EndpointState[], k: number, tipBlock: number | undefined, staleThreshold: number): EndpointState[] {
     const items = arr.slice();
     const out: EndpointState[] = [];
     for (let i = 0; i < k && items.length; i++) {
@@ -177,26 +156,40 @@ function weightedSample(
     return out;
 }
 
+// Browser-native DNS + TLS warmup via <link rel="preconnect">.
+// No HTTP request is made — DevTools Network tab stays clean.
 function prefetchDns(urls: string[]) {
-    if (typeof fetch === "undefined") return;
+    if (typeof document === "undefined") return;
     for (const url of urls) {
         try {
-            const ctrl = new AbortController();
-            const tid = setTimeout(() => ctrl.abort(), 3000);
-            fetch(url, {
-                method: "HEAD",
-                signal: ctrl.signal,
-                keepalive: true,
-            })
-                .catch(() => {})
-                .finally(() => clearTimeout(tid));
+            const origin = new URL(url).origin;
+            if (document.head.querySelector(`link[rel="preconnect"][href="${origin}"]`)) {
+                continue;
+            }
+            const link = document.createElement("link");
+            link.rel = "preconnect";
+            link.href = origin;
+            link.crossOrigin = "anonymous";
+            document.head.appendChild(link);
         } catch {
-            // ignore
+            // ignore malformed URLs
         }
     }
 }
 
-// --------------------- Balancer Core --------------------
+function readUserRpc(key: string): string | null {
+    if (typeof localStorage === "undefined") return null;
+    try {
+        const v = localStorage.getItem(key);
+        if (!v) return null;
+        const trimmed = v.trim();
+        if (!trimmed.startsWith("http")) return null;
+        return trimmed;
+    } catch {
+        return null;
+    }
+}
+
 class RpcBalancer {
     private cfg: Required<Omit<BalancedTransportConfig, "chainIdHex" | "methodPerAttemptMs" | "methodFanout" | "onWin" | "onFail" | "onBreaker" | "pool">> & BalancedTransportConfig;
     private endpoints: EndpointState[];
@@ -206,11 +199,81 @@ class RpcBalancer {
     private tinyCache = new Map<string, { value: unknown; expires: number; block?: number }>();
     private lastBlock?: number;
     private lastBlockCheckedAt = 0;
+    private userRpcUrl: string | null = null;
+    private userRpcConsecutiveFails = 0;
+    private userRpcSidelinedUntil = 0;
 
     constructor(cfg: BalancedTransportConfig) {
         this.cfg = { ...DEFAULTS, ...cfg } as typeof this.cfg;
+        this.userRpcUrl = readUserRpc(this.cfg.userRpcKey);
         this.endpoints = cfg.pool.map(makeEndpoint);
-        if (this.cfg.dnsWarmup) prefetchDns(cfg.pool);
+        this.restoreBreakers();
+
+        const warmList = this.userRpcUrl ? [this.userRpcUrl, ...cfg.pool] : cfg.pool;
+        if (this.cfg.dnsWarmup) prefetchDns(warmList);
+    }
+
+    private restoreBreakers() {
+        if (!this.cfg.persistKey || typeof localStorage === "undefined") return;
+        try {
+            const raw = localStorage.getItem(this.cfg.persistKey);
+            if (!raw) return;
+            const data = JSON.parse(raw) as Record<string, number>;
+            const now = nowMs();
+            for (const e of this.endpoints) {
+                const until = data[e.url];
+                if (typeof until === "number" && until > now) e.breakerUntil = until;
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    private persistBreakers() {
+        if (!this.cfg.persistKey || typeof localStorage === "undefined") return;
+        try {
+            const data: Record<string, number> = {};
+            const now = nowMs();
+            for (const e of this.endpoints) {
+                if (e.breakerUntil > now) data[e.url] = e.breakerUntil;
+            }
+            if (Object.keys(data).length === 0) {
+                localStorage.removeItem(this.cfg.persistKey);
+            } else {
+                localStorage.setItem(this.cfg.persistKey, JSON.stringify(data));
+            }
+        } catch {
+            // ignore
+        }
+    }
+
+    private userRpcAvailable(): boolean {
+        return !!this.userRpcUrl && this.userRpcSidelinedUntil <= nowMs();
+    }
+
+    private async tryUserRpc(method: string, params: unknown[]): Promise<unknown> {
+        const url = this.userRpcUrl!;
+        const body = { jsonrpc: "2.0", id: Math.floor(Math.random() * 1e12), method, params };
+        const controller = new AbortController();
+        const t0 = nowMs();
+        try {
+            const res = await this.fetchWithTimeout(url, body, this.cfg.userRpcTimeoutMs, controller);
+            this.userRpcConsecutiveFails = 0;
+            this.cfg.onWin?.({ url, ms: nowMs() - t0, method, tier: "user" });
+            return res;
+        } catch (e) {
+            this.userRpcConsecutiveFails++;
+            this.cfg.onFail?.({ url, err: e, method, tier: "user" });
+            const rateLimited = (e as { __rateLimited?: boolean }).__rateLimited;
+            const retryMs = (e as { __retryMs?: number }).__retryMs;
+            if (rateLimited && typeof retryMs === "number") {
+                this.userRpcSidelinedUntil = nowMs() + Math.min(retryMs, MAX_RATE_LIMIT_COOLDOWN_MS);
+            } else if (this.userRpcConsecutiveFails >= this.cfg.userRpcFailThreshold) {
+                this.userRpcSidelinedUntil = nowMs() + this.cfg.userRpcCooldownMs;
+                this.userRpcConsecutiveFails = 0;
+            }
+            throw e;
+        }
     }
 
     private inWarm(): boolean {
@@ -225,12 +288,15 @@ class RpcBalancer {
             e.latEwma = ewma(e.latEwma, ms, this.cfg.ewmaAlpha);
             e.errEwma = ewma(e.errEwma, 0, this.cfg.ewmaAlpha);
             e.wins = this.stickyUrl === url ? e.wins + 1 : 1;
-            if (e.breakerUntil) this.cfg.onBreaker?.({ url, open: false });
-            e.breakerUntil = 0;
+            if (e.breakerUntil) {
+                this.cfg.onBreaker?.({ url, open: false });
+                e.breakerUntil = 0;
+                this.persistBreakers();
+            }
         }
         this.stickyUrl = url;
         this.stickyExpires = nowMs() + this.cfg.stickyTtlMs;
-        this.cfg.onWin?.({ url, ms, method });
+        this.cfg.onWin?.({ url, ms, method, tier: "pool" });
     }
 
     private recordFail(url: string, method: string, err: unknown) {
@@ -239,17 +305,25 @@ class RpcBalancer {
             (err as { code?: string })?.code ??
             (err as { name?: string })?.name;
         if (reason === "winner" || reason === "budget") return;
+
         const e = this.endpoints.find((x) => x.url === url);
         if (e) {
             e.errEwma = ewma(e.errEwma, 1, this.cfg.ewmaAlpha);
             e.wins = 0;
-            if (e.errEwma >= this.cfg.unhealthyThreshold) {
+            const rateLimited = (err as { __rateLimited?: boolean }).__rateLimited;
+            const retryMs = (err as { __retryMs?: number }).__retryMs;
+            if (rateLimited && typeof retryMs === "number") {
+                e.breakerUntil = nowMs() + Math.min(retryMs, MAX_RATE_LIMIT_COOLDOWN_MS);
+                this.cfg.onBreaker?.({ url, open: true });
+                this.persistBreakers();
+            } else if (e.errEwma >= this.cfg.unhealthyThreshold) {
                 e.breakerUntil = nowMs() + this.cfg.cooldownMs;
                 this.cfg.onBreaker?.({ url, open: true });
+                this.persistBreakers();
             }
         }
         if (this.stickyUrl === url) this.stickyUrl = null;
-        this.cfg.onFail?.({ url, err, method });
+        this.cfg.onFail?.({ url, err, method, tier: "pool" });
     }
 
     private recordBlockFromResponse(url: string, method: string, result: unknown) {
@@ -288,7 +362,6 @@ class RpcBalancer {
                 ? picks
                 : weightedSample(healthy, Math.min(base, healthy.length), tipBlock, stale);
         }
-
         return weightedSample(healthy, Math.min(base, healthy.length), tipBlock, stale);
     }
 
@@ -296,12 +369,7 @@ class RpcBalancer {
         return this.cfg.methodPerAttemptMs?.[method] ?? this.cfg.perAttemptMs;
     }
 
-    private fetchWithTimeout(
-        url: string,
-        body: unknown,
-        timeoutMs: number,
-        controller: AbortController
-    ): Promise<unknown> {
+    private fetchWithTimeout(url: string, body: unknown, timeoutMs: number, controller: AbortController): Promise<unknown> {
         const t = setTimeout(() => controller.abort("timeout"), timeoutMs);
         return fetch(url, {
             method: "POST",
@@ -311,6 +379,21 @@ class RpcBalancer {
         })
             .then(async (r) => {
                 clearTimeout(t);
+                if (r.status === 429) {
+                    const ra = r.headers.get("Retry-After");
+                    let retryMs = 60_000;
+                    if (ra) {
+                        const n = parseInt(ra, 10);
+                        if (!isNaN(n) && n > 0) retryMs = n * 1000;
+                    }
+                    const err = new Error(`HTTP 429 (rate limited)`) as Error & {
+                        __rateLimited?: boolean;
+                        __retryMs?: number;
+                    };
+                    err.__rateLimited = true;
+                    err.__retryMs = retryMs;
+                    throw err;
+                }
                 if (!r.ok) throw new Error(`HTTP ${r.status}`);
                 const j = (await r.json()) as { result?: unknown; error?: { message?: string } };
                 if (j.error) throw new Error(j.error.message || "RPC Error");
@@ -343,7 +426,7 @@ class RpcBalancer {
         }
     }
 
-    private async race(method: string, params: unknown[]): Promise<unknown> {
+    private async racePool(method: string, params: unknown[]): Promise<unknown> {
         const startTotal = nowMs();
         const budget = this.cfg.totalBudgetMs;
         const maxRetries = this.cfg.maxRetries;
@@ -408,7 +491,7 @@ class RpcBalancer {
         try {
             const now = nowMs();
             if (this.lastBlock && now - this.lastBlockCheckedAt < 1000) return this.lastBlock;
-            const hex = (await this.race("eth_blockNumber", [])) as string;
+            const hex = (await this.dispatch("eth_blockNumber", [])) as string;
             const n = parseInt(hex, 16);
             const prev = this.lastBlock;
             this.lastBlock = n;
@@ -420,9 +503,20 @@ class RpcBalancer {
         }
     }
 
+    private async dispatch(method: string, params: unknown[]): Promise<unknown> {
+        if (this.userRpcAvailable()) {
+            try {
+                return await this.tryUserRpc(method, params);
+            } catch {
+                // fall through
+            }
+        }
+        return this.racePool(method, params);
+    }
+
     async request(method: string, params: unknown[]): Promise<unknown> {
         if (NEVER_CACHE.has(method)) {
-            return this.race(method, params);
+            return this.dispatch(method, params);
         }
 
         const blockTag = this.cfg.blockAwareCache ? await this.safeBlock() : undefined;
@@ -434,7 +528,7 @@ class RpcBalancer {
         const pending = this.inflight.get(key);
         if (pending) return pending;
 
-        const run = this.race(method, params)
+        const run = this.dispatch(method, params)
             .then((val) => {
                 this.tinyCache.set(key, {
                     value: val,
@@ -455,10 +549,8 @@ class RpcBalancer {
     }
 }
 
-// ----------------------- Public Factory ----------------------
 export function balancedTransport(config: BalancedTransportConfig): Transport {
     const balancer = new RpcBalancer(config);
-
     return custom({
         async request({ method, params }: { method: string; params?: unknown }) {
             return balancer.request(method, (params as unknown[]) ?? []);
