@@ -9,7 +9,8 @@ export const earn = {
         earn_rate_title: "Current savings rate",
         earn_rate_caption: "Interest accrues as time passes.",
         earn_tvl_title: "Total value locked",
-        earn_tvl_caption: "ZCHF staked across all savers.",
+        earn_subtitle: "Earn interest on your Frankencoins — supported on all eight chains.",
+        earn_tvl_caption: "Staked on this chain.",
 
         earn_manage_title: "Manage your savings",
 
@@ -43,7 +44,7 @@ export const earn = {
         earn_err_wallet_too_low: "Not enough ZCHF in your wallet.",
         earn_err_saved_too_low: "Not enough deposited in savings.",
         earn_err_target: "Invalid target address",
-        earn_footnote: "New deposits lock for up to 3 days. Compound to add earned interest into your balance.",
+        earn_footnote: "Withdraw any time. Interest starts accruing 3 days after each deposit.",
     },
 
     de: {
@@ -53,7 +54,8 @@ export const earn = {
         earn_rate_title: "Aktueller Sparzins",
         earn_rate_caption: "Zinsen fallen laufend an.",
         earn_tvl_title: "Verwaltetes Vermögen",
-        earn_tvl_caption: "Total in der Sparlösung gehaltene ZCHF.",
+        earn_subtitle: "Verdienen Sie Zinsen auf Ihre Frankencoins — verfügbar auf allen acht Chains.",
+        earn_tvl_caption: "Auf dieser Chain gestakt.",
 
         earn_manage_title: "Sparen verwalten",
 
@@ -87,7 +89,7 @@ export const earn = {
         earn_err_wallet_too_low: "Nicht genügend ZCHF in der Wallet.",
         earn_err_saved_too_low: "Nicht genügend Guthaben im Sparen.",
         earn_err_target: "Ungültige Zieladresse",
-        earn_footnote: "Neue Einzahlungen sind bis zu 3 Tage gesperrt. Mit «Zinsen gutschreiben» werden aufgelaufene Zinsen Ihrem Bestand hinzugefügt.",
+        earn_footnote: "Auszahlung jederzeit möglich. Zinsen beginnen 3 Tage nach jeder Einzahlung anzufallen.",
     },
 
     fr: {
@@ -97,7 +99,8 @@ export const earn = {
         earn_rate_title: "Taux d'épargne actuel",
         earn_rate_caption: "Les intérêts s'accumulent au fil du temps.",
         earn_tvl_title: "Encours total",
-        earn_tvl_caption: "ZCHF placés sur le module d'épargne.",
+        earn_subtitle: "Percevez des intérêts sur vos Frankencoins — disponible sur les huit chaînes.",
+        earn_tvl_caption: "Placé sur cette chaîne.",
 
         earn_manage_title: "Gérer votre épargne",
 
@@ -131,7 +134,7 @@ export const earn = {
         earn_err_wallet_too_low: "ZCHF insuffisants dans votre portefeuille.",
         earn_err_saved_too_low: "Solde d'épargne insuffisant.",
         earn_err_target: "Adresse de destination invalide",
-        earn_footnote: "Les nouveaux dépôts sont bloqués jusqu'à 3 jours. La capitalisation ajoute les intérêts perçus à votre solde.",
+        earn_footnote: "Retrait possible à tout moment. Les intérêts commencent à courir 3 jours après chaque dépôt.",
     },
 
     it: {
@@ -141,7 +144,8 @@ export const earn = {
         earn_rate_title: "Tasso di risparmio attuale",
         earn_rate_caption: "Gli interessi maturano nel tempo.",
         earn_tvl_title: "Patrimonio in deposito",
-        earn_tvl_caption: "ZCHF complessivamente depositati nel risparmio.",
+        earn_subtitle: "Guadagna interessi sui tuoi Frankencoin — disponibile su tutte e otto le chain.",
+        earn_tvl_caption: "Depositato su questa chain.",
 
         earn_manage_title: "Gestisci i tuoi risparmi",
 
@@ -175,7 +179,7 @@ export const earn = {
         earn_err_wallet_too_low: "ZCHF insufficienti nel wallet.",
         earn_err_saved_too_low: "Saldo nel risparmio insufficiente.",
         earn_err_target: "Indirizzo destinazione non valido",
-        earn_footnote: "I nuovi depositi sono bloccati fino a 3 giorni. Capitalizzando, gli interessi maturati vengono aggiunti al saldo.",
+        earn_footnote: "Prelievo sempre possibile. Gli interessi iniziano a maturare 3 giorni dopo ogni deposito.",
     },
 
     es: {
@@ -185,7 +189,8 @@ export const earn = {
         earn_rate_title: "Tipo de interés actual",
         earn_rate_caption: "Los intereses se acumulan con el tiempo.",
         earn_tvl_title: "Patrimonio depositado",
-        earn_tvl_caption: "ZCHF totales en el módulo de ahorro.",
+        earn_subtitle: "Gana intereses con tus Frankencoins — disponible en las ocho redes.",
+        earn_tvl_caption: "Depositado en esta red.",
 
         earn_manage_title: "Gestionar tus ahorros",
 
@@ -219,6 +224,6 @@ export const earn = {
         earn_err_wallet_too_low: "ZCHF insuficientes en tu wallet.",
         earn_err_saved_too_low: "Saldo de ahorro insuficiente.",
         earn_err_target: "Dirección de destino no válida",
-        earn_footnote: "Los nuevos depósitos quedan bloqueados hasta 3 días. Al capitalizar, los intereses generados se añaden al saldo.",
+        earn_footnote: "Retira en cualquier momento. Los intereses empiezan a generarse 3 días después de cada depósito.",
     },
 } as const;

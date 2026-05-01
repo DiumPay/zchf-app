@@ -1,0 +1,152 @@
+---
+import { CHAINS, SUPPORTED_CHAINS, DEFAULT_CHAIN, type ChainKey } from "@config/network";
+
+import ethereumIcon from "@assets/chain/ethereum.svg?url";
+import arbitrumIcon from "@assets/chain/arbitrum-one.svg?url";
+import avalancheIcon from "@assets/chain/avalanche.svg?url";
+import baseIcon from "@assets/chain/base.svg?url";
+import gnosisIcon from "@assets/chain/gnosis.svg?url";
+import optimismIcon from "@assets/chain/op-mainnet.svg?url";
+import polygonIcon from "@assets/chain/polygon.svg?url";
+import sonicIcon from "@assets/chain/sonic.svg?url";
+
+const ICON_URLS: Partial<Record<ChainKey, string>> = {
+    ethereum: ethereumIcon,
+    arbitrum: arbitrumIcon,
+    avalanche: avalancheIcon,
+    base: baseIcon,
+    gnosis: gnosisIcon,
+    optimism: optimismIcon,
+    polygon: polygonIcon,
+    sonic: sonicIcon,
+};
+
+const initial = CHAINS[DEFAULT_CHAIN];
+---
+
+<div class="relative" data-chain-selector data-icon-urls={JSON.stringify(ICON_URLS)}>
+    <button
+        id="chain-toggle"
+        type="button"
+        class="flex items-center gap-2 rounded-md border border-foreground/20 bg-background px-3 py-2 text-[14px] font-medium hover:border-foreground/40"
+        aria-haspopup="listbox"
+        aria-expanded="false"
+    >
+        <img id="chain-current-icon" src={ICON_URLS[DEFAULT_CHAIN]} alt="" class="h-4 w-4" />
+        <span id="chain-current-label">{initial.label}</span>
+        <svg class="h-3 w-3 opacity-60" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M3 4.5l3 3 3-3" />
+        </svg>
+    </button>
+
+    <ul
+        id="chain-menu"
+        class="absolute right-0 z-30 mt-1 hidden min-w-45 rounded-md border border-foreground/15 bg-background shadow-lg"
+        role="listbox"
+    >
+        {SUPPORTED_CHAINS.map((key) => {
+            const c = CHAINS[key];
+            return (
+                <li>
+                    <button
+                        type="button"
+                        data-chain-key={key}
+                        class="flex w-full items-center gap-2 px-3 py-2 text-left text-[14px] font-medium hover:bg-muted data-active:bg-muted/60"
+                    >
+                        <img src={ICON_URLS[key]} alt="" class="h-4 w-4" />
+                        <span>{c.label}</span>
+                        <span class="ml-auto hidden text-primary data-active:inline" data-active-marker>•</span>
+                    </button>
+                </li>
+            );
+        })}
+    </ul>
+</div>
+
+<script>
+    import { getOnboard } from "@lib/onboard";
+    import { CHAINS, SUPPORTED_CHAINS, DEFAULT_CHAIN, chainByIdHex, type ChainKey } from "@config/network";
+
+    const root = document.querySelector("[data-chain-selector]") as HTMLElement;
+    if (root) {
+        const toggle = root.querySelector<HTMLButtonElement>("#chain-toggle")!;
+        const menu = root.querySelector<HTMLUListElement>("#chain-menu")!;
+        const items = root.querySelectorAll<HTMLButtonElement>("[data-chain-key]");
+        const currentLabel = root.querySelector<HTMLElement>("#chain-current-label")!;
+        const currentIcon = root.querySelector<HTMLImageElement>("#chain-current-icon")!;
+
+        const iconUrls = JSON.parse(root.dataset.iconUrls || "{}") as Record<ChainKey, string>;
+
+        const stored = localStorage.getItem("activeChain") as ChainKey | null;
+        let activeChain: ChainKey =
+            stored && SUPPORTED_CHAINS.includes(stored) ? stored : DEFAULT_CHAIN;
+
+        const updateUI = () => {
+            items.forEach((b) => {
+                const isActive = b.dataset.chainKey === activeChain;
+                if (isActive) b.dataset.active = "1";
+                else delete b.dataset.active;
+                const marker = b.querySelector<HTMLElement>("[data-active-marker]");
+                if (marker) {
+                    if (isActive) marker.dataset.active = "1";
+                    else delete marker.dataset.active;
+                }
+            });
+            currentLabel.textContent = CHAINS[activeChain].label;
+            const url = iconUrls[activeChain];
+            if (url) currentIcon.src = url;
+        };
+
+        const setActive = (key: ChainKey, broadcast = true) => {
+            activeChain = key;
+            localStorage.setItem("activeChain", key);
+            updateUI();
+            if (broadcast) {
+                window.dispatchEvent(new CustomEvent("chainchange", { detail: { chain: key } }));
+            }
+        };
+
+        toggle.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const open = menu.classList.toggle("hidden") === false;
+            toggle.setAttribute("aria-expanded", String(open));
+        });
+        document.addEventListener("click", (e) => {
+            if (!root.contains(e.target as Node)) {
+                menu.classList.add("hidden");
+                toggle.setAttribute("aria-expanded", "false");
+            }
+        });
+
+        items.forEach((btn) => {
+            btn.addEventListener("click", async () => {
+                const key = btn.dataset.chainKey as ChainKey;
+                setActive(key);
+                menu.classList.add("hidden");
+                toggle.setAttribute("aria-expanded", "false");
+
+                const onboard = getOnboard();
+                if (onboard.state.get().wallets.length > 0) {
+                    try {
+                        await onboard.setChain({ chainId: CHAINS[key].chainId });
+                    } catch {
+                        // user rejected switch — UI still reflects intent
+                    }
+                }
+            });
+        });
+
+        getOnboard().state.select("wallets").subscribe((wallets) => {
+            const w = wallets[0];
+            if (!w) return;
+            const walletChainId = w.chains[0]?.id;
+            if (!walletChainId) return;
+            const c = chainByIdHex(walletChainId);
+            if (c && SUPPORTED_CHAINS.includes(c.key) && c.key !== activeChain) {
+                setActive(c.key);
+            }
+        });
+
+        updateUI();
+    }
+</script>

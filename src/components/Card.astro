@@ -1,17 +1,16 @@
 ---
-//
-// Bordered rounded card. Border weight matches navbar (foreground/10).
-
 interface Props {
     title: string;
     class?: string;
 }
-
 const { title, class: className = "" } = Astro.props;
 ---
 
 <div class:list={["rounded-md border border-foreground/10 bg-background p-6", className]}>
-    <h2 class="mb-4 text-[20px] font-bold tracking-tight">{title}</h2>
+    <div class="mb-4 flex items-center justify-between gap-3">
+        <h2 class="text-[20px] font-bold tracking-tight">{title}</h2>
+        <slot name="actions" />
+    </div>
     <div class="text-[16px] font-medium">
         <slot />
     </div>
