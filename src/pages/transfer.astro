@@ -196,8 +196,26 @@ const clientStrings = {
     const stored = localStorage.getItem("activeChain") as ChainKey | null;
     let chain: ChainKey = stored && SUPPORTED_CHAINS.includes(stored) ? stored : DEFAULT_CHAIN;
 
+    const isMainnet = () => chain === "ethereum";
     const addrs = () => ADDRESSES[chain];
     const client = () => getPublicClient(chain);
+
+    // 4-arg overloaded transfer used by BridgedFrankencoin on sidechains.
+    // Same signature as TransferReference.crossTransfer but the function name is `transfer`.
+    const BRIDGED_TRANSFER_ABI = [
+        {
+            inputs: [
+                { internalType: "uint64", name: "targetChain", type: "uint64" },
+                { internalType: "address", name: "recipient", type: "address" },
+                { internalType: "uint256", name: "amount", type: "uint256" },
+                { internalType: "string", name: "ref", type: "string" },
+            ],
+            name: "transfer",
+            outputs: [{ internalType: "bool", name: "", type: "bool" }],
+            stateMutability: "payable",
+            type: "function",
+        },
+    ] as const;
 
     const numberLocale = ({ en: "en-US", de: "de-CH", fr: "fr-CH", it: "it-CH", es: "es-ES" } as Record<string, string>)[locale] ?? "en-US";
 
@@ -206,7 +224,6 @@ const clientStrings = {
     const fmtNative = (v: bigint, symbol: string) =>
         `${Number(formatUnits(v, 18)).toLocaleString(numberLocale, { maximumFractionDigits: 6 })} ${symbol}`;
     const shortAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
-    const shortHash = (h: string) => `${h.slice(0, 10)}…${h.slice(-6)}`;
 
     const parseAmount = () => {
         try { return parseUnits(els.amount.value.trim() || "0", 18); }
@@ -261,9 +278,16 @@ const clientStrings = {
         els.balance.textContent = fmtZCHF(walletBalRaw);
     }
 
-    /** Read the CCIP fee — nativeToken=true means fee paid in chain's gas (ETH/AVAX/etc). */
+    /**
+     * Fee read differs per chain:
+     *   - Mainnet: TransferReference.getCCIPFee
+     *   - Sidechain: BridgedFrankencoin.getCCIPFee
+     * Same signature, different contract address. nativeToken=true → fee in chain gas (ETH/AVAX/etc).
+     */
     async function getFee(targetKey: ChainKey, recipient: Address, amount: bigint): Promise<bigint> {
-        const contractAddr = addrs().transferReference!;
+        const contractAddr = isMainnet()
+            ? addrs().transferReference!
+            : addrs().zchf; // BridgedFrankencoin lives at the ZCHF address on sidechains
         const selector = CCIP_SELECTORS[targetKey]!;
         return await client().readContract({
             address: contractAddr, abi: TRANSFER_REF_ABI,
@@ -279,7 +303,6 @@ const clientStrings = {
         const recValid = rec && isAddress(rec);
 
         if (connected) {
-            els.outSender.querySelector("span,a")?.remove(); // no-op safety
             els.outSender.firstChild!.textContent = shortAddr(connected);
             els.outSender.href = `${CHAINS[chain].explorer}/address/${connected}`;
             els.outExplorer.href = `${CCIP_EXPLORER}/address/${connected}`;
@@ -313,6 +336,7 @@ const clientStrings = {
         }
     }
 
+    /** Mainnet only: approve TransferReference to spend ZCHF. Sidechains don't need this. */
     async function approveIfNeeded(amount: bigint) {
         const contractAddr = addrs().transferReference!;
         const allowance = await client().readContract({
@@ -335,26 +359,24 @@ const clientStrings = {
 
     const CCIP_SEND_REQUESTED_TOPIC0 = "0xd0c3c799bf9e2639de44391e7f524d229b2b55f5b1ea94b2bf7da42f7243dddd";
 
-async function extractMessageId(hash: Hex): Promise<Hex | null> {
-    try {
-        const receipt = await client().getTransactionReceipt({ hash });
-        const log = receipt.logs.find(l => l.topics[0]?.toLowerCase() === CCIP_SEND_REQUESTED_TOPIC0);
-        if (!log) return null;
-        // Walk the data in 32-byte chunks, return the first one that isn't all-zeros
-        // and doesn't look like a left-padded address (12 leading zero bytes).
-        const data = log.data.slice(2); // strip 0x
-        for (let i = 0; i + 64 <= data.length; i += 64) {
-            const word = data.slice(i, i + 64);
-            if (word === "0".repeat(64)) continue;        // empty
-            if (word.startsWith("0".repeat(24))) continue; // address-like (12 zero bytes)
-            if (word.startsWith("0".repeat(48))) continue; // small int (uint64/uint256 < 2^64)
-            return ("0x" + word) as Hex;
+    async function extractMessageId(hash: Hex): Promise<Hex | null> {
+        try {
+            const receipt = await client().getTransactionReceipt({ hash });
+            const log = receipt.logs.find(l => l.topics[0]?.toLowerCase() === CCIP_SEND_REQUESTED_TOPIC0);
+            if (!log) return null;
+            const data = log.data.slice(2);
+            for (let i = 0; i + 64 <= data.length; i += 64) {
+                const word = data.slice(i, i + 64);
+                if (word === "0".repeat(64)) continue;
+                if (word.startsWith("0".repeat(24))) continue;
+                if (word.startsWith("0".repeat(48))) continue;
+                return ("0x" + word) as Hex;
+            }
+            return null;
+        } catch {
+            return null;
         }
-        return null;
-    } catch {
-        return null;
     }
-}
 
     async function doTransfer() {
         if (!connected) throw new Error(i18n.err_not_connected);
@@ -366,35 +388,64 @@ async function extractMessageId(hash: Hex): Promise<Hex | null> {
         const rec = els.recipient.value.trim();
         if (!isAddress(rec)) throw new Error(i18n.err_recipient);
 
-        const contractAddr = addrs().transferReference;
-        if (!contractAddr) throw new Error(i18n.err_no_contract);
-
         const ref = els.reference.value.trim();
         const targetKey = els.targetChain.value as ChainKey;
         const isCross = targetKey !== chain;
 
-        await approveIfNeeded(amount);
-
         let txHash: Hex;
-        if (isCross) {
-            const selector = CCIP_SELECTORS[targetKey];
-            if (!selector) throw new Error(i18n.err_no_contract);
-            const fee = await getFee(targetKey, rec as Address, amount);
-            txHash = await getWC().writeContract({
-                address: contractAddr, abi: TRANSFER_REF_ABI,
-                functionName: "crossTransfer",
-                args: [selector, rec as Address, amount, ref],
-                account: connected!, chain: null,
-                value: fee,
-            });
+
+        if (isMainnet()) {
+            // -------- Mainnet path --------
+            const contractAddr = addrs().transferReference;
+            if (!contractAddr) throw new Error(i18n.err_no_contract);
+            await approveIfNeeded(amount);
+
+            if (isCross) {
+                const selector = CCIP_SELECTORS[targetKey];
+                if (!selector) throw new Error(i18n.err_no_contract);
+                const fee = await getFee(targetKey, rec as Address, amount);
+                txHash = await getWC().writeContract({
+                    address: contractAddr, abi: TRANSFER_REF_ABI,
+                    functionName: "crossTransfer",
+                    args: [selector, rec as Address, amount, ref],
+                    account: connected!, chain: null,
+                    value: (fee * 12n) / 10n, // +20% buffer; CCIP refunds the rest
+                });
+            } else {
+                txHash = await getWC().writeContract({
+                    address: contractAddr, abi: TRANSFER_REF_ABI,
+                    functionName: "transfer",
+                    args: [rec as Address, amount, ref],
+                    account: connected!, chain: null,
+                });
+            }
         } else {
-            txHash = await getWC().writeContract({
-                address: contractAddr, abi: TRANSFER_REF_ABI,
-                functionName: "transfer",
-                args: [rec as Address, amount, ref],
-                account: connected!, chain: null,
-            });
+            // -------- Sidechain path (BridgedFrankencoin) --------
+            // No approve needed: the ZCHF token IS the contract that bridges.
+            const zchfAddr = addrs().zchf;
+
+            if (isCross) {
+                const selector = CCIP_SELECTORS[targetKey];
+                if (!selector) throw new Error(i18n.err_no_contract);
+                const fee = await getFee(targetKey, rec as Address, amount);
+                txHash = await getWC().writeContract({
+                    address: zchfAddr, abi: BRIDGED_TRANSFER_ABI,
+                    functionName: "transfer",
+                    args: [selector, rec as Address, amount, ref],
+                    account: connected!, chain: null,
+                    value: (fee * 12n) / 10n,
+                });
+            } else {
+                // Same-chain transfer with reference: 3-arg overload on BridgedFrankencoin
+                txHash = await getWC().writeContract({
+                    address: zchfAddr, abi: TRANSFER_REF_ABI,
+                    functionName: "transfer",
+                    args: [rec as Address, amount, ref],
+                    account: connected!, chain: null,
+                });
+            }
         }
+
         await client().waitForTransactionReceipt({ hash: txHash });
 
         const messageId = isCross ? await extractMessageId(txHash).catch(() => null) : null;
@@ -420,9 +471,7 @@ async function extractMessageId(hash: Hex): Promise<Hex | null> {
         finally { unlock(); }
     }
 
-    // -----------------------
-    // History (localStorage, last 10 user-submitted transfers)
-    // -----------------------
+    // ----------- History (localStorage, last 10) -----------
 
     interface HistoryEntry {
         txHash: Hex;
@@ -430,7 +479,7 @@ async function extractMessageId(hash: Hex): Promise<Hex | null> {
         fromChain: ChainKey;
         toChain: ChainKey;
         recipient: Address;
-        amount: string;        // bigint serialised
+        amount: string;
         ref: string;
         ts: number;
     }
@@ -486,9 +535,7 @@ async function extractMessageId(hash: Hex): Promise<Hex | null> {
         }).join("");
     }
 
-    // -----------------------
-    // Wire up
-    // -----------------------
+    // ----------- Wire up -----------
 
     els.btnTransfer.addEventListener("click", runTransfer);
     els.btnMax.addEventListener("click", () => { els.amount.value = formatUnits(walletBalRaw, 18); updateOutcome(); });

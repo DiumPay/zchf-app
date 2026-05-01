@@ -18,7 +18,6 @@ import wstethIcon from "@assets/tokens/wsteth.svg?url";
 import xautIcon from "@assets/tokens/xaut.svg?url";
 import ysyboldIcon from "@assets/tokens/ysybold.svg?url";
 
-// Keyed by collateralSymbol from the snapshot. Lowercase for case-insensitive lookup.
 const TOKEN_ICONS: Record<string, string> = {
     boss: bossIcon,
     cbbtc: cbbtcIcon,
@@ -80,8 +79,9 @@ const TOKEN_ICONS: Record<string, string> = {
                 />
             </div>
 
-            <div class="hidden grid-cols-[2fr_1fr_1fr_1fr_auto] gap-4 border-b border-foreground/10 pb-3 text-[13px] font-bold opacity-70 md:grid">
+            <div class="hidden grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-4 border-b border-foreground/10 pb-3 text-[13px] font-bold opacity-70 md:grid">
                 <span>{t(Astro.url)("borrow_col_collateral")}</span>
+                <span>LTV</span>
                 <span>{t(Astro.url)("borrow_col_liquidation")}</span>
                 <span>{t(Astro.url)("borrow_col_interest")}</span>
                 <span>{t(Astro.url)("borrow_col_maturity")}</span>
@@ -115,6 +115,7 @@ const TOKEN_ICONS: Record<string, string> = {
 
 <script>
     import { loadPositions, liquidationPriceUnits, positionStatus, effectiveInterestPPM, type Position } from "@lib/positions";
+    import { getMarketPriceCHF } from "@lib/prices";
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -132,6 +133,9 @@ const TOKEN_ICONS: Record<string, string> = {
     const search = $<HTMLInputElement>("search-input");
 
     let allPositions: Position[] = [];
+
+    // undefined = fetching, null = no oracle, number = CHF/unit
+    const priceMap: Record<string, number | null | undefined> = {};
 
     const fmtZCHF = (n: number) => n.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
     const fmtPct = (ppm: number) => `${(ppm / 10_000).toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
@@ -157,6 +161,15 @@ const TOKEN_ICONS: Record<string, string> = {
         return tokenIcons[symbol.toLowerCase()] ?? null;
     }
 
+    function ltvCell(p: Position): string {
+        const sym = p.collateralSymbol.toUpperCase();
+        const market = priceMap[sym];
+        if (market === undefined) return `<span class="opacity-50">…</span>`;
+        if (market === null) return `<span class="opacity-50">N/A</span>`;
+        const ltv = (liquidationPriceUnits(p) / market) * 100;
+        return `${ltv.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+    }
+
     function render(positions: Position[]) {
         if (positions.length === 0) {
             list.innerHTML = "";
@@ -175,7 +188,7 @@ const TOKEN_ICONS: Record<string, string> = {
                 ? `<img src="${icon}" alt="" class="h-9 w-9 shrink-0 rounded-full" />`
                 : `<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[12px] font-bold">${p.collateralSymbol.slice(0, 3)}</div>`;
 
-            return `<li class="grid grid-cols-1 gap-3 py-4 md:grid-cols-[2fr_1fr_1fr_1fr_auto] md:items-center md:gap-4">
+            return `<li class="grid grid-cols-1 gap-3 py-4 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] md:items-center md:gap-4">
                 <div class="flex items-center gap-3">
                     ${iconHtml}
                     <div>
@@ -185,6 +198,11 @@ const TOKEN_ICONS: Record<string, string> = {
                             <span class="ml-2">${p.collateralSymbol}</span>
                         </div>
                     </div>
+                </div>
+
+                <div class="text-[14px]">
+                    <span class="md:hidden opacity-60">LTV: </span>
+                    ${ltvCell(p)}
                 </div>
 
                 <div class="text-[14px]">
@@ -233,6 +251,18 @@ const TOKEN_ICONS: Record<string, string> = {
         render(filtered);
     }
 
+    async function loadPrices() {
+        const symbols = Array.from(new Set(allPositions.map(p => p.collateralSymbol.toUpperCase())));
+        await Promise.all(symbols.map(async sym => {
+            try {
+                priceMap[sym] = await getMarketPriceCHF(sym);
+            } catch {
+                priceMap[sym] = null;
+            }
+        }));
+        applyFilter();
+    }
+
     search.addEventListener("input", applyFilter);
 
     loadPositions()
@@ -242,6 +272,7 @@ const TOKEN_ICONS: Record<string, string> = {
             );
             loading.remove();
             render(allPositions);
+            loadPrices();
         })
         .catch(err => {
             console.error(err);

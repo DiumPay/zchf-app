@@ -1,20 +1,19 @@
+import { parseAbi } from "viem";
+import { getPublicClient } from "@lib/client";
+
 /**
- * Free, no-key price oracle for the borrow page.
+ * Browser-friendly price oracle. No API keys, no CORS-restricted sources.
  *
- * Two-layer design:
- *   1. Per-symbol "source chain" — an ordered list of endpoint adapters.
- *      We call them in order and return the first valid number. This is the
- *      redundancy: if Binance is rate-limiting or down, we fall through to
- *      Coinbase, then Kraken, then DefiLlama, then CoinCap.
- *   2. localStorage cache with TTL. Prices are cached 5 minutes, FX 1 hour.
- *      That keeps page reloads fast and avoids hammering free APIs.
+ * Strategy per asset: try a chain of public endpoints, first success wins.
+ * localStorage cache keeps results across reloads and avoids hammering APIs.
  *
- * Every endpoint here is public, no API key, CORS-enabled.
+ * Tokens without a public price feed (BOSS, LENDS, REALU, SPYon) intentionally
+ * resolve to null and display "N/A" in the UI — better than showing fake LTVs.
  */
 
 const CACHE_PREFIX = "fc-price:";
-const PRICE_TTL_MS = 5 * 60 * 1000;   // crypto: 5 min
-const FX_TTL_MS = 60 * 60 * 1000;     // forex: 1 h (CHF/USD doesn't move much)
+const PRICE_TTL_MS = 5 * 60 * 1000;
+const FX_TTL_MS = 60 * 60 * 1000;
 
 type CachedValue = { v: number; t: number };
 
@@ -33,13 +32,11 @@ function readCache(key: string, ttlMs: number): number | null {
 function writeCache(key: string, value: number): void {
     try {
         localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ v: value, t: Date.now() }));
-    } catch {
-        /* private mode / quota exceeded — ignore, we'll just refetch */
-    }
+    } catch { /* ignore */ }
 }
 
 /* ------------------------------------------------------------------ */
-/* Source adapters — each returns USD price or throws.                */
+/* Source adapters — each returns USD or throws.                       */
 /* ------------------------------------------------------------------ */
 
 async function fromBinance(symbol: string): Promise<number> {
@@ -64,7 +61,6 @@ async function fromKraken(pair: string): Promise<number> {
     const r = await fetch(`https://api.kraken.com/0/public/Ticker?pair=${pair}`);
     if (!r.ok) throw new Error(`kraken ${r.status}`);
     const j = await r.json();
-    // Kraken returns { result: { XXBTZUSD: { c: ["price", "vol"] } } }
     const k = j?.result && Object.keys(j.result)[0];
     const p = parseFloat(j?.result?.[k]?.c?.[0]);
     if (!Number.isFinite(p) || p <= 0) throw new Error("kraken bad price");
@@ -72,7 +68,6 @@ async function fromKraken(pair: string): Promise<number> {
 }
 
 async function fromDefiLlama(coinKey: string): Promise<number> {
-    // coinKey format: "ethereum:0xabc..."
     const r = await fetch(`https://coins.llama.fi/prices/current/${coinKey}`);
     if (!r.ok) throw new Error(`defillama ${r.status}`);
     const j = await r.json();
@@ -92,14 +87,9 @@ async function fromCoincap(slug: string): Promise<number> {
 
 type Source = () => Promise<number>;
 
-/** Try each source in order, return first success, or null if all fail. */
 async function tryFirst(sources: Source[]): Promise<number | null> {
     for (const src of sources) {
-        try {
-            return await src();
-        } catch {
-            /* fall through to next source */
-        }
+        try { return await src(); } catch { /* next */ }
     }
     return null;
 }
@@ -107,12 +97,34 @@ async function tryFirst(sources: Source[]): Promise<number | null> {
 const eth = (addr: string) => `ethereum:${addr.toLowerCase()}`;
 
 /* ------------------------------------------------------------------ */
-/* Per-symbol source chains.                                           */
-/* Symbols not in this map => no oracle available => N/A in UI.        */
+/* On-chain helper for ysyBOLD: 1 share -> N BOLD via pricePerShare()  */
+/* ------------------------------------------------------------------ */
+
+const YSYBOLD_TOKEN = "0x23346B04a7f55b8760E5860AA5A77383D63491cD" as const;
+const YSYBOLD_ABI = parseAbi(["function pricePerShare() view returns (uint256)"]);
+
+async function ysyBoldSharesPerBold(): Promise<number> {
+    const cached = readCache("ratio:ysybold", PRICE_TTL_MS);
+    if (cached !== null) return cached;
+
+    const client = getPublicClient("ethereum");
+    const pps = await client.readContract({
+        address: YSYBOLD_TOKEN,
+        abi: YSYBOLD_ABI,
+        functionName: "pricePerShare",
+    });
+    const ratio = Number(pps) / 1e18;
+    if (!Number.isFinite(ratio) || ratio <= 0) throw new Error("ysybold bad ratio");
+
+    writeCache("ratio:ysybold", ratio);
+    return ratio;
+}
+
+/* ------------------------------------------------------------------ */
+/* Per-symbol source chains. Symbols not listed -> null -> N/A in UI.  */
 /* ------------------------------------------------------------------ */
 
 const SOURCES: Record<string, Source[]> = {
-    // BTC family — WBTC and cbBTC peg 1:1 with BTC for valuation
     WBTC: [
         () => fromBinance("BTCUSDT"),
         () => fromCoinbase("BTC-USD"),
@@ -127,8 +139,6 @@ const SOURCES: Record<string, Source[]> = {
         () => fromDefiLlama(eth("0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf")),
         () => fromCoincap("bitcoin"),
     ],
-
-    // ETH
     WETH: [
         () => fromBinance("ETHUSDT"),
         () => fromCoinbase("ETH-USD"),
@@ -137,7 +147,6 @@ const SOURCES: Record<string, Source[]> = {
         () => fromCoincap("ethereum"),
     ],
 
-    // Gold-backed — keep separate, premiums differ between PAXG and XAUt
     PAXG: [
         () => fromBinance("PAXGUSDT"),
         () => fromDefiLlama(eth("0x45804880De22913dAFE09f4980848ECE6EcbAf78")),
@@ -146,21 +155,21 @@ const SOURCES: Record<string, Source[]> = {
         () => fromDefiLlama(eth("0x68749665FF8D2d112Fa859AA293F07A622782F38")),
     ],
 
-    // Liquid ERC20s
     CRV: [
         () => fromBinance("CRVUSDT"),
         () => fromCoinbase("CRV-USD"),
+        () => fromKraken("CRVUSD"),
         () => fromDefiLlama(eth("0xD533a949740bb3306d119CC777fa900bA034cd52")),
         () => fromCoincap("curve-dao-token"),
     ],
     GNO: [
         () => fromBinance("GNOUSDT"),
         () => fromCoinbase("GNO-USD"),
+        () => fromKraken("GNOUSD"),
         () => fromDefiLlama(eth("0x6810e776880C02933D47DB1b9fc05908e5386b96")),
         () => fromCoincap("gnosis-gno"),
     ],
 
-    // LSTs — must be priced individually, NOT as ETH (different exchange rates)
     LSETH: [
         () => fromDefiLlama(eth("0x8c1BEd5b9a0928467c9B1341Da1D7BD5e10b6549")),
     ],
@@ -168,19 +177,32 @@ const SOURCES: Record<string, Source[]> = {
         () => fromDefiLlama(eth("0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0")),
     ],
 
-    // DeFi vault token — DefiLlama indexes via DEX pool routes
+    // BOLD: pulled from DEX-aware indexer. Falls back to 1.0 only if everything fails.
+    BOLD: [
+        () => fromDefiLlama(eth("0x6440f144b7e50d6a8439336510312d2f54beb01d")),
+        async () => 1.0, // pegged stablecoin; trust the peg as last resort
+    ],
+
+    // ysyBOLD = on-chain pricePerShare * BOLD/USD
     YSYBOLD: [
+        async () => {
+            const [ratio, boldUsd] = await Promise.all([
+                ysyBoldSharesPerBold(),
+                getPriceUSD("BOLD"),
+            ]);
+            if (boldUsd === null) throw new Error("BOLD price unavailable");
+            return ratio * boldUsd;
+        },
         () => fromDefiLlama(eth("0x23346B04a7f55b8760E5860AA5A77383D63491cD")),
     ],
 
-    // BOSS, LENDS, REALU, SPYON intentionally not listed -> N/A
+    // BOSS, LENDS, REALU, SPYON: no public oracle -> null -> "N/A" in UI.
 };
 
 /* ------------------------------------------------------------------ */
 /* Public API                                                           */
 /* ------------------------------------------------------------------ */
 
-/** USD price for 1 unit of the collateral. null if no oracle is configured. */
 export async function getPriceUSD(symbol: string): Promise<number | null> {
     const key = symbol.toUpperCase();
     const sources = SOURCES[key];
@@ -195,7 +217,6 @@ export async function getPriceUSD(symbol: string): Promise<number | null> {
     return fresh;
 }
 
-/** USD -> CHF conversion rate. ZCHF is treated 1:1 with CHF. */
 export async function getUsdChfRate(): Promise<number | null> {
     const cached = readCache("fx:usdchf", FX_TTL_MS);
     if (cached !== null) return cached;
@@ -217,34 +238,22 @@ export async function getUsdChfRate(): Promise<number | null> {
             if (!Number.isFinite(v) || v <= 0) throw new Error("er-api no rate");
             return v as number;
         },
-        async () => {
-            const r = await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
-            if (!r.ok) throw new Error(`exchangerate.host ${r.status}`);
-            const j = await r.json();
-            const v = j?.rates?.CHF;
-            if (!Number.isFinite(v) || v <= 0) throw new Error("exchangerate.host no rate");
-            return v as number;
-        },
     ]);
     if (rate !== null) writeCache("fx:usdchf", rate);
     return rate;
 }
 
-/** Market price of 1 collateral unit in ZCHF. null = oracle unavailable. */
 export async function getMarketPriceCHF(symbol: string): Promise<number | null> {
     const [usd, rate] = await Promise.all([getPriceUSD(symbol), getUsdChfRate()]);
     if (usd === null || rate === null) return null;
     return usd * rate;
 }
 
-/** Manual cache bust if you ever need it (e.g. a "refresh" button). */
 export function clearPriceCache(): void {
     try {
         for (let i = localStorage.length - 1; i >= 0; i--) {
             const k = localStorage.key(i);
             if (k && k.startsWith(CACHE_PREFIX)) localStorage.removeItem(k);
         }
-    } catch {
-        /* ignore */
-    }
+    } catch { /* ignore */ }
 }
