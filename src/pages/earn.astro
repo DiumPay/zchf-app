@@ -27,6 +27,11 @@ const clientStrings = {
     toast_compound_done: tt("earn_toast_compound_done"),
     status_locked: tt("earn_status_locked"),
     status_withdrawable: tt("earn_status_withdrawable"),
+    status_earning: tt("status_earning"),
+    status_starts_in: tt("status_starts_in"),
+    unit_day: tt("unit_day"),
+    unit_hour: tt("unit_hour"),
+    unit_min: tt("unit_min"),
 };
 ---
 
@@ -73,7 +78,7 @@ const clientStrings = {
                             <div class="flex justify-between"><span>{tt("earn_balance_saved")}</span><span id="saved">—</span></div>
                             <div class="flex justify-between"><span>{tt("earn_balance_accrued")}</span><span id="accrued">—</span></div>
                             <div class="flex justify-between border-t border-foreground/10 pt-3"><span class="font-bold">{tt("earn_balance_total")}</span><span id="total" class="font-bold">—</span></div>
-                            <div class="flex justify-between pt-1"><span>{tt("earn_balance_status")}</span><span id="locked">—</span></div>
+                            <div class="flex justify-between pt-1"><span>{tt("earn_balance_interest_status")}</span><span id="locked">—</span></div>
                         </div>
                     </div>
 
@@ -200,6 +205,18 @@ const clientStrings = {
     const fmtPct = (v: bigint | number) => `${(Number(v) / 10_000).toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
     const fmtZCHFPrecise = (v: bigint) =>
     `${Number(formatUnits(v, 18)).toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ZCHF`;
+
+    const formatDuration = (seconds: bigint): string => {
+    const s = Number(seconds);
+    if (s <= 0) return i18n.status_earning;
+    const days = Math.floor(s / 86400);
+    const hours = Math.floor((s % 86400) / 3600);
+    const mins = Math.floor((s % 3600) / 60);
+    if (days > 0) return i18n.status_starts_in.replace("{0}", `${days}${i18n.unit_day} ${hours}${i18n.unit_hour}`);
+    if (hours > 0) return i18n.status_starts_in.replace("{0}", `${hours}${i18n.unit_hour} ${mins}${i18n.unit_min}`);
+    return i18n.status_starts_in.replace("{0}", `${mins}${i18n.unit_min}`);
+    };
+    
     const parseAmount = () => {
         try { return parseUnits(els.amount.value.trim() || "0", 18); }
         catch { return 0n; }
@@ -289,8 +306,8 @@ const clientStrings = {
         els.accrued.textContent = fmtZCHFPrecise(accrued);
         els.total.textContent = fmtZCHFPrecise(saved + accrued);
         els.locked.textContent = accTicks > currTicks
-            ? `${i18n.status_locked} ${(accTicks - currTicks) / BigInt(rate || 1)}s`
-            : i18n.status_withdrawable;
+           ? formatDuration((accTicks - currTicks) / BigInt(rate || 1))
+           : i18n.status_earning;
 
         validate();
     }
@@ -364,6 +381,8 @@ const clientStrings = {
             args: [getTarget(), amount], account: connected, chain: null,
         });
         toast(i18n.toast_withdraw_done, "success");
+        els.amount.value = "";
+        showError(null);
         await loadAccount(connected);
     }
 
