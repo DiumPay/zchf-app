@@ -7,13 +7,14 @@
 import { shared } from "./locales/shared";
 import { earn } from "./locales/earn";
 import { transfer } from "./locales/transfer"
+import { borrow } from "./locales/borrow"
 
 export const messages = {
-    en: { ...shared.en, ...earn.en, ...transfer.en },
-    de: { ...shared.de, ...earn.de, ...transfer.de },
-    fr: { ...shared.fr, ...earn.fr, ...transfer.fr },
-    it: { ...shared.it, ...earn.it, ...transfer.it },
-    es: { ...shared.es, ...earn.es, ...transfer.es },
+    en: { ...shared.en, ...earn.en, ...transfer.en, ...borrow.en },
+    de: { ...shared.de, ...earn.de, ...transfer.de, ...borrow.de },
+    fr: { ...shared.fr, ...earn.fr, ...transfer.fr, ...borrow.fr },
+    it: { ...shared.it, ...earn.it, ...transfer.it, ...borrow.it},
+    es: { ...shared.es, ...earn.es, ...transfer.es, ...borrow.es },
 } as const;
 
 export type Locale = keyof typeof messages;

@@ -39,6 +39,11 @@ export const transfer = {
         bridging_no: "No",
         common_yes: "Yes",
         common_no: "No",
+        transfer_history_title: "Recent transfers",
+        transfer_history_empty: "No transfers yet on this device.",
+        transfer_history_pending: "Pending…",
+        transfer_history_view_tx: "View tx ↗",
+        transfer_history_view_msg: "CCIP message ↗",
     },
 
     de: {
@@ -81,6 +86,11 @@ export const transfer = {
         bridging_no: "Nein",
         common_yes: "Ja",
         common_no: "Nein",
+        transfer_history_title: "Letzte Transfers",
+        transfer_history_empty: "Auf diesem Gerät noch keine Transfers.",
+        transfer_history_pending: "Ausstehend…",
+        transfer_history_view_tx: "Tx anzeigen ↗",
+        transfer_history_view_msg: "CCIP-Nachricht ↗",
     },
 
     fr: {
@@ -123,6 +133,11 @@ export const transfer = {
         bridging_no: "Non",
         common_yes: "Oui",
         common_no: "Non",
+        transfer_history_title: "Transferts récents",
+        transfer_history_empty: "Aucun transfert sur cet appareil pour l'instant.",
+        transfer_history_pending: "En attente…",
+        transfer_history_view_tx: "Voir la tx ↗",
+        transfer_history_view_msg: "Message CCIP ↗",
     },
 
     it: {
@@ -165,6 +180,11 @@ export const transfer = {
         bridging_no: "No",
         common_yes: "Sì",
         common_no: "No",
+        transfer_history_title: "Trasferimenti recenti",
+        transfer_history_empty: "Nessun trasferimento su questo dispositivo.",
+        transfer_history_pending: "In attesa…",
+        transfer_history_view_tx: "Vedi tx ↗",
+        transfer_history_view_msg: "Messaggio CCIP ↗",
     },
 
     es: {
@@ -207,5 +227,10 @@ export const transfer = {
         bridging_no: "No",
         common_yes: "Sí",
         common_no: "No",
+        transfer_history_title: "Transferencias recientes",
+        transfer_history_empty: "Aún no hay transferencias en este dispositivo.",
+        transfer_history_pending: "Pendiente…",
+        transfer_history_view_tx: "Ver tx ↗",
+        transfer_history_view_msg: "Mensaje CCIP ↗",
     },
 } as const;

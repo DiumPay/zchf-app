@@ -1,10 +1,250 @@
 ---
 import Layout from "@layouts/Layout.astro";
+import Card from "@components/Card.astro";
+import { t, getLocale } from "@i18n/t";
+
+import bossIcon from "@assets/tokens/boss.svg?url";
+import cbbtcIcon from "@assets/tokens/cbbtc.svg?url";
+import crvIcon from "@assets/tokens/crv.svg?url";
+import gnoIcon from "@assets/tokens/gno.svg?url";
+import lendsIcon from "@assets/tokens/lends.svg?url";
+import lsethIcon from "@assets/tokens/lseth.svg?url";
+import paxgIcon from "@assets/tokens/paxg.svg?url";
+import realuIcon from "@assets/tokens/realu.svg?url";
+import spyonIcon from "@assets/tokens/spyon.svg?url";
+import wbtcIcon from "@assets/tokens/wbtc.svg?url";
+import wethIcon from "@assets/tokens/weth.svg?url";
+import wstethIcon from "@assets/tokens/wsteth.svg?url";
+import xautIcon from "@assets/tokens/xaut.svg?url";
+import ysyboldIcon from "@assets/tokens/ysybold.svg?url";
+
+// Keyed by collateralSymbol from the snapshot. Lowercase for case-insensitive lookup.
+const TOKEN_ICONS: Record<string, string> = {
+    boss: bossIcon,
+    cbbtc: cbbtcIcon,
+    crv: crvIcon,
+    gno: gnoIcon,
+    lends: lendsIcon,
+    lseth: lsethIcon,
+    paxg: paxgIcon,
+    realu: realuIcon,
+    spyon: spyonIcon,
+    wbtc: wbtcIcon,
+    weth: wethIcon,
+    wsteth: wstethIcon,
+    xaut: xautIcon,
+    ysybold: ysyboldIcon,
+};
 ---
 
-<Layout
-    title="Borrow | Frankencoin dApp"
-    description="Mint ZCHF!"
->
-    <h1>Borrow</h1>
+<Layout title={`Borrow | Frankencoin dApp`} description="Borrow ZCHF against collateral.">
+    <main class="mx-auto max-w-5xl px-4 py-10 md:px-6 md:py-12">
+        <header class="mb-8">
+            <h1 class="text-[28px] font-bold tracking-tight">{t(Astro.url)("borrow_title")}</h1>
+            <p class="mt-2 text-[14px] opacity-80">{t(Astro.url)("borrow_subtitle")}</p>
+        </header>
+
+        <div class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div class="rounded-md border border-foreground/10 bg-background p-5">
+                <div class="mb-2 flex items-center gap-3">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/10 text-[14px] font-bold">1</span>
+                    <h2 class="text-[16px] font-bold">{t(Astro.url)("borrow_step1_title")}</h2>
+                </div>
+                <p class="text-[14px] opacity-80">{t(Astro.url)("borrow_step1_text")}</p>
+            </div>
+            <div class="rounded-md border border-foreground/10 bg-background p-5">
+                <div class="mb-2 flex items-center gap-3">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/10 text-[14px] font-bold">2</span>
+                    <h2 class="text-[16px] font-bold">{t(Astro.url)("borrow_step2_title")}</h2>
+                </div>
+                <p class="text-[14px] opacity-80">{t(Astro.url)("borrow_step2_text")}</p>
+            </div>
+            <div class="rounded-md border border-foreground/10 bg-background p-5">
+                <div class="mb-2 flex items-center gap-3">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/10 text-[14px] font-bold">3</span>
+                    <h2 class="text-[16px] font-bold">{t(Astro.url)("borrow_step3_title")}</h2>
+                </div>
+                <p class="text-[14px] opacity-80">{t(Astro.url)("borrow_step3_text")}</p>
+            </div>
+        </div>
+
+        <Card title={t(Astro.url)("borrow_table_title")}>
+            <div data-token-icons={JSON.stringify(TOKEN_ICONS)} class="hidden"></div>
+
+            <div class="mb-5 flex items-center gap-3">
+                <input
+                    id="search-input"
+                    type="text"
+                    placeholder={t(Astro.url)("borrow_search_placeholder")}
+                    class="flex-1 rounded-md border border-foreground/20 bg-background px-3 py-2 text-[14px] focus:border-foreground/40 focus:outline-none"
+                />
+            </div>
+
+            <div class="hidden grid-cols-[2fr_1fr_1fr_1fr_auto] gap-4 border-b border-foreground/10 pb-3 text-[13px] font-bold opacity-70 md:grid">
+                <span>{t(Astro.url)("borrow_col_collateral")}</span>
+                <span>{t(Astro.url)("borrow_col_liquidation")}</span>
+                <span>{t(Astro.url)("borrow_col_interest")}</span>
+                <span>{t(Astro.url)("borrow_col_maturity")}</span>
+                <span class="w-24"></span>
+            </div>
+
+            <ul id="positions-list" class="divide-y divide-foreground/10">
+                <li id="positions-loading" class="py-6 text-center text-[14px] opacity-60">
+                    {t(Astro.url)("borrow_loading")}
+                </li>
+            </ul>
+
+            <p id="positions-empty" class="hidden py-6 text-center text-[14px] opacity-60">
+                {t(Astro.url)("borrow_empty")}
+            </p>
+        </Card>
+    </main>
 </Layout>
+
+<script id="borrow-locale" type="application/json" set:html={JSON.stringify(getLocale(Astro.url))}></script>
+<script id="borrow-i18n" type="application/json" set:html={JSON.stringify({
+    btn_borrow: t(Astro.url)("borrow_btn_borrow"),
+    status_active: t(Astro.url)("borrow_status_active"),
+    status_cooldown: t(Astro.url)("borrow_status_cooldown"),
+    status_challenged: t(Astro.url)("borrow_status_challenged"),
+    status_closed: t(Astro.url)("borrow_status_closed"),
+    status_expired: t(Astro.url)("borrow_status_expired"),
+    empty: t(Astro.url)("borrow_empty"),
+    error: t(Astro.url)("borrow_error"),
+})}></script>
+
+<script>
+    import { loadPositions, liquidationPriceUnits, positionStatus, effectiveInterestPPM, type Position } from "@lib/positions";
+
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+
+    const i18n = JSON.parse($("borrow-i18n").textContent || "{}") as Record<string, string>;
+    const locale = JSON.parse($("borrow-locale").textContent || '"en"') as string;
+
+    const iconHost = document.querySelector<HTMLElement>("[data-token-icons]")!;
+    const tokenIcons = JSON.parse(iconHost.dataset.tokenIcons || "{}") as Record<string, string>;
+
+    const numberLocale = ({ en: "en-US", de: "de-CH", fr: "fr-CH", it: "it-CH", es: "es-ES" } as Record<string, string>)[locale] ?? "en-US";
+
+    const list = $<HTMLUListElement>("positions-list");
+    const loading = $("positions-loading");
+    const empty = $("positions-empty");
+    const search = $<HTMLInputElement>("search-input");
+
+    let allPositions: Position[] = [];
+
+    const fmtZCHF = (n: number) => n.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    const fmtPct = (ppm: number) => `${(ppm / 10_000).toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+    const fmtDate = (ts: number) => new Date(ts * 1000).toLocaleDateString(numberLocale, { day: "2-digit", month: "short", year: "numeric" });
+
+    const STATUS_LABEL: Record<ReturnType<typeof positionStatus>, string> = {
+        active: i18n.status_active,
+        cooldown: i18n.status_cooldown,
+        challenged: i18n.status_challenged,
+        closed: i18n.status_closed,
+        expired: i18n.status_expired,
+    };
+
+    const STATUS_CLASS: Record<ReturnType<typeof positionStatus>, string> = {
+        active: "bg-foreground/10",
+        cooldown: "bg-foreground/15",
+        challenged: "bg-primary/15 text-primary",
+        closed: "bg-foreground/15 opacity-60",
+        expired: "bg-foreground/15 opacity-60",
+    };
+
+    function iconFor(symbol: string): string | null {
+        return tokenIcons[symbol.toLowerCase()] ?? null;
+    }
+
+    function render(positions: Position[]) {
+        if (positions.length === 0) {
+            list.innerHTML = "";
+            empty.classList.remove("hidden");
+            return;
+        }
+        empty.classList.add("hidden");
+
+        list.innerHTML = positions.map(p => {
+            const status = positionStatus(p);
+            const liqPrice = liquidationPriceUnits(p);
+            const isActive = status === "active";
+            const icon = iconFor(p.collateralSymbol);
+
+            const iconHtml = icon
+                ? `<img src="${icon}" alt="" class="h-9 w-9 shrink-0 rounded-full" />`
+                : `<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[12px] font-bold">${p.collateralSymbol.slice(0, 3)}</div>`;
+
+            return `<li class="grid grid-cols-1 gap-3 py-4 md:grid-cols-[2fr_1fr_1fr_1fr_auto] md:items-center md:gap-4">
+                <div class="flex items-center gap-3">
+                    ${iconHtml}
+                    <div>
+                        <div class="font-bold text-[15px]">${p.collateralName}</div>
+                        <div class="text-[12px] opacity-70">
+                            <span class="inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${STATUS_CLASS[status]}">${STATUS_LABEL[status]}</span>
+                            <span class="ml-2">${p.collateralSymbol}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="text-[14px]">
+                    <span class="md:hidden opacity-60">Liquidation: </span>
+                    ${fmtZCHF(liqPrice)} ZCHF
+                </div>
+
+                <div class="text-[14px]">
+                    <span class="md:hidden opacity-60">Interest: </span>
+                    ${fmtPct(effectiveInterestPPM(p))}
+                </div>
+
+                <div class="text-[14px]">
+                    <span class="md:hidden opacity-60">Maturity: </span>
+                    ${fmtDate(p.expiration)}
+                </div>
+
+                <div>
+                    <button
+                        type="button"
+                        data-position="${p.address}"
+                        ${isActive ? "" : "disabled"}
+                        class="relative inline-flex w-full items-center justify-center gap-2 rounded-md border border-transparent bg-primary px-5 py-2 text-[14px] font-semibold text-[#FAF7F2] transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 dark:text-[#030303] md:w-auto"
+                    >
+                        ${i18n.btn_borrow}
+                    </button>
+                </div>
+            </li>`;
+        }).join("");
+
+        list.querySelectorAll<HTMLButtonElement>("[data-position]").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const addr = btn.dataset.position;
+                window.location.href = `/borrow/${addr}`;
+            });
+        });
+    }
+
+    function applyFilter() {
+        const q = search.value.trim().toLowerCase();
+        if (!q) return render(allPositions);
+        const filtered = allPositions.filter(p =>
+            p.collateralName.toLowerCase().includes(q) ||
+            p.collateralSymbol.toLowerCase().includes(q)
+        );
+        render(filtered);
+    }
+
+    search.addEventListener("input", applyFilter);
+
+    loadPositions()
+        .then(positions => {
+            allPositions = positions.sort((a, b) =>
+                a.collateralName.localeCompare(b.collateralName)
+            );
+            loading.remove();
+            render(allPositions);
+        })
+        .catch(err => {
+            console.error(err);
+            loading.textContent = i18n.error;
+        });
+</script>

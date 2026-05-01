@@ -3,6 +3,7 @@ import Layout from "@layouts/Layout.astro";
 import Card from "@components/Card.astro";
 import Button from "@components/Button.astro";
 import ChainSelector from "@components/ChainSelector.astro";
+import ExternalLink from "@components/ExternalLink.astro";
 import TransferIcon from "@assets/icons/transfer.svg";
 import { t, getLocale } from "@i18n/t";
 
@@ -19,6 +20,12 @@ const clientStrings = {
     btn_transferring: tt("transfer_btn_transferring"),
     btn_approving: tt("transfer_btn_approving"),
     toast_done: tt("transfer_toast_done"),
+    bridging_yes: tt("bridging_yes"),
+    bridging_no: tt("bridging_no"),
+    history_empty: tt("transfer_history_empty"),
+    history_pending: tt("transfer_history_pending"),
+    history_view_tx: tt("transfer_history_view_tx"),
+    history_view_msg: tt("transfer_history_view_msg"),
 };
 ---
 
@@ -34,11 +41,9 @@ const clientStrings = {
 
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 
-            <!-- LEFT: Transfer Parameters -->
             <Card title={tt("transfer_params_title")}>
                 <div class="flex flex-col gap-5">
 
-                    <!-- Sender chain -->
                     <div>
                         <div class="mb-2 flex items-center justify-between text-[14px]">
                             <span class="font-bold opacity-70">{tt("transfer_sender_label")}</span>
@@ -49,7 +54,6 @@ const clientStrings = {
                         </div>
                     </div>
 
-                    <!-- Amount -->
                     <div>
                         <div class="mb-2 flex items-center justify-between text-[14px]">
                             <label for="amount" class="font-bold opacity-70">{tt("transfer_amount_label")}</label>
@@ -70,7 +74,6 @@ const clientStrings = {
                         </div>
                     </div>
 
-                    <!-- Recipient -->
                     <div>
                         <div class="mb-2 flex items-center justify-between text-[14px]">
                             <span class="font-bold opacity-70">{tt("transfer_recipient_label")}</span>
@@ -86,13 +89,10 @@ const clientStrings = {
                             <select
                                 id="target-chain"
                                 class="rounded-md border border-foreground/20 bg-background px-3 py-2.5 text-[14px] font-medium focus:border-foreground/40 focus:outline-none"
-                            >
-                                <!-- Filled by client script from SUPPORTED_CHAINS -->
-                            </select>
+                            ></select>
                         </div>
                     </div>
 
-                    <!-- Reference -->
                     <div>
                         <label for="reference" class="mb-2 block text-[14px] font-bold opacity-70">{tt("transfer_reference_label")}</label>
                         <input
@@ -109,15 +109,18 @@ const clientStrings = {
                 </div>
             </Card>
 
-            <!-- RIGHT: Outcome -->
             <Card title={tt("transfer_outcome_title")}>
                 <div class="flex flex-col gap-5">
                     <div>
                         <div class="mb-3 text-[14px] font-bold opacity-70">{tt("transfer_outcome_section_parties")}</div>
                         <div class="space-y-3">
-                            <div class="flex justify-between"><span>{tt("transfer_sender_label")}</span><a id="out-sender" href="#" target="_blank" rel="noopener" class="font-mono text-primary hover:underline">—</a></div>
+                            <div class="flex justify-between"><span>{tt("transfer_sender_label")}</span>
+                                <ExternalLink id="out-sender" href="#" class="font-mono text-[13px]">—</ExternalLink>
+                            </div>
                             <div class="flex justify-between"><span>{tt("transfer_outcome_from")}</span><span id="out-from">—</span></div>
-                            <div class="flex justify-between pt-2"><span>{tt("transfer_recipient_label")}</span><a id="out-recipient" href="#" target="_blank" rel="noopener" class="font-mono text-primary hover:underline">—</a></div>
+                            <div class="flex justify-between pt-2"><span>{tt("transfer_recipient_label")}</span>
+                                <ExternalLink id="out-recipient" href="#" class="font-mono text-[13px]">—</ExternalLink>
+                            </div>
                             <div class="flex justify-between"><span>{tt("transfer_outcome_to")}</span><span id="out-to">—</span></div>
                         </div>
                     </div>
@@ -125,14 +128,22 @@ const clientStrings = {
                     <div class="border-t border-foreground/10 pt-5">
                         <div class="mb-3 text-[14px] font-bold opacity-70">{tt("transfer_outcome_section_ccip")}</div>
                         <div class="space-y-3">
-                            <div class="flex justify-between"><span>{tt("transfer_outcome_bridging")}</span><span id="out-bridging">{tt("common_no")}</span></div>
+                            <div class="flex justify-between"><span>{tt("transfer_outcome_bridging")}</span><span id="out-bridging">{tt("bridging_no")}</span></div>
                             <div class="flex justify-between"><span>{tt("transfer_outcome_fee")}</span><span id="out-fee">0</span></div>
-                            <div class="flex justify-between"><span>{tt("transfer_outcome_explorer")}</span><a id="out-explorer" href="#" target="_blank" rel="noopener" class="text-primary hover:underline">{tt("transfer_check_status")}</a></div>
+                            <div class="flex justify-between"><span>{tt("transfer_outcome_explorer")}</span>
+                                <ExternalLink id="out-explorer" href="#">{tt("transfer_check_status")}</ExternalLink>
+                            </div>
                         </div>
                     </div>
                 </div>
             </Card>
         </div>
+
+        <Card title={tt("transfer_history_title")} class="mt-6">
+            <ul id="history-list" class="space-y-3 text-[14px]">
+                <li id="history-empty" class="opacity-60">{tt("transfer_history_empty")}</li>
+            </ul>
+        </Card>
     </main>
 </Layout>
 
@@ -140,7 +151,10 @@ const clientStrings = {
 <script id="transfer-locale" type="application/json" set:html={JSON.stringify(locale)}></script>
 
 <script>
-    import { formatUnits, parseUnits, maxUint256, isAddress, type Address, erc20Abi } from "viem";
+    import {
+        formatUnits, parseUnits, maxUint256, isAddress,
+        type Address, erc20Abi, type Hex,
+    } from "viem";
     import { getPublicClient, makeWalletClient } from "@lib/client";
     import { getOnboard } from "@lib/onboard";
     import { toast } from "@lib/toast";
@@ -151,7 +165,6 @@ const clientStrings = {
     import { CCIP_SELECTORS, CCIP_EXPLORER } from "@config/ccip";
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-
     const i18n = JSON.parse($("transfer-i18n").textContent || "{}") as Record<string, string>;
     const locale = JSON.parse($("transfer-locale").textContent || '"en"') as string;
 
@@ -173,14 +186,15 @@ const clientStrings = {
         outBridging: $("out-bridging"),
         outFee: $("out-fee"),
         outExplorer: $<HTMLAnchorElement>("out-explorer"),
+        historyList: $("history-list"),
+        historyEmpty: $("history-empty"),
     };
 
     let connected: Address | null = null;
     let walletBalRaw = 0n;
 
     const stored = localStorage.getItem("activeChain") as ChainKey | null;
-    let chain: ChainKey =
-        stored && SUPPORTED_CHAINS.includes(stored) ? stored : DEFAULT_CHAIN;
+    let chain: ChainKey = stored && SUPPORTED_CHAINS.includes(stored) ? stored : DEFAULT_CHAIN;
 
     const addrs = () => ADDRESSES[chain];
     const client = () => getPublicClient(chain);
@@ -189,45 +203,20 @@ const clientStrings = {
 
     const fmtZCHF = (v: bigint) =>
         `${Number(formatUnits(v, 18)).toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 4 })} ZCHF`;
-
     const fmtNative = (v: bigint, symbol: string) =>
         `${Number(formatUnits(v, 18)).toLocaleString(numberLocale, { maximumFractionDigits: 6 })} ${symbol}`;
-
     const shortAddr = (a: string) => `${a.slice(0, 6)}…${a.slice(-4)}`;
+    const shortHash = (h: string) => `${h.slice(0, 10)}…${h.slice(-6)}`;
 
     const parseAmount = () => {
         try { return parseUnits(els.amount.value.trim() || "0", 18); }
         catch { return 0n; }
     };
 
-    // Populate target chain dropdown from SUPPORTED_CHAINS
-    function populateTargetChain() {
-        els.targetChain.innerHTML = "";
-        SUPPORTED_CHAINS.forEach((key) => {
-            const opt = document.createElement("option");
-            opt.value = key;
-            opt.textContent = CHAINS[key].label;
-            if (key === chain) opt.selected = true;
-            els.targetChain.appendChild(opt);
-        });
-    }
-
-    function showError(msg: string | null) {
-        els.amountError.classList.toggle("hidden", !msg);
-        els.amountError.textContent = msg ?? "";
-    }
-
     const getWC = () => {
         const w = getOnboard().state.get().wallets[0];
         if (!w) throw new Error(i18n.err_not_connected);
         return makeWalletClient(w.provider, chain);
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tx = async (args: any) => {
-        const hash = await getWC().writeContract(args);
-        await client().waitForTransactionReceipt({ hash });
-        return hash;
     };
 
     const lockBtn = (btn: HTMLButtonElement, label: string) => {
@@ -243,119 +232,129 @@ const clientStrings = {
         };
     };
 
+    const showError = (msg: string | null) => {
+        els.amountError.classList.toggle("hidden", !msg);
+        els.amountError.textContent = msg ?? "";
+    };
+
+    function populateTargetChain() {
+        els.targetChain.innerHTML = "";
+        SUPPORTED_CHAINS.forEach((key) => {
+            const opt = document.createElement("option");
+            opt.value = key;
+            opt.textContent = CHAINS[key].label;
+            if (key === chain) opt.selected = true;
+            els.targetChain.appendChild(opt);
+        });
+    }
+
     async function loadBalance() {
         if (!connected) {
             els.balance.textContent = "—";
             walletBalRaw = 0n;
             return;
         }
-        const bal = await client().readContract({
-            address: addrs().zchf,
-            abi: erc20Abi,
-            functionName: "balanceOf",
-            args: [connected],
+        walletBalRaw = await client().readContract({
+            address: addrs().zchf, abi: erc20Abi,
+            functionName: "balanceOf", args: [connected],
         });
-        walletBalRaw = bal;
-        els.balance.textContent = fmtZCHF(bal);
+        els.balance.textContent = fmtZCHF(walletBalRaw);
     }
 
-    /**
-     * Re-render the right-side outcome card based on current form state.
-     * Also triggers a CCIP fee quote when the transfer is cross-chain.
-     */
+    /** Read the CCIP fee — nativeToken=true means fee paid in chain's gas (ETH/AVAX/etc). */
+    async function getFee(targetKey: ChainKey, recipient: Address, amount: bigint): Promise<bigint> {
+        const contractAddr = addrs().transferReference!;
+        const selector = CCIP_SELECTORS[targetKey]!;
+        return await client().readContract({
+            address: contractAddr, abi: TRANSFER_REF_ABI,
+            functionName: "getCCIPFee",
+            args: [selector, recipient, amount, true],
+        });
+    }
+
     async function updateOutcome() {
         const targetKey = els.targetChain.value as ChainKey;
         const isCross = targetKey !== chain;
+        const rec = els.recipient.value.trim();
+        const recValid = rec && isAddress(rec);
 
-        // Sender side
         if (connected) {
-            els.outSender.textContent = shortAddr(connected);
+            els.outSender.querySelector("span,a")?.remove(); // no-op safety
+            els.outSender.firstChild!.textContent = shortAddr(connected);
             els.outSender.href = `${CHAINS[chain].explorer}/address/${connected}`;
             els.outExplorer.href = `${CCIP_EXPLORER}/address/${connected}`;
         } else {
-            els.outSender.textContent = "—";
+            els.outSender.firstChild!.textContent = "—";
             els.outSender.href = "#";
             els.outExplorer.href = "#";
         }
         els.outFrom.textContent = CHAINS[chain].label;
 
-        // Recipient side
-        const rec = els.recipient.value.trim();
-        if (rec && isAddress(rec)) {
-            els.outRecipient.textContent = shortAddr(rec);
+        if (recValid) {
+            els.outRecipient.firstChild!.textContent = shortAddr(rec);
             els.outRecipient.href = `${CHAINS[targetKey].explorer}/address/${rec}`;
         } else {
-            els.outRecipient.textContent = "—";
+            els.outRecipient.firstChild!.textContent = "—";
             els.outRecipient.href = "#";
         }
         els.outTo.textContent = CHAINS[targetKey].label;
 
-        // CCIP details
-        els.outBridging.textContent = isCross ? i18n.cancelled.replace(i18n.cancelled, "") || "Yes" : (i18n_yes() || "No");
-        els.outBridging.textContent = isCross ? i18n_yes() : i18n_no();
+        els.outBridging.textContent = isCross ? i18n.bridging_yes : i18n.bridging_no;
 
-        if (isCross && connected && rec && isAddress(rec) && parseAmount() > 0n) {
-            await quoteFee(targetKey, rec as Address, parseAmount()).catch(() => {
+        if (isCross && connected && recValid && parseAmount() > 0n) {
+            try {
+                const fee = await getFee(targetKey, rec as Address, parseAmount());
+                els.outFee.textContent = fmtNative(fee, CHAINS[chain].token);
+            } catch {
                 els.outFee.textContent = "—";
-            });
+            }
         } else {
             els.outFee.textContent = `0 ${CHAINS[chain].token}`;
         }
     }
 
-    // Helpers — read yes/no strings from the embedded i18n via two convenience keys
-    function i18n_yes() {
-        return (i18n as Record<string, string>).bridging_yes ?? "Yes";
-    }
-    function i18n_no() {
-        return (i18n as Record<string, string>).bridging_no ?? "No";
-    }
-
-    /**
-     * Read CCIP fee from the contract. nativeToken=false → fee paid in native gas (ETH/MATIC/etc).
-     */
-    async function quoteFee(targetKey: ChainKey, recipient: Address, amount: bigint) {
-        const contractAddr = addrs().transferReference;
-        if (!contractAddr) {
-            els.outFee.textContent = "—";
-            return;
-        }
-        const selector = CCIP_SELECTORS[targetKey];
-        if (!selector) {
-            els.outFee.textContent = "—";
-            return;
-        }
-        const fee = await client().readContract({
-            address: contractAddr,
-            abi: TRANSFER_REF_ABI,
-            functionName: "getCCIPFee",
-            args: [selector, recipient, amount, true],
-        });
-        els.outFee.textContent = fmtNative(fee, CHAINS[chain].token);
-    }
-
     async function approveIfNeeded(amount: bigint) {
-        const contractAddr = addrs().transferReference;
-        if (!contractAddr) throw new Error(i18n.err_no_contract);
-
+        const contractAddr = addrs().transferReference!;
         const allowance = await client().readContract({
-            address: addrs().zchf,
-            abi: erc20Abi,
-            functionName: "allowance",
-            args: [connected!, contractAddr],
+            address: addrs().zchf, abi: erc20Abi,
+            functionName: "allowance", args: [connected!, contractAddr],
         });
         if (allowance >= amount) return;
 
         const unlock = lockBtn(els.btnTransfer, i18n.btn_approving);
         try {
-            await tx({
+            const hash = await getWC().writeContract({
                 address: addrs().zchf, abi: erc20Abi, functionName: "approve",
                 args: [contractAddr, maxUint256], account: connected!, chain: null,
             });
+            await client().waitForTransactionReceipt({ hash });
         } finally {
             unlock();
         }
     }
+
+    const CCIP_SEND_REQUESTED_TOPIC0 = "0xd0c3c799bf9e2639de44391e7f524d229b2b55f5b1ea94b2bf7da42f7243dddd";
+
+async function extractMessageId(hash: Hex): Promise<Hex | null> {
+    try {
+        const receipt = await client().getTransactionReceipt({ hash });
+        const log = receipt.logs.find(l => l.topics[0]?.toLowerCase() === CCIP_SEND_REQUESTED_TOPIC0);
+        if (!log) return null;
+        // Walk the data in 32-byte chunks, return the first one that isn't all-zeros
+        // and doesn't look like a left-padded address (12 leading zero bytes).
+        const data = log.data.slice(2); // strip 0x
+        for (let i = 0; i + 64 <= data.length; i += 64) {
+            const word = data.slice(i, i + 64);
+            if (word === "0".repeat(64)) continue;        // empty
+            if (word.startsWith("0".repeat(24))) continue; // address-like (12 zero bytes)
+            if (word.startsWith("0".repeat(48))) continue; // small int (uint64/uint256 < 2^64)
+            return ("0x" + word) as Hex;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
 
     async function doTransfer() {
         if (!connected) throw new Error(i18n.err_not_connected);
@@ -376,32 +375,33 @@ const clientStrings = {
 
         await approveIfNeeded(amount);
 
+        let txHash: Hex;
         if (isCross) {
             const selector = CCIP_SELECTORS[targetKey];
             if (!selector) throw new Error(i18n.err_no_contract);
-
-            // Quote fee then send with native value
-            const fee = await client().readContract({
-                address: contractAddr,
-                abi: TRANSFER_REF_ABI,
-                functionName: "getCCIPFee",
-                args: [selector, rec as Address, amount, true],
-            });
-            await tx({
+            const fee = await getFee(targetKey, rec as Address, amount);
+            txHash = await getWC().writeContract({
                 address: contractAddr, abi: TRANSFER_REF_ABI,
                 functionName: "crossTransfer",
                 args: [selector, rec as Address, amount, ref],
-                account: connected, chain: null,
+                account: connected!, chain: null,
                 value: fee,
             });
         } else {
-            await tx({
+            txHash = await getWC().writeContract({
                 address: contractAddr, abi: TRANSFER_REF_ABI,
                 functionName: "transfer",
                 args: [rec as Address, amount, ref],
-                account: connected, chain: null,
+                account: connected!, chain: null,
             });
         }
+        await client().waitForTransactionReceipt({ hash: txHash });
+
+        const messageId = isCross ? await extractMessageId(txHash).catch(() => null) : null;
+        addHistoryEntry({
+            txHash, messageId, fromChain: chain, toChain: targetKey,
+            recipient: rec as Address, amount: amount.toString(), ref, ts: Date.now(),
+        });
 
         toast(i18n.toast_done, "success");
         els.amount.value = "";
@@ -412,31 +412,90 @@ const clientStrings = {
 
     async function runTransfer() {
         const unlock = lockBtn(els.btnTransfer, i18n.btn_transferring);
-        try {
-            await doTransfer();
-        } catch (e) {
+        try { await doTransfer(); }
+        catch (e) {
             const { message, isUserCancel } = friendlyError(e);
             toast(isUserCancel ? i18n.cancelled : message, isUserCancel ? "info" : "error", isUserCancel ? 2500 : 6500);
-        } finally {
-            unlock();
         }
+        finally { unlock(); }
     }
 
+    // -----------------------
+    // History (localStorage, last 10 user-submitted transfers)
+    // -----------------------
+
+    interface HistoryEntry {
+        txHash: Hex;
+        messageId: Hex | null;
+        fromChain: ChainKey;
+        toChain: ChainKey;
+        recipient: Address;
+        amount: string;        // bigint serialised
+        ref: string;
+        ts: number;
+    }
+
+    const HISTORY_KEY = "transferHistory";
+    const HISTORY_MAX = 10;
+
+    const readHistory = (): HistoryEntry[] => {
+        try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); }
+        catch { return []; }
+    };
+
+    const writeHistory = (entries: HistoryEntry[]) => {
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(entries.slice(0, HISTORY_MAX)));
+    };
+
+    function addHistoryEntry(entry: HistoryEntry) {
+        const all = readHistory();
+        all.unshift(entry);
+        writeHistory(all);
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const entries = readHistory();
+        if (entries.length === 0) {
+            els.historyList.innerHTML = `<li class="opacity-60">${i18n.history_empty}</li>`;
+            return;
+        }
+        els.historyList.innerHTML = entries.map(e => {
+            const fromLabel = CHAINS[e.fromChain].label;
+            const toLabel = CHAINS[e.toChain].label;
+            const isCross = e.fromChain !== e.toChain;
+            const arrow = isCross ? `${fromLabel} → ${toLabel}` : fromLabel;
+            const amount = fmtZCHF(BigInt(e.amount));
+            const dt = new Date(e.ts).toLocaleString(numberLocale, {
+                month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+            });
+            const txUrl = `${CHAINS[e.fromChain].explorer}/tx/${e.txHash}`;
+            const msgUrl = e.messageId ? `${CCIP_EXPLORER}/msg/${e.messageId}` : null;
+            const refStr = e.ref ? ` · <span class="opacity-70">${e.ref}</span>` : "";
+
+            return `<li class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-foreground/10 pb-3 last:border-0 last:pb-0">
+                <div>
+                    <div class="font-medium">${amount} <span class="opacity-60 text-[12px]">${arrow}</span></div>
+                    <div class="text-[12px] opacity-70">${dt} · → ${shortAddr(e.recipient)}${refStr}</div>
+                </div>
+                <div class="flex gap-3 text-[13px]">
+                    <a href="${txUrl}" target="_blank" rel="noopener" class="text-primary hover:underline">${i18n.history_view_tx}</a>
+                    ${msgUrl ? `<a href="${msgUrl}" target="_blank" rel="noopener" class="text-primary hover:underline">${i18n.history_view_msg}</a>` : ""}
+                </div>
+            </li>`;
+        }).join("");
+    }
+
+    // -----------------------
     // Wire up
+    // -----------------------
+
     els.btnTransfer.addEventListener("click", runTransfer);
-    els.btnMax.addEventListener("click", () => {
-        els.amount.value = formatUnits(walletBalRaw, 18);
-        updateOutcome();
-    });
-    els.btnOwn.addEventListener("click", () => {
-        if (!connected) return;
-        els.recipient.value = connected;
-        updateOutcome();
-    });
+    els.btnMax.addEventListener("click", () => { els.amount.value = formatUnits(walletBalRaw, 18); updateOutcome(); });
+    els.btnOwn.addEventListener("click", () => { if (connected) { els.recipient.value = connected; updateOutcome(); }});
     els.amount.addEventListener("input", updateOutcome);
     els.recipient.addEventListener("input", updateOutcome);
     els.targetChain.addEventListener("change", updateOutcome);
-    els.reference.addEventListener("input", updateOutcome);
 
     window.addEventListener("chainchange", (e) => {
         const next = (e as CustomEvent<{ chain: ChainKey }>).detail.chain;
@@ -467,5 +526,6 @@ const clientStrings = {
     });
 
     populateTargetChain();
+    renderHistory();
     updateOutcome();
 </script>
