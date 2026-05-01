@@ -7,7 +7,7 @@ export const shared = {
         nav_borrow: "Borrow",
         nav_earn: "Earn",
         nav_dashboard: "Dashboard",
-        nav_bridge: "Bridge",
+        nav_transfer: "Transfer",
 
         // Wallet
         wallet_connect: "Connect",
@@ -27,7 +27,7 @@ export const shared = {
         nav_borrow: "Leihen",
         nav_earn: "Sparen",
         nav_dashboard: "Übersicht",
-        nav_bridge: "Brücke",
+        nav_transfer: "Übertragen",
 
         wallet_connect: "Verbinden",
         wallet_disconnect_confirm: "Möchten Sie Ihre Wallet wirklich trennen?",
@@ -44,7 +44,7 @@ export const shared = {
         nav_borrow: "Emprunter",
         nav_earn: "Épargner",
         nav_dashboard: "Tableau de bord",
-        nav_bridge: "Pont",
+        nav_transfer: "Transférer",
 
         wallet_connect: "Connecter",
         wallet_disconnect_confirm: "Êtes-vous sûr de vouloir déconnecter votre portefeuille ?",
@@ -61,7 +61,7 @@ export const shared = {
         nav_borrow: "Prestiti",
         nav_earn: "Risparmi",
         nav_dashboard: "Pannello",
-        nav_bridge: "Ponte",
+        nav_transfer: "Trasferisci",
 
         wallet_connect: "Connetti",
         wallet_disconnect_confirm: "Sei sicuro di voler disconnettere il tuo wallet?",
@@ -78,7 +78,7 @@ export const shared = {
         nav_borrow: "Préstamos",
         nav_earn: "Ahorros",
         nav_dashboard: "Panel",
-        nav_bridge: "Puente",
+        nav_transfer: "Transferir",
 
         wallet_connect: "Conectar",
         wallet_disconnect_confirm: "¿Seguro que quieres desconectar tu wallet?",

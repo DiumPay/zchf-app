@@ -15,7 +15,7 @@ export const earn = {
         earn_manage_title: "Manage your savings",
 
         earn_balances_heading: "Your balances",
-        earn_balance_wallet: "Wallet balance",
+        earn_balance_wallet: "Wallet balance (undeposited)",
         earn_balance_saved: "Deposited in savings",
         earn_balance_accrued: "Interest to be collected",
         earn_balance_total: "Your total balance",
@@ -65,7 +65,7 @@ export const earn = {
         earn_manage_title: "Sparen verwalten",
 
         earn_balances_heading: "Ihre Bestände",
-        earn_balance_wallet: "Wallet-Saldo",
+        earn_balance_wallet: "Wallet-Saldo (nicht eingezahlt)",
         earn_balance_saved: "Im Sparen eingezahlt",
         earn_balance_accrued: "Aufgelaufene Zinsen",
         earn_balance_total: "Gesamtbestand",
@@ -115,7 +115,7 @@ export const earn = {
         earn_manage_title: "Gérer votre épargne",
 
         earn_balances_heading: "Vos avoirs",
-        earn_balance_wallet: "Solde du portefeuille",
+        earn_balance_wallet: "Solde du portefeuille (non déposé)",
         earn_balance_saved: "Déposé dans l'épargne",
         earn_balance_accrued: "Intérêts à percevoir",
         earn_balance_total: "Solde total",
@@ -165,7 +165,7 @@ export const earn = {
         earn_manage_title: "Gestisci i tuoi risparmi",
 
         earn_balances_heading: "I tuoi saldi",
-        earn_balance_wallet: "Saldo del wallet",
+        earn_balance_wallet: "Saldo del wallet (non depositato)",
         earn_balance_saved: "Depositato nel risparmio",
         earn_balance_accrued: "Interessi maturati",
         earn_balance_total: "Saldo totale",
@@ -215,7 +215,7 @@ export const earn = {
         earn_manage_title: "Gestionar tus ahorros",
 
         earn_balances_heading: "Tus saldos",
-        earn_balance_wallet: "Saldo del wallet",
+        earn_balance_wallet: "Saldo del wallet (sin depositar)",
         earn_balance_saved: "Depositado en ahorro",
         earn_balance_accrued: "Intereses por cobrar",
         earn_balance_total: "Saldo total",

@@ -1,0 +1,211 @@
+export const transfer = {
+    en: {
+        transfer_title: "Transfer",
+        transfer_subtitle: 'Transfer Frankencoins with a reference, or across chains using the <a href="https://app.transporter.io/" target="_blank" rel="noopener" class="text-primary hover:underline">CCIP bridge</a>.',
+
+        transfer_params_title: "Transfer parameters",
+        transfer_outcome_title: "Outcome",
+        transfer_outcome_section_parties: "Parties",
+        transfer_outcome_section_ccip: "CCIP details",
+
+        transfer_sender_label: "Sender",
+        transfer_sender_disconnected: "Connect your wallet…",
+        transfer_amount_label: "Amount",
+        transfer_balance: "Balance",
+        transfer_max: "Max",
+        transfer_recipient_label: "Recipient",
+        transfer_own: "Own",
+        transfer_reference_label: "Reference",
+        transfer_reference_placeholder: "Invoice 123",
+
+        transfer_outcome_from: "From",
+        transfer_outcome_to: "To",
+        transfer_outcome_bridging: "Bridging ZCHF",
+        transfer_outcome_fee: "CCIP fee",
+        transfer_outcome_explorer: "CCIP explorer",
+        transfer_check_status: "Check status ↗",
+
+        transfer_btn_transfer: "Transfer",
+        transfer_btn_transferring: "Transferring…",
+        transfer_btn_approving: "Approving…",
+        transfer_toast_done: "Transfer confirmed",
+
+        transfer_err_amount: "Enter an amount",
+        transfer_err_balance: "Not enough ZCHF in your wallet",
+        transfer_err_recipient: "Invalid recipient address",
+        transfer_err_no_contract: "Transfer not available on this chain",
+
+        bridging_yes: "Yes",
+        bridging_no: "No",
+        common_yes: "Yes",
+        common_no: "No",
+    },
+
+    de: {
+        transfer_title: "Transferieren",
+        transfer_subtitle: 'Frankencoins mit Referenz oder über die <a href="https://app.transporter.io/" target="_blank" rel="noopener" class="text-primary hover:underline">CCIP-Brücke</a> chainübergreifend transferieren.',
+
+        transfer_params_title: "Transfer-Parameter",
+        transfer_outcome_title: "Ergebnis",
+        transfer_outcome_section_parties: "Parteien",
+        transfer_outcome_section_ccip: "CCIP-Details",
+
+        transfer_sender_label: "Absender",
+        transfer_sender_disconnected: "Wallet verbinden…",
+        transfer_amount_label: "Betrag",
+        transfer_balance: "Saldo",
+        transfer_max: "Max.",
+        transfer_recipient_label: "Empfänger",
+        transfer_own: "Eigene",
+        transfer_reference_label: "Referenz",
+        transfer_reference_placeholder: "Rechnung 123",
+
+        transfer_outcome_from: "Von",
+        transfer_outcome_to: "An",
+        transfer_outcome_bridging: "ZCHF wird gebridged",
+        transfer_outcome_fee: "CCIP-Gebühr",
+        transfer_outcome_explorer: "CCIP-Explorer",
+        transfer_check_status: "Status prüfen ↗",
+
+        transfer_btn_transfer: "Transferieren",
+        transfer_btn_transferring: "Transfer läuft…",
+        transfer_btn_approving: "Genehmigung läuft…",
+        transfer_toast_done: "Transfer bestätigt",
+
+        transfer_err_amount: "Bitte Betrag eingeben",
+        transfer_err_balance: "Nicht genügend ZCHF in der Wallet",
+        transfer_err_recipient: "Ungültige Empfängeradresse",
+        transfer_err_no_contract: "Transfer auf dieser Chain nicht verfügbar",
+
+        bridging_yes: "Ja",
+        bridging_no: "Nein",
+        common_yes: "Ja",
+        common_no: "Nein",
+    },
+
+    fr: {
+        transfer_title: "Transférer",
+        transfer_subtitle: 'Transférez des Frankencoins avec une référence ou entre chaînes via le <a href="https://app.transporter.io/" target="_blank" rel="noopener" class="text-primary hover:underline">pont CCIP</a>.',
+
+        transfer_params_title: "Paramètres du transfert",
+        transfer_outcome_title: "Résultat",
+        transfer_outcome_section_parties: "Parties",
+        transfer_outcome_section_ccip: "Détails CCIP",
+
+        transfer_sender_label: "Expéditeur",
+        transfer_sender_disconnected: "Connectez votre portefeuille…",
+        transfer_amount_label: "Montant",
+        transfer_balance: "Solde",
+        transfer_max: "Max",
+        transfer_recipient_label: "Destinataire",
+        transfer_own: "Mon adresse",
+        transfer_reference_label: "Référence",
+        transfer_reference_placeholder: "Facture 123",
+
+        transfer_outcome_from: "De",
+        transfer_outcome_to: "Vers",
+        transfer_outcome_bridging: "ZCHF transféré entre chaînes",
+        transfer_outcome_fee: "Frais CCIP",
+        transfer_outcome_explorer: "Explorateur CCIP",
+        transfer_check_status: "Vérifier le statut ↗",
+
+        transfer_btn_transfer: "Transférer",
+        transfer_btn_transferring: "Transfert en cours…",
+        transfer_btn_approving: "Approbation en cours…",
+        transfer_toast_done: "Transfert confirmé",
+
+        transfer_err_amount: "Veuillez saisir un montant",
+        transfer_err_balance: "ZCHF insuffisants dans votre portefeuille",
+        transfer_err_recipient: "Adresse du destinataire invalide",
+        transfer_err_no_contract: "Transfert non disponible sur cette chaîne",
+
+        bridging_yes: "Oui",
+        bridging_no: "Non",
+        common_yes: "Oui",
+        common_no: "Non",
+    },
+
+    it: {
+        transfer_title: "Trasferimento",
+        transfer_subtitle: 'Trasferisci Frankencoin con una causale, o tra chain tramite il <a href="https://app.transporter.io/" target="_blank" rel="noopener" class="text-primary hover:underline">ponte CCIP</a>.',
+
+        transfer_params_title: "Parametri del trasferimento",
+        transfer_outcome_title: "Risultato",
+        transfer_outcome_section_parties: "Parti",
+        transfer_outcome_section_ccip: "Dettagli CCIP",
+
+        transfer_sender_label: "Mittente",
+        transfer_sender_disconnected: "Connetti il tuo wallet…",
+        transfer_amount_label: "Importo",
+        transfer_balance: "Saldo",
+        transfer_max: "Max",
+        transfer_recipient_label: "Destinatario",
+        transfer_own: "Mio indirizzo",
+        transfer_reference_label: "Causale",
+        transfer_reference_placeholder: "Fattura 123",
+
+        transfer_outcome_from: "Da",
+        transfer_outcome_to: "A",
+        transfer_outcome_bridging: "ZCHF in bridge",
+        transfer_outcome_fee: "Commissione CCIP",
+        transfer_outcome_explorer: "Esploratore CCIP",
+        transfer_check_status: "Verifica stato ↗",
+
+        transfer_btn_transfer: "Trasferisci",
+        transfer_btn_transferring: "Trasferimento in corso…",
+        transfer_btn_approving: "Approvazione in corso…",
+        transfer_toast_done: "Trasferimento confermato",
+
+        transfer_err_amount: "Inserisci un importo",
+        transfer_err_balance: "ZCHF insufficienti nel wallet",
+        transfer_err_recipient: "Indirizzo destinatario non valido",
+        transfer_err_no_contract: "Trasferimento non disponibile su questa chain",
+
+        bridging_yes: "Sì",
+        bridging_no: "No",
+        common_yes: "Sì",
+        common_no: "No",
+    },
+
+    es: {
+        transfer_title: "Transferir",
+        transfer_subtitle: 'Transfiere Frankencoins con una referencia, o entre redes mediante el <a href="https://app.transporter.io/" target="_blank" rel="noopener" class="text-primary hover:underline">puente CCIP</a>.',
+
+        transfer_params_title: "Parámetros de la transferencia",
+        transfer_outcome_title: "Resultado",
+        transfer_outcome_section_parties: "Partes",
+        transfer_outcome_section_ccip: "Detalles CCIP",
+
+        transfer_sender_label: "Remitente",
+        transfer_sender_disconnected: "Conecta tu wallet…",
+        transfer_amount_label: "Importe",
+        transfer_balance: "Saldo",
+        transfer_max: "Máx.",
+        transfer_recipient_label: "Destinatario",
+        transfer_own: "Mi dirección",
+        transfer_reference_label: "Concepto",
+        transfer_reference_placeholder: "Factura 123",
+
+        transfer_outcome_from: "Desde",
+        transfer_outcome_to: "A",
+        transfer_outcome_bridging: "ZCHF entre redes",
+        transfer_outcome_fee: "Comisión CCIP",
+        transfer_outcome_explorer: "Explorador CCIP",
+        transfer_check_status: "Ver estado ↗",
+
+        transfer_btn_transfer: "Transferir",
+        transfer_btn_transferring: "Transfiriendo…",
+        transfer_btn_approving: "Aprobando…",
+        transfer_toast_done: "Transferencia confirmada",
+
+        transfer_err_amount: "Introduce un importe",
+        transfer_err_balance: "ZCHF insuficientes en tu wallet",
+        transfer_err_recipient: "Dirección de destinatario no válida",
+        transfer_err_no_contract: "Transferencia no disponible en esta red",
+
+        bridging_yes: "Sí",
+        bridging_no: "No",
+        common_yes: "Sí",
+        common_no: "No",
+    },
+} as const;
