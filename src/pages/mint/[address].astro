@@ -8,6 +8,7 @@ import ExpirationPicker from "@components/mint/ExpirationPicker.astro";
 import OutcomeBreakdown from "@components/mint/OutcomeBreakdown.astro";
 import MintActions from "@components/mint/MintActions.astro";
 import snapshot from "@data/positions-snapshot.json";
+import { t } from "@i18n/t";
 
 import zchfIcon from "@assets/tokens/zchf.svg?url";
 import bossIcon from "@assets/tokens/boss.svg?url";
@@ -40,31 +41,102 @@ export async function getStaticPaths() {
 
 const { position } = Astro.props;
 const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
+const tt = t(Astro.url);
+const sym = position.collateralSymbol;
+
+// Resolve once, pass to components and the client script.
+const i18n = {
+    // Header
+    statusLabel: tt("mint_status_active"),
+    cloneLabel: tt("mint_badge_clone"),
+    positionContractLabel: tt("mint_meta_position"),
+    tokenLabel: tt("mint_meta_token").replace("{symbol}", sym),
+    // Card title
+    cardTitle: tt("mint_card_title"),
+    // LinkedInputs
+    depositLabel: tt("mint_input_deposit"),
+    mintNowLabel: tt("mint_input_mint_now"),
+    maxLabel: tt("mint_input_max"),
+    balanceLabel: tt("mint_input_balance"),
+    mintableLabel: tt("mint_input_mintable"),
+    poolCapacityLabel: tt("mint_input_pool_capacity"),
+    // Slider
+    sliderLabel: tt("mint_slider_label"),
+    referenceLabel: tt("mint_slider_reference"),
+    ltvLabel: tt("mint_slider_ltv"),
+    cooldownWarning: tt("mint_slider_cooldown_warning"),
+    fallbackTitle: tt("mint_slider_no_oracle_title"),
+    fallbackText: tt("mint_slider_no_oracle_text"),
+    // ExpirationPicker
+    expiryLabel: tt("mint_expiry_label"),
+    expiryMaxLabel: tt("mint_expiry_max"),
+    // OutcomeBreakdown
+    mintedLabel: tt("mint_outcome_minted"),
+    reserveLabel: tt("mint_outcome_reserve"),
+    repaidLabel: tt("mint_outcome_repaid"),
+    interestLabel: tt("mint_outcome_interest"),
+    perYearTemplate: tt("mint_outcome_per_year"),
+    sentLabel: tt("mint_outcome_sent"),
+    // MintActions
+    approveLabel: tt("mint_action_approve").replace("{symbol}", sym),
+    mintLabel: tt("mint_action_mint"),
+    connectLabel: tt("wallet_connect"),
+};
 ---
 
-<Layout title={`Mint against ${position.collateralSymbol} | Frankencoin dApp`} description={`Mint ZCHF against ${position.collateralName}.`}>
+<Layout title={`${i18n.cardTitle} | ${sym}`} description={`${i18n.cardTitle}: ${position.collateralName}`}>
     <main class="mx-auto max-w-3xl px-4 py-10 md:px-6 md:py-12">
 
         <MintHeader
             name={position.collateralName}
-            symbol={position.collateralSymbol}
+            symbol={sym}
             iconUrl={iconUrl}
             address={position.address}
             collateral={position.collateral}
             isClone={!position.isOriginal}
+            statusLabel={i18n.statusLabel}
+            cloneLabel={i18n.cloneLabel}
+            positionContractLabel={i18n.positionContractLabel}
+            tokenLabel={i18n.tokenLabel}
         />
 
-        <Card title="Mint Frankencoins">
+        <Card title={i18n.cardTitle}>
             <div class="space-y-5">
                 <LinkedInputs
-                    collateralSymbol={position.collateralSymbol}
+                    collateralSymbol={sym}
                     collateralIconUrl={iconUrl}
                     zchfIconUrl={zchfIcon}
+                    depositLabel={i18n.depositLabel}
+                    mintNowLabel={i18n.mintNowLabel}
+                    maxLabel={i18n.maxLabel}
+                    balanceLabel={i18n.balanceLabel}
+                    mintableLabel={i18n.mintableLabel}
+                    poolCapacityLabel={i18n.poolCapacityLabel}
                 />
-                <PriceSlider />
-                <ExpirationPicker />
-                <OutcomeBreakdown />
-                <MintActions collateralSymbol={position.collateralSymbol} />
+                <PriceSlider
+                    label={i18n.sliderLabel}
+                    referenceLabel={i18n.referenceLabel}
+                    ltvLabel={i18n.ltvLabel}
+                    cooldownWarning={i18n.cooldownWarning}
+                    fallbackTitle={i18n.fallbackTitle}
+                    fallbackText={i18n.fallbackText}
+                />
+                <ExpirationPicker
+                    label={i18n.expiryLabel}
+                    maxLabel={i18n.expiryMaxLabel}
+                />
+                <OutcomeBreakdown
+                    mintedLabel={i18n.mintedLabel}
+                    reserveLabel={i18n.reserveLabel}
+                    repaidLabel={i18n.repaidLabel}
+                    interestLabel={i18n.interestLabel}
+                    sentLabel={i18n.sentLabel}
+                />
+                <MintActions
+                    approveLabel={i18n.approveLabel}
+                    mintLabel={i18n.mintLabel}
+                    connectLabel={i18n.connectLabel}
+                />
             </div>
         </Card>
     </main>
@@ -85,6 +157,9 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         riskPremiumPPM: position.riskPremiumPPM,
         reserveContribution: position.reserveContribution,
     })}></script>
+    <script id="mint-i18n" type="application/json" set:html={JSON.stringify({
+        perYearTemplate: i18n.perYearTemplate,
+    })}></script>
 </Layout>
 
 <script>
@@ -93,9 +168,11 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
 
     const $ = (id: string) => document.getElementById(id) as HTMLElement;
     const data = JSON.parse($("position-data").textContent || "{}") as PositionStaticDetail & {
-        // serialised bigints come through as strings in JSON; cast in code below
         limit: any;
         minimumCollateral: any;
+    };
+    const i18n = JSON.parse($("mint-i18n").textContent || "{}") as {
+        perYearTemplate: string;
     };
 
     const PRICE_DIGIT = 36 - data.collateralDecimals;
@@ -150,11 +227,10 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
     let lastEdited: "coll" | "mint" = "coll";
     let linked = true;
     let collAmount = BigInt(data.minimumCollateral);
-    let parentPrice = 1n;                                  // from chain on load
+    let parentPrice = 1n;
     let newPrice = parentPrice;
     let mintAmount = 0n;
 
-    // Live state (filled by multicall)
     let userBalance = 0n;
     let availableForClones = 0n;
     let annualInterestPPM = 0;
@@ -172,6 +248,7 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         mint: $("input-mint") as HTMLInputElement,
         balanceColl: $("balance-coll"),
         mintable: $("mintable-amount"),
+        poolCapacity: $("pool-capacity"),
         maxColl: $("btn-max-coll") as HTMLButtonElement,
         maxMint: $("btn-max-mint") as HTMLButtonElement,
         link: $("btn-link") as HTMLButtonElement,
@@ -218,6 +295,18 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         return Math.max(0, Math.min(SLIDER_RES, ((v - min) / scale) * SLIDER_RES));
     }
 
+    /**
+     * User-facing mint cap (Frankencoin's "Mintable").
+     * = min(availableForClones, collAmount × mintPrice / 1e18)
+     * Tracks the deposit input — when collateral is 0, this is 0.
+     */
+    function borrowingLimit(): bigint {
+        const mintPrice = newPrice <= parentPrice ? newPrice : parentPrice;
+        if (mintPrice === 0n) return 0n;
+        const byCollateral = (collAmount * mintPrice) / 10n ** 18n;
+        return availableForClones < byCollateral ? availableForClones : byCollateral;
+    }
+
     // ---- Date tabs ----
     const TAB_DAYS: Record<string, number> = { "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
     function applyTab(tab: string) {
@@ -250,6 +339,9 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
 
         e.cooldownWarn.classList.toggle("hidden", newPrice <= parentPrice);
 
+        e.mintable.textContent = fmt(fromBig(borrowingLimit(), 18), 0, 0);
+        e.poolCapacity.textContent = `${fmt(fromBig(availableForClones, 18), 0, 0)} ZCHF`;
+
         if (document.activeElement !== e.coll) {
             e.coll.value = fmtPlain(fromBig(collAmount, dec), dec);
         }
@@ -257,15 +349,11 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
             e.mint.value = fmtPlain(fromBig(mintAmount, 18), 18);
         }
 
-        // Outcome breakdown
-        // Per Frankencoin: the rate LABEL shows the *effective* annual rate
-        // (gross-up that accounts for the reserve cut), while the upfront
-        // fee CHARGED uses the *nominal* annualInterestPPM. Both come from
-        // chain — annualInterestPPM already includes leadrate + risk premium.
+        // Outcome breakdown — effective rate label, nominal rate fee
         const reservePct = data.reserveContribution / 10000;
         const repaidPct = 100 - reservePct;
-        const reserveRatio = data.reserveContribution / 1_000_000;        // 0..1
-        const nominalRate = annualInterestPPM / 1_000_000;                 // 0..1
+        const reserveRatio = data.reserveContribution / 1_000_000;
+        const nominalRate = annualInterestPPM / 1_000_000;
         const effectiveRate = reserveRatio < 1 ? nominalRate / (1 - reserveRatio) : nominalRate;
         const reserveAmt = (mintAmount * BigInt(data.reserveContribution)) / 1_000_000n;
         const repaidAmt = mintAmount - reserveAmt;
@@ -280,7 +368,7 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         e.outRepaid.textContent = `${fmt(fromBig(repaidAmt, 18), 0, 2)} ZCHF`;
         e.outRepaidPct.textContent = `(${fmt(repaidPct, 0, 2)}%)`;
         e.outFee.textContent = `−${fmt(fromBig(fee, 18), 0, 2)} ZCHF`;
-        e.outRate.textContent = `(${fmt(effectiveRate * 100, 2, 2)}% per year)`;
+        e.outRate.textContent = `(${i18n.perYearTemplate.replace("{rate}", fmt(effectiveRate * 100, 2, 2))})`;
         e.outNet.textContent = `${fmt(fromBig(net, 18), 0, 2)} ZCHF`;
     }
 
@@ -325,12 +413,11 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         render();
     });
     e.maxMint.addEventListener("click", () => {
-        mintAmount = availableForClones;
+        mintAmount = borrowingLimit();
         const mintPrice = newPrice <= parentPrice ? newPrice : parentPrice;
         if (linked && mintPrice > 0n) collAmount = (mintAmount * 10n ** 18n + mintPrice - 1n) / mintPrice;
         render();
     });
-
     e.link.addEventListener("click", () => {
         linked = !linked;
         e.linkWrap.classList.toggle("broken", !linked);
@@ -341,7 +428,6 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         }
         render();
     });
-
     e.slider.addEventListener("input", () => {
         const proposed = sliderToPrice(Number(e.slider.value));
         newPrice = (linked && proposed > parentPrice) ? parentPrice : proposed;
@@ -352,7 +438,6 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         }
         render();
     });
-
     e.date.addEventListener("change", () => {
         document.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach(b => b.classList.remove("active"));
         render();
@@ -366,20 +451,15 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
     e.date.min = new Date().toISOString().slice(0, 10);
     applyTab("MAX");
 
-    // -------------------------------------------------------------------
-    // Live multicall: replace ALL stubs with real on-chain values
-    // -------------------------------------------------------------------
     (async () => {
         const staticInfo = findStaticPosition(data.address);
         if (!staticInfo) return;
 
-        // Detect connected wallet from window if available, otherwise null
         const connected = (window as any).__userAddress as `0x${string}` | undefined;
         const userAddr = connected ?? null;
 
         try {
             const detail = await loadPositionDetail(staticInfo, userAddr);
-
             parentPrice = detail.price;
             newPrice = detail.price;
             availableForClones = detail.availableForClones;
@@ -391,18 +471,13 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
             cooldown = detail.cooldown;
             challengedAmount = detail.challengedAmount;
 
-            // Initial mint amount = minColl × parentPrice (Frankencoin's pattern)
             mintAmount = (parentPrice * collAmount) / 10n ** 18n;
-
             e.balanceColl.textContent = fmt(fromBig(userBalance, data.collateralDecimals), 2, 4);
-            e.mintable.textContent = fmt(fromBig(availableForClones, 18), 0, 0);
-
             render();
         } catch (err) {
             console.error("loadPositionDetail failed:", err);
         }
 
-        // Async market price load
         const market = await getMarketPriceCHF(data.collateralSymbol);
         if (market === null || market <= 0) {
             e.sliderSection.classList.add("hidden");
@@ -414,6 +489,5 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         render();
     })();
 
-    // Initial render before any data lands
     render();
 </script>

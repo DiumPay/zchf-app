@@ -1,23 +1,35 @@
+---
+interface Props {
+    mintedLabel: string;
+    reserveLabel: string;
+    repaidLabel: string;
+    interestLabel: string;
+    sentLabel: string;
+}
+
+const { mintedLabel, reserveLabel, repaidLabel, interestLabel, sentLabel } = Astro.props;
+---
+
 <div class="rounded-md bg-muted/40 p-5">
     <div class="space-y-2.5 text-[14px]">
         <div class="flex items-center justify-between">
-            <span class="text-foreground/75">Minted <span class="text-[12px] text-muted-foreground">(100%)</span></span>
+            <span class="text-foreground/75">{mintedLabel} <span class="text-[12px] text-muted-foreground">(100%)</span></span>
             <span id="out-minted" class="font-mono font-medium tabular-nums">0 ZCHF</span>
         </div>
         <div class="flex items-center justify-between">
-            <span class="text-foreground/75">Retained reserve <span id="out-reserve-pct" class="text-[12px] text-muted-foreground">(0%)</span></span>
+            <span class="text-foreground/75">{reserveLabel} <span id="out-reserve-pct" class="text-[12px] text-muted-foreground">(0%)</span></span>
             <span id="out-reserve" class="font-mono font-medium tabular-nums">0 ZCHF</span>
         </div>
         <div class="flex items-center justify-between">
-            <span class="text-foreground/75">To be repaid in the end <span id="out-repaid-pct" class="text-[12px] text-muted-foreground">(0%)</span></span>
+            <span class="text-foreground/75">{repaidLabel} <span id="out-repaid-pct" class="text-[12px] text-muted-foreground">(0%)</span></span>
             <span id="out-repaid" class="font-mono font-medium tabular-nums">0 ZCHF</span>
         </div>
         <div class="flex items-center justify-between">
-            <span class="text-foreground/75">Upfront interest <span id="out-rate" class="text-[12px] text-muted-foreground">(0% per year)</span></span>
+            <span class="text-foreground/75">{interestLabel} <span id="out-rate" class="text-[12px] text-muted-foreground">(0% per year)</span></span>
             <span id="out-fee" class="font-mono font-medium tabular-nums">0 ZCHF</span>
         </div>
         <div class="flex items-center justify-between border-t border-foreground/10 pt-3 text-[16px] font-bold">
-            <span>Sent to your wallet</span>
+            <span>{sentLabel}</span>
             <span id="out-net" class="font-mono tabular-nums">0 ZCHF</span>
         </div>
     </div>

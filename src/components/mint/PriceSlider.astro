@@ -8,30 +8,38 @@
 //   <input>         — invisible, full width, drives --value via JS
 //
 // Both vars are percent strings, e.g. "67.3%". Set on the OUTER container.
----
 
+interface Props {
+    label: string;
+    referenceLabel: string;
+    ltvLabel: string;
+    cooldownWarning: string;
+    fallbackTitle: string;
+    fallbackText: string;
+}
+
+const { label, referenceLabel, ltvLabel, cooldownWarning, fallbackTitle, fallbackText } = Astro.props;
+---
 <div id="slider-section" class="rounded-md border border-foreground/15 px-4 py-3" style="--source: 50%; --value: 50%;">
     <div class="my-1 flex items-center">
-        <span class="flex-1 text-[14px] font-bold text-foreground/80">Liquidation Price</span>
+        <span class="flex-1 text-[14px] font-bold text-foreground/80">{label}</span>
         <span class="text-[18px] font-bold text-foreground tabular-nums">
             <span id="price-value">—</span>
             <span class="ml-1 text-[14px] font-medium text-muted-foreground">ZCHF</span>
         </span>
     </div>
-
     <div class="relative pt-3 pb-2">
         <!-- "REFERENCE" label sits above the track at source position -->
         <div id="source-label" class="absolute -top-1 -translate-x-1/2 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400" style="left: var(--source);">
-            Reference
+            {referenceLabel}
         </div>
-
         <!-- Track -->
         <div class="relative flex h-8 items-center">
             <div class="absolute inset-x-0 h-3 overflow-hidden rounded-full">
                 <!-- full gradient -->
                 <div class="absolute inset-0 bg-[linear-gradient(to_right,#22c55e_0%,#eab308_50%,#f97316_100%)]"></div>
                 <!-- grey cover from source to end -->
-               <div class="absolute right-0 top-0 bottom-0 bg-gray-300 dark:bg-gray-600" style="left: var(--source);"></div>
+                <div class="absolute right-0 top-0 bottom-0 bg-gray-300 dark:bg-gray-600" style="left: var(--source);"></div>
                 <!-- vertical source line -->
                 <div class="absolute top-0 bottom-0 w-0.5 bg-amber-700 dark:bg-amber-400" style="left: var(--source);"></div>
             </div>
@@ -42,22 +50,20 @@
                 class="absolute inset-0 z-10 w-full cursor-pointer opacity-0" />
         </div>
     </div>
-
     <div class="flex flex-row gap-2 py-1 text-[13px]">
         <div class="flex flex-1 flex-row gap-2">
-            <span class="text-muted-foreground">LTV</span>
+            <span class="text-muted-foreground">{ltvLabel}</span>
             <span id="ltv-value" class="font-bold text-foreground">—</span>
         </div>
-        <span id="cooldown-warning" class="hidden text-amber-600 dark:text-amber-400">⚠ 3-day cooldown above reference</span>
+        <span id="cooldown-warning" class="hidden text-amber-600 dark:text-amber-400">{cooldownWarning}</span>
     </div>
 </div>
-
 <!-- Hidden when there's no market price feed for this collateral -->
 <div id="slider-fallback" class="hidden rounded-md border border-foreground/15 bg-muted/30 p-5">
-    <div class="text-[14px] font-bold text-foreground/80">Liquidation Price</div>
+    <div class="text-[14px] font-bold text-foreground/80">{fallbackTitle}</div>
     <div class="mt-1 flex items-baseline gap-2">
         <span id="price-value-static" class="text-[18px] font-bold tabular-nums">—</span>
         <span class="text-[13px] text-muted-foreground">ZCHF</span>
     </div>
-    <p class="mt-2 text-[12px] text-muted-foreground">No market price feed for this collateral; price adjustment unavailable.</p>
+    <p class="mt-2 text-[12px] text-muted-foreground">{fallbackText}</p>
 </div>

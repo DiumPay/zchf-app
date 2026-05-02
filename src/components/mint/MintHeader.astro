@@ -8,9 +8,16 @@ interface Props {
     address: string;
     collateral: string;
     isClone: boolean;
+    statusLabel: string;
+    cloneLabel: string;
+    positionContractLabel: string;
+    tokenLabel: string;
 }
 
-const { name, symbol, iconUrl, address, collateral, isClone } = Astro.props;
+const {
+    name, symbol, iconUrl, address, collateral, isClone,
+    statusLabel, cloneLabel, positionContractLabel, tokenLabel,
+} = Astro.props;
 ---
 
 <header class="mb-8 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
@@ -25,14 +32,14 @@ const { name, symbol, iconUrl, address, collateral, isClone } = Astro.props;
                 <span class="text-[16px] font-medium text-muted-foreground">{symbol}</span>
             </h1>
             <div class="mt-1.5 flex flex-wrap gap-1.5">
-                <span id="badge-status" class="inline-block rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide bg-foreground/10">Active</span>
+                <span id="badge-status" class="inline-block rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide bg-foreground/10">{statusLabel}</span>
                 <span class="inline-block rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide bg-foreground/10">V2</span>
-                {isClone && <span class="inline-block rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide bg-primary/15 text-primary">Clone</span>}
+                {isClone && <span class="inline-block rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide bg-primary/15 text-primary">{cloneLabel}</span>}
             </div>
         </div>
     </div>
     <div class="flex gap-4 text-[13px]">
-        <ExternalLink href={`https://etherscan.io/address/${address}`} title={`View position contract on Etherscan`}>Position contract</ExternalLink>
-        <ExternalLink href={`https://etherscan.io/address/${collateral}`} title={`View ${symbol} token on Etherscan`}>{symbol} token</ExternalLink>
+        <ExternalLink href={`https://etherscan.io/address/${address}`} title={positionContractLabel}>{positionContractLabel}</ExternalLink>
+        <ExternalLink href={`https://etherscan.io/address/${collateral}`} title={tokenLabel}>{tokenLabel}</ExternalLink>
     </div>
 </header>

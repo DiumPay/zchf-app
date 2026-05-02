@@ -5,16 +5,25 @@ interface Props {
     collateralSymbol: string;
     collateralIconUrl: string | null;
     zchfIconUrl: string;
+    depositLabel: string;
+    mintNowLabel: string;
+    maxLabel: string;
+    balanceLabel: string;
+    mintableLabel: string;
+    poolCapacityLabel: string;
 }
 
-const { collateralSymbol, collateralIconUrl, zchfIconUrl } = Astro.props;
+const {
+    collateralSymbol, collateralIconUrl, zchfIconUrl,
+    depositLabel, mintNowLabel, maxLabel, balanceLabel, mintableLabel, poolCapacityLabel,
+} = Astro.props;
 ---
 
 <div class="relative grid grid-cols-1 gap-3 md:grid-cols-2">
     <div id="deposit-card" class="rounded-md border border-foreground/15 bg-muted/30 p-4 transition-colors focus-within:border-foreground/40">
         <div class="mb-2 flex items-center justify-between text-[12px] font-bold uppercase tracking-wide text-muted-foreground">
-            <span>Deposit</span>
-            <button id="btn-max-coll" type="button" class="text-primary normal-case hover:underline disabled:opacity-50">Max</button>
+            <span>{depositLabel}</span>
+            <button id="btn-max-coll" type="button" class="text-primary normal-case hover:underline disabled:opacity-50">{maxLabel}</button>
         </div>
         <div class="flex items-baseline justify-between gap-3">
             <input id="input-coll" type="text" inputmode="decimal" placeholder="0.00"
@@ -28,15 +37,15 @@ const { collateralSymbol, collateralIconUrl, zchfIconUrl } = Astro.props;
             </div>
         </div>
         <div class="mt-2 flex items-center justify-between text-[12px] text-muted-foreground">
-            <span>Balance</span>
+            <span>{balanceLabel}</span>
             <span id="balance-coll" class="font-mono text-foreground/85">0.00</span>
         </div>
     </div>
 
     <div id="mint-card" class="rounded-md border-2 border-primary/60 bg-primary/5 p-4 transition-colors focus-within:border-primary">
         <div class="mb-2 flex items-center justify-between text-[12px] font-bold uppercase tracking-wide text-muted-foreground">
-            <span>Mint now</span>
-            <button id="btn-max-mint" type="button" class="text-primary normal-case hover:underline disabled:opacity-50">Max</button>
+            <span>{mintNowLabel}</span>
+            <button id="btn-max-mint" type="button" class="text-primary normal-case hover:underline disabled:opacity-50">{maxLabel}</button>
         </div>
         <div class="flex items-baseline justify-between gap-3">
             <input id="input-mint" type="text" inputmode="decimal" placeholder="0.00"
@@ -47,8 +56,12 @@ const { collateralSymbol, collateralIconUrl, zchfIconUrl } = Astro.props;
             </div>
         </div>
         <div class="mt-2 flex items-center justify-between text-[12px] text-muted-foreground">
-            <span>Mintable</span>
+            <span>{mintableLabel}</span>
             <span id="mintable-amount" class="font-mono text-foreground/85">0</span>
+        </div>
+        <div class="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>{poolCapacityLabel}</span>
+            <span id="pool-capacity" class="font-mono">—</span>
         </div>
     </div>
 

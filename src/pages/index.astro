@@ -114,7 +114,7 @@ const TOKEN_ICONS: Record<string, string> = {
 })}></script>
 
 <script>
-    import { loadPositions, liquidationPriceUnits, positionStatus, effectiveInterestPPM, type Position } from "@lib/positions";
+    import { loadPositionsCached, liquidationPriceUnits, positionStatus, effectiveInterestPPM, type Position } from "@lib/positions";
     import { getMarketPriceCHF } from "@lib/prices";
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -265,7 +265,7 @@ const TOKEN_ICONS: Record<string, string> = {
 
     search.addEventListener("input", applyFilter);
 
-    loadPositions()
+    loadPositionsCached()
         .then(positions => {
             allPositions = positions.sort((a, b) =>
                 a.collateralName.localeCompare(b.collateralName)

@@ -1,24 +1,24 @@
 ---
 import Button from "@components/Button.astro";
-import { t } from "@i18n/t";
 
 interface Props {
-    collateralSymbol: string;
+    approveLabel: string;
+    mintLabel: string;
+    connectLabel: string;
 }
 
-const { collateralSymbol } = Astro.props;
-const tt = t(Astro.url);
+const { approveLabel, mintLabel, connectLabel } = Astro.props;
 ---
 
 <div>
     <div id="actions-connected" class="hidden">
         <div id="approve-row" class="hidden mb-3">
-            <Button id="btn-approve" fullWidth>Approve {collateralSymbol}</Button>
+            <Button id="btn-approve" fullWidth>{approveLabel}</Button>
         </div>
-        <Button id="btn-borrow" fullWidth>Mint</Button>
+        <Button id="btn-borrow" fullWidth>{mintLabel}</Button>
     </div>
     <div id="actions-disconnected">
-        <Button id="btn-connect" fullWidth>{tt("wallet_connect")}</Button>
+        <Button id="btn-connect" fullWidth>{connectLabel}</Button>
     </div>
 </div>
 
