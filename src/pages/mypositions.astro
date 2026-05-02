@@ -1,7 +1,7 @@
 ---
 import Layout from "@layouts/Layout.astro";
-import Card from "@components/Card.astro";
 import WalletConnect from "@components/WalletConnect.astro";
+import Card from "@components/Card.astro";
 import { t, getLocale } from "@i18n/t";
 
 import bossIcon from "@assets/tokens/boss.svg?url";
@@ -18,11 +18,12 @@ import wethIcon from "@assets/tokens/weth.svg?url";
 import wstethIcon from "@assets/tokens/wsteth.svg?url";
 import xautIcon from "@assets/tokens/xaut.svg?url";
 import ysyboldIcon from "@assets/tokens/ysybold.svg?url";
+import zchfIcon from "@assets/tokens/zchf.svg?url";
 
 const TOKEN_ICONS: Record<string, string> = {
     boss: bossIcon, cbbtc: cbbtcIcon, crv: crvIcon, gno: gnoIcon, lends: lendsIcon,
     lseth: lsethIcon, paxg: paxgIcon, realu: realuIcon, spyon: spyonIcon, wbtc: wbtcIcon,
-    weth: wethIcon, wsteth: wstethIcon, xaut: xautIcon, ysybold: ysyboldIcon,
+    weth: wethIcon, wsteth: wstethIcon, xaut: xautIcon, ysybold: ysyboldIcon, zchf: zchfIcon,
 };
 
 const tt = t(Astro.url);
@@ -43,24 +44,40 @@ const i18n = {
     statusClosed: tt("mypos_status_closed"),
     statusChallenged: tt("mypos_status_challenged"),
     badgeClone: tt("mint_badge_clone"),
-    manageTitle: tt("mypos_manage_title"),
+    badgeV2: tt("mypos_badge_v2"),
+    manageSubtitle: tt("mypos_manage_subtitle"),
     manageBack: tt("mypos_back"),
-    labelMint: tt("mypos_label_mint"),
+    sectionAdjustment: tt("mypos_section_adjustment"),
+    sectionWallet: tt("mypos_section_wallet"),
+    sectionOutcome: tt("mypos_section_outcome"),
+    labelAmount: tt("mypos_label_amount"),
     labelCollateral: tt("mypos_label_collateral"),
     labelLiqPrice: tt("mypos_label_liq_price"),
     labelMaturity: tt("mypos_label_maturity"),
+    labelExpiration: tt("mypos_label_expiration"),
     labelInterest: tt("mypos_label_interest"),
-    labelBalance: tt("earn_balance_wallet"),
+    labelBalance: tt("mypos_label_balance_short"),
+    labelMin: tt("mypos_label_min"),
+    labelMax: tt("mypos_label_max"),
+    walletZchf: tt("mypos_wallet_zchf"),
+    walletColl: tt("mypos_wallet_coll"),
     actionAdjust: tt("mypos_action_adjust"),
     actionAdjusting: tt("mypos_action_adjusting"),
     actionApprove: tt("mint_action_approve_required"),
     actionApproving: tt("mint_action_approving"),
-    actionSwitching: tt("mint_action_switching"),
-    outcomeCurrent: tt("mypos_outcome_current"),
-    outcomeFuture: tt("mypos_outcome_future"),
-    outcomeWallet: tt("mypos_outcome_wallet"),
-    outcomeReserve: tt("mypos_outcome_reserve"),
+    outcomeCurrent: tt("mypos_outcome_current_amount"),
+    outcomeFuture: tt("mypos_outcome_future_amount"),
+    outcomeWalletInc: tt("mypos_outcome_wallet_inc"),
+    outcomeWalletDec: tt("mypos_outcome_wallet_dec"),
+    outcomeReserveAdd: tt("mypos_outcome_reserve_add"),
+    outcomeReserveReturn: tt("mypos_outcome_reserve_return"),
     outcomeFee: tt("mypos_outcome_fee"),
+    linkDetails: tt("mypos_link_details"),
+    linkContract: tt("mypos_link_contract"),
+    unitYear: tt("mypos_unit_year"),
+    unitDay: tt("mypos_unit_day"),
+    unitMonth: tt("mypos_unit_month"),
+    expired: tt("mypos_expired"),
     errCooldown: tt("mypos_err_cooldown"),
     errClosed: tt("mypos_err_closed"),
     errChallenged: tt("mypos_err_challenged"),
@@ -79,17 +96,18 @@ const i18n = {
 ---
 
 <Layout title={`${i18n.pageTitle} | Frankencoin dApp`} description={i18n.pageSubtitle}>
-    <main class="mx-auto max-w-5xl px-4 py-10 md:px-6 md:py-12">
-        <header class="mb-8">
+    <main class="mx-auto max-w-6xl px-4 py-10 md:px-6 md:py-12">
+        <!-- LIST VIEW HEADER -->
+        <header id="list-header" class="mb-8">
             <h1 class="text-[28px] font-bold tracking-tight">{i18n.pageTitle}</h1>
-            <p class="mt-2 text-[14px] opacity-80">{i18n.pageSubtitle}</p>
+            <p class="mt-2 text-[14px] opacity-90">{i18n.pageSubtitle}</p>
         </header>
 
         <!-- LIST VIEW -->
         <section id="view-list">
             <div id="list-state-disconnected" class="hidden">
                 <Card title={i18n.notConnected}>
-                    <p class="mb-4 text-[14px] opacity-80">{i18n.notConnected}</p>
+                    <p class="mb-4 text-[14px] opacity-90">{i18n.notConnected}</p>
                     <WalletConnect />
                 </Card>
             </div>
@@ -102,7 +120,7 @@ const i18n = {
 
             <div id="list-state-empty" class="hidden">
                 <Card title={i18n.empty}>
-                    <p class="text-[14px] opacity-80">{i18n.empty}</p>
+                    <p class="text-[14px] opacity-90">{i18n.empty}</p>
                 </Card>
             </div>
 
@@ -134,7 +152,6 @@ const i18n = {
     import { POSITION_V2_ABI as PositionV2ABI } from "@abi/position";
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-
     const i18n = JSON.parse($("mypos-i18n").textContent || "{}") as Record<string, string>;
     const locale = JSON.parse($("mypos-locale").textContent || '"en"') as string;
 
@@ -177,8 +194,7 @@ const i18n = {
             return after === ETH_CHAIN_ID_HEX;
         } catch (err: any) {
             if (err?.code === 4001 || /reject|denied/i.test(err?.message ?? "")) {
-                toast(i18n.cancelled, "info");
-                return false;
+                toast(i18n.cancelled, "info"); return false;
             }
             const { message } = friendlyError(err);
             toast(message, "error");
@@ -203,16 +219,34 @@ const i18n = {
     let positions: MyPositionDetail[] = [];
     let view: "list" | "manage" = "list";
     let activeAddress: Address | null = null;
+    let lastRenderedAddress: Address | null = null;
 
     // ==================== FORMAT HELPERS ====================
     const fmt = (n: number, max = 2) =>
         n.toLocaleString(numberLocale, { minimumFractionDigits: 0, maximumFractionDigits: max });
-    const fmtZCHF = (n: number) =>
-        n.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtZCHF = (n: number, max = 2) =>
+        n.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: max });
     const fromBig = (v: bigint, dec: number) => Number(v) / Math.pow(10, dec);
     const fmtDate = (ts: number) => ts > 0
         ? new Date(ts * 1000).toLocaleDateString(numberLocale, { day: "2-digit", month: "short", year: "numeric" })
         : "—";
+
+    function fmtRelative(ts: number): string {
+        if (!ts) return "—";
+        const now = Math.floor(Date.now() / 1000);
+        const diff = ts - now;
+        if (diff <= 0) return i18n.expired;
+        const days = Math.floor(diff / 86400);
+        if (days >= 365) {
+            const years = Math.floor(days / 365);
+            return `${years} ${i18n.unitYear}`;
+        }
+        if (days >= 30) {
+            const months = Math.floor(days / 30);
+            return `${months} ${i18n.unitMonth}`;
+        }
+        return `${days} ${i18n.unitDay}`;
+    }
 
     const isCooldown = (p: MyPositionDetail) => p.cooldown * 1000 > Date.now();
     const isChallenged = (p: MyPositionDetail) => p.challengedAmount > 0n;
@@ -243,6 +277,7 @@ const i18n = {
         activeAddress = p;
         $("view-list").classList.toggle("hidden", view !== "list");
         $("view-manage").classList.toggle("hidden", view !== "manage");
+        $("list-header").classList.toggle("hidden", view !== "list");
         if (view === "list") renderList();
         else renderManage();
     }
@@ -291,7 +326,7 @@ const i18n = {
                     <div class="flex justify-between"><span class="opacity-90">${i18n.cardMinted}</span><span class="font-medium">${fmtZCHF(fromBig(p.minted, 18))} ZCHF</span></div>
                     <div class="flex justify-between"><span class="opacity-90">${i18n.cardCollateral}</span><span class="font-medium">${fmt(fromBig(p.collateralBalance, p.collateralDecimals), 4)} ${p.collateralSymbol}</span></div>
                     <div class="flex justify-between"><span class="opacity-90">${i18n.cardLiqPrice}</span><span class="font-medium">${fmtZCHF(fromBig(p.price, 36 - p.collateralDecimals))} ZCHF</span></div>
-                    <div class="flex justify-between"><span class="opacity-90">${i18n.cardExpires}</span><span class="font-medium">${fmtDate(p.expiration)}</span></div>
+                    <div class="flex justify-between"><span class="opacity-90">${i18n.cardExpires}</span><span class="font-medium">${fmtDate(p.expiration)} <span class="opacity-90">(${fmtRelative(p.expiration)})</span></span></div>
                 </div>
             `;
             grid.appendChild(card);
@@ -300,263 +335,368 @@ const i18n = {
     }
 
     // ==================== MANAGE VIEW ====================
+    /**
+     * Manage view is built ONCE per address (via buildManage).
+     * Subsequent updates (input changes, refresh from chain) call refresh()
+     * which only mutates innerText/values — no DOM rebuild. Efficient.
+     */
     function renderManage() {
         const root = $("manage-content");
         const p = positions.find(x => x.address.toLowerCase() === activeAddress?.toLowerCase());
         if (!p) {
-            root.innerHTML = `
-                <div class="rounded-md border border-foreground/10 bg-background p-6">
-                    <p class="text-center text-[14px] opacity-90">${i18n.loading}</p>
-                </div>`;
+            lastRenderedAddress = null;
+            root.innerHTML = `<div class="rounded-md border border-foreground/10 bg-background p-6">
+                <p class="text-center text-[14px] opacity-90">${i18n.loading}</p>
+            </div>`;
             return;
         }
-        const dec = p.collateralDecimals;
-        const priceDigits = 36 - dec;
+        if (lastRenderedAddress?.toLowerCase() !== p.address.toLowerCase()) {
+            buildManage(p);
+            lastRenderedAddress = p.address;
+        } else {
+            // Same position, just re-pull state into existing nodes
+            hydrateStaticFields(p);
+        }
+        attachAdjustHandlers(p);
+        refresh(p);
+    }
+
+    function buildManage(p: MyPositionDetail) {
         const status = statusOf(p);
         const icon = iconFor(p.collateralSymbol);
         const iconHtml = icon
             ? `<img src="${icon}" alt="" class="h-10 w-10 shrink-0 rounded-full" />`
             : `<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[13px] font-bold">${p.collateralSymbol.slice(0, 3)}</div>`;
+        const zchfIconUrl = tokenIcons["zchf"] ?? "";
+        const collIconUrl = iconFor(p.collateralSymbol) ?? "";
 
+        const root = $("manage-content");
         root.innerHTML = `
-            <div class="mb-6 flex items-center gap-3">
-                ${iconHtml}
-                <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <h2 class="text-[20px] font-bold tracking-tight">${p.collateralName}</h2>
-                        <span class="inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${status.cls}">${status.label}</span>
-                        ${p.isClone ? `<span class="inline-block rounded bg-foreground/10 px-1.5 py-0.5 text-[11px] font-medium opacity-90">${i18n.badgeClone}</span>` : ""}
+            <!-- Header -->
+            <div class="mb-8 flex items-start justify-between gap-4 flex-wrap">
+                <div class="flex items-center gap-3">
+                    ${iconHtml}
+                    <div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h2 class="text-[24px] font-bold tracking-tight">${p.collateralName} (${p.collateralSymbol})</h2>
+                            <span class="inline-block rounded px-2 py-0.5 text-[11px] font-medium ${status.cls}">${status.label}</span>
+                            <span class="inline-block rounded bg-foreground/10 px-2 py-0.5 text-[11px] font-medium opacity-90">${i18n.badgeV2}</span>
+                            ${p.isClone ? `<span class="inline-block rounded bg-foreground/10 px-2 py-0.5 text-[11px] font-medium opacity-90">${i18n.badgeClone}</span>` : ""}
+                        </div>
+                        <p class="mt-1 text-[14px] opacity-90">${i18n.manageSubtitle}</p>
                     </div>
-                    <div class="mt-1 text-[12px] opacity-90 break-all">${p.address}</div>
+                </div>
+                <div class="flex gap-4 text-[14px]">
+                    <a href="https://app.frankencoin.com/monitoring/${p.address}" target="_blank" rel="noopener" class="text-primary hover:underline">${i18n.linkDetails}</a>
+                    <a href="https://etherscan.io/address/${p.address}" target="_blank" rel="noopener" class="text-primary hover:underline inline-flex items-center gap-1">
+                        ${i18n.linkContract}
+                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                    </a>
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <!-- Left: Adjustment -->
                 <div class="rounded-md border border-foreground/10 bg-background p-6">
-                    <h3 class="mb-5 text-[20px] font-bold tracking-tight">${i18n.manageTitle}</h3>
-                    <div class="space-y-5">
-                        <div>
-                            <div class="mb-2 flex items-center justify-between text-[14px]">
-                                <label for="i-mint" class="font-bold opacity-90">${i18n.labelMint}</label>
-                                <span class="opacity-90">${fmtZCHF(fromBig(p.userZchfBalance, 18))} ZCHF</span>
-                            </div>
-                            <div class="relative">
-                                <input id="i-mint" type="text" inputmode="decimal" autocomplete="off"
-                                    class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 pr-16 text-[15px] font-medium focus:border-foreground/40 focus:outline-none" />
-                                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[14px] opacity-90">ZCHF</span>
-                            </div>
-                        </div>
-
-                        <div>
-                            <div class="mb-2 flex items-center justify-between text-[14px]">
-                                <label for="i-coll" class="font-bold opacity-90">${i18n.labelCollateral}</label>
-                                <span class="opacity-90">${fmt(fromBig(p.userCollateralBalance, dec), 4)} ${p.collateralSymbol}</span>
-                            </div>
-                            <div class="relative">
-                                <input id="i-coll" type="text" inputmode="decimal" autocomplete="off"
-                                    class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 pr-20 text-[15px] font-medium focus:border-foreground/40 focus:outline-none" />
-                                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[14px] opacity-90">${p.collateralSymbol}</span>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label for="i-price" class="mb-2 block text-[14px] font-bold opacity-90">${i18n.labelLiqPrice}</label>
-                            <div class="relative">
-                                <input id="i-price" type="text" inputmode="decimal" autocomplete="off"
-                                    class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 pr-16 text-[15px] font-medium focus:border-foreground/40 focus:outline-none" />
-                                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[14px] opacity-90">ZCHF</span>
-                            </div>
-                        </div>
-
-                        <div class="space-y-2 border-t border-foreground/10 pt-4 text-[14px]">
-                            <div class="flex justify-between"><span class="opacity-90">${i18n.labelInterest}</span><span>${(p.annualInterestPPM / 10000).toFixed(2)}%</span></div>
-                            <div class="flex justify-between"><span class="opacity-90">${i18n.labelMaturity}</span><span>${fmtDate(p.expiration)}</span></div>
-                        </div>
-
-                        <div id="adjust-error" class="hidden text-[13px] text-primary"></div>
-
-                        <button id="btn-adjust"
-                            class="inline-flex w-full items-center justify-center gap-2 rounded-md border border-transparent bg-primary px-5 py-2.5 text-[15px] font-semibold text-[#FAF7F2] transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 dark:text-[#030303]">
-                            <span class="btn-action-label">${i18n.actionAdjust}</span>
-                        </button>
+                    <h3 class="mb-5 text-center text-[18px] font-bold tracking-tight">${i18n.sectionAdjustment}</h3>
+                    <div class="space-y-4">
+                        ${inputBlock("i-mint", i18n.labelAmount, "ZCHF", zchfIconUrl, "balance-mint", "btn-min-mint", i18n.labelMin)}
+                        ${inputBlock("i-coll", i18n.labelCollateral, p.collateralSymbol, collIconUrl, "balance-coll", "btn-min-coll", i18n.labelMin)}
+                        ${inputBlock("i-price", i18n.labelLiqPrice, "ZCHF", zchfIconUrl, null, "btn-max-price", i18n.labelMax)}
                     </div>
+                    <div class="mt-6 space-y-2 border-t border-foreground/10 pt-5 text-[14px]">
+                        <div class="flex justify-between"><span class="opacity-90">${i18n.labelInterest}</span><span id="m-interest">—</span></div>
+                        <div class="flex justify-between"><span class="opacity-90">${i18n.labelMaturity}</span><span id="m-maturity">—</span></div>
+                        <div class="flex justify-between"><span class="opacity-90">${i18n.labelExpiration}</span><span id="m-expiration">—</span></div>
+                    </div>
+                    <div id="adjust-error" class="mt-4 hidden text-[13px] text-primary"></div>
+                    <button id="btn-adjust"
+                        class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md border border-transparent bg-primary px-5 py-2.5 text-[15px] font-semibold text-[#FAF7F2] transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 dark:text-[#030303]">
+                        <span class="btn-action-label">${i18n.actionAdjust}</span>
+                    </button>
                 </div>
 
-                <div class="rounded-md border border-foreground/10 bg-background p-6">
-                    <h3 class="mb-5 text-[20px] font-bold tracking-tight">${i18n.outcomeFuture}</h3>
-                    <div class="space-y-3 text-[14px]">
-                        <div class="flex justify-between"><span class="opacity-90">${i18n.outcomeCurrent}</span><span id="o-current">—</span></div>
-                        <div class="flex justify-between"><span class="opacity-90">${i18n.outcomeWallet}</span><span id="o-wallet">—</span></div>
-                        <div class="flex justify-between"><span class="opacity-90">${i18n.outcomeReserve}</span><span id="o-reserve">—</span></div>
-                        <div class="flex justify-between"><span class="opacity-90">${i18n.outcomeFee}</span><span id="o-fee">—</span></div>
-                        <div class="flex justify-between border-t border-foreground/10 pt-3 font-bold"><span>${i18n.outcomeFuture}</span><span id="o-future">—</span></div>
+                <!-- Right: Wallet + Outcome -->
+                <div class="space-y-6">
+                    <div class="rounded-md border border-foreground/10 bg-background p-6">
+                        <h3 class="mb-5 text-center text-[18px] font-bold tracking-tight">${i18n.sectionWallet}</h3>
+                        <div class="space-y-3 text-[14px]">
+                            <div class="flex justify-between"><span class="opacity-90">${i18n.walletZchf}</span><span id="w-zchf">—</span></div>
+                            <div class="flex justify-between"><span class="opacity-90">${i18n.walletColl}</span><span id="w-coll">—</span></div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-md border border-foreground/10 bg-background p-6">
+                        <h3 class="mb-5 text-center text-[18px] font-bold tracking-tight">${i18n.sectionOutcome}</h3>
+                        <div class="space-y-3 text-[14px]">
+                            <div class="flex justify-between"><span class="opacity-90">${i18n.outcomeCurrent}</span><span id="o-current">—</span></div>
+                            <div class="flex justify-between"><span><span id="o-wallet-label" class="opacity-90">${i18n.outcomeWalletInc}</span> <span id="o-wallet-pct" class="text-[12px] opacity-80">(0.00%)</span></span><span id="o-wallet">—</span></div>
+                            <div class="flex justify-between"><span><span id="o-reserve-label" class="opacity-90">${i18n.outcomeReserveAdd}</span> <span id="o-reserve-pct" class="text-[12px] opacity-80">(0.00%)</span></span><span id="o-reserve">—</span></div>
+                            <div class="flex justify-between"><span><span class="opacity-90">${i18n.outcomeFee}</span> <span id="o-fee-pct" class="text-[12px] opacity-80">(0.00%)</span></span><span id="o-fee">—</span></div>
+                            <div class="flex justify-between border-t border-foreground/10 pt-3 font-bold"><span>${i18n.outcomeFuture}</span><span id="o-future">—</span></div>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
+        hydrateStaticFields(p);
+        // Initialize input values
+        const dec = p.collateralDecimals;
+        const priceDigits = 36 - dec;
+        $<HTMLInputElement>("i-mint").value = formatUnits(p.minted, 18);
+        $<HTMLInputElement>("i-coll").value = formatUnits(p.collateralBalance, dec);
+        $<HTMLInputElement>("i-price").value = formatUnits(p.price, priceDigits);
+    }
+
+    /** Inline input-block template (label + big input + balance/min-max footer) */
+    function inputBlock(id: string, label: string, symbol: string, iconUrl: string, balanceId: string | null, btnId: string, btnText: string): string {
+        const iconHtml = iconUrl
+            ? `<img src="${iconUrl}" alt="" class="h-5 w-5 rounded-full" />`
+            : "";
+        return `
+            <div class="rounded-md border border-foreground/10 p-4">
+                <label for="${id}" class="block text-[13px] font-medium opacity-90">${label}</label>
+                <div class="mt-2 flex items-center gap-3">
+                    <input id="${id}" type="text" inputmode="decimal" autocomplete="off"
+                        class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none" />
+                    <div class="flex items-center gap-2 text-[14px] opacity-90">
+                        ${iconHtml}<span>${symbol}</span>
+                    </div>
+                </div>
+                <div class="mt-2 flex items-center justify-between text-[12px]">
+                    <div class="opacity-90">
+                        ${balanceId ? `${i18n.labelBalance} <span id="${balanceId}">—</span>` : "<span>&nbsp;</span>"}
+                    </div>
+                    <button type="button" id="${btnId}" class="text-primary font-semibold hover:underline">${btnText}</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function hydrateStaticFields(p: MyPositionDetail) {
+        $("m-interest").textContent = `${(p.annualInterestPPM / 10000).toFixed(2)}%`;
+        $("m-maturity").textContent = fmtDate(p.expiration);
+        $("m-expiration").textContent = fmtRelative(p.expiration);
+        $("w-zchf").textContent = `${fmtZCHF(fromBig(p.userZchfBalance, 18))} ZCHF`;
+        $("w-coll").textContent = `${fmt(fromBig(p.userCollateralBalance, p.collateralDecimals), 4)} ${p.collateralSymbol}`;
+        const balMint = $("balance-mint");
+        if (balMint) balMint.textContent = fmtZCHF(fromBig(p.userZchfBalance, 18));
+        const balColl = $("balance-coll");
+        if (balColl) balColl.textContent = fmt(fromBig(p.userCollateralBalance, p.collateralDecimals), 4);
+    }
+
+    // ==================== EDITOR STATE & HANDLERS ====================
+    let editor: { p: MyPositionDetail; mintAmount: bigint; collAmount: bigint; liqPrice: bigint } | null = null;
+
+    const safeParse = (s: string, dp: number): bigint => {
+        try { return parseUnits((s.trim().replace(/,/g, ".") || "0") as `${number}`, dp); }
+        catch { return 0n; }
+    };
+
+    function attachAdjustHandlers(p: MyPositionDetail) {
+        const dec = p.collateralDecimals;
+        const priceDigits = 36 - dec;
+        editor = {
+            p,
+            mintAmount: p.minted,
+            collAmount: p.collateralBalance,
+            liqPrice: p.price,
+        };
 
         const mintInput = $<HTMLInputElement>("i-mint");
         const collInput = $<HTMLInputElement>("i-coll");
         const priceInput = $<HTMLInputElement>("i-price");
-        mintInput.value = formatUnits(p.minted, 18);
-        collInput.value = formatUnits(p.collateralBalance, dec);
-        priceInput.value = formatUnits(p.price, priceDigits);
 
-        let mintAmount = p.minted;
-        let collAmount = p.collateralBalance;
-        let liqPrice = p.price;
+        mintInput.oninput = () => { editor!.mintAmount = safeParse(mintInput.value, 18); refresh(p); };
+        collInput.oninput = () => { editor!.collAmount = safeParse(collInput.value, dec); refresh(p); };
+        priceInput.oninput = () => { editor!.liqPrice = safeParse(priceInput.value, priceDigits); refresh(p); };
 
-        const safeParse = (s: string, dp: number): bigint => {
-            try { return parseUnits((s.trim().replace(/,/g, ".") || "0") as `${number}`, dp); }
-            catch { return 0n; }
+        // Min / Max buttons
+        $("btn-min-mint").onclick = () => {
+            // Min mint = how low we could repay to (limited by user ZCHF balance)
+            const reservePPM = BigInt(p.reserveContribution);
+            // Cash needed to bring back to mintedMin: see ref Next.js logic
+            const denom = 1_000_000n - reservePPM;
+            const repayCapacity = denom > 0n ? (p.userZchfBalance * 1_000_000n) / denom : 0n;
+            const min = p.minted > repayCapacity ? p.minted - repayCapacity : 0n;
+            editor!.mintAmount = min;
+            mintInput.value = formatUnits(min, 18);
+            refresh(p);
+        };
+        $("btn-min-coll").onclick = () => {
+            // Min coll = ceil(amount * 1e18 / liqPrice)
+            if (editor!.liqPrice > 0n) {
+                const min = (editor!.mintAmount * ONE_E18 + editor!.liqPrice - 1n) / editor!.liqPrice;
+                editor!.collAmount = min;
+                collInput.value = formatUnits(min, dec);
+                refresh(p);
+            }
+        };
+        $("btn-max-price").onclick = () => {
+            // Max liq price = ceil(amount * 1e18 / collateral)
+            if (editor!.collAmount > 0n) {
+                const maxPrice = (editor!.mintAmount * ONE_E18 + editor!.collAmount - 1n) / editor!.collAmount;
+                editor!.liqPrice = maxPrice;
+                priceInput.value = formatUnits(maxPrice, priceDigits);
+                refresh(p);
+            }
         };
 
-        function getError(): string | null {
-            if (p!.isClosed) return i18n.errClosed;
-            if (isCooldown(p!)) return i18n.errCooldown;
-            if (isChallenged(p!) && collAmount < p!.collateralBalance) return i18n.errChallenged;
-            const max = p!.availableForMinting + p!.minted;
-            if (mintAmount > max) return i18n.errAmountLimit;
-            if (liqPrice * collAmount < mintAmount * ONE_E18) return i18n.errCollateralLow;
-            if (mintAmount > p!.minted && liqPrice > p!.price) return i18n.errPriceLocked;
-            const diff = mintAmount - p!.minted;
-            if (diff < 0n) {
-                const reserveReturn = ((-diff) * BigInt(p!.reserveContribution)) / 1_000_000n;
-                const cashNeeded = (-diff) - reserveReturn;
-                if (cashNeeded > p!.userZchfBalance) return i18n.errBalanceLow;
-            }
-            return null;
+        $("btn-adjust").onclick = () => doAdjust(p);
+    }
+
+    function getError(p: MyPositionDetail): string | null {
+        if (!editor) return null;
+        const { mintAmount, collAmount, liqPrice } = editor;
+        if (p.isClosed) return i18n.errClosed;
+        if (isCooldown(p)) return i18n.errCooldown;
+        if (isChallenged(p) && collAmount < p.collateralBalance) return i18n.errChallenged;
+        const max = p.availableForMinting + p.minted;
+        if (mintAmount > max) return i18n.errAmountLimit;
+        if (liqPrice * collAmount < mintAmount * ONE_E18) return i18n.errCollateralLow;
+        if (mintAmount > p.minted && liqPrice > p.price) return i18n.errPriceLocked;
+        const diff = mintAmount - p.minted;
+        if (diff < 0n) {
+            const reserveReturn = ((-diff) * BigInt(p.reserveContribution)) / 1_000_000n;
+            const cashNeeded = (-diff) - reserveReturn;
+            if (cashNeeded > p.userZchfBalance) return i18n.errBalanceLow;
         }
+        return null;
+    }
 
-        function refresh() {
-            const err = getError();
-            const errEl = $("adjust-error");
-            if (!errEl.querySelector(".rpc-error")) {
-                if (err) {
-                    errEl.textContent = err;
-                    errEl.className = "text-[13px] text-primary";
-                    errEl.classList.remove("hidden");
-                } else {
-                    errEl.classList.add("hidden");
-                    errEl.textContent = "";
-                }
-            }
+    function refresh(p: MyPositionDetail) {
+        if (!editor) return;
+        const { mintAmount, collAmount, liqPrice } = editor;
 
-            const diff = mintAmount - p!.minted;
-            const reservePPM = BigInt(p!.reserveContribution);
-            const reserveDelta = (diff * reservePPM) / 1_000_000n;
-            const secsLeft = BigInt(Math.max(0, p!.expiration - Math.floor(Date.now() / 1000)));
-            const feePPM = (secsLeft * BigInt(p!.annualInterestPPM)) / BigInt(365 * 86400);
-            const fee = diff > 0n ? (diff * feePPM) / 1_000_000n : 0n;
-            const wallet = diff - reserveDelta - fee;
-
-            const sign = (v: bigint) =>
-                `${v >= 0n ? "+" : "−"}${fmtZCHF(fromBig(v < 0n ? -v : v, 18))}`;
-
-            $("o-current").textContent = `${fmtZCHF(fromBig(p!.minted, 18))} ZCHF`;
-            $("o-future").textContent = `${fmtZCHF(fromBig(mintAmount, 18))} ZCHF`;
-            $("o-wallet").textContent = `${sign(wallet)} ZCHF`;
-            $("o-reserve").textContent = `${sign(-reserveDelta)} ZCHF`;
-            $("o-fee").textContent = `−${fmtZCHF(fromBig(fee, 18))} ZCHF`;
-
-            const collDelta = collAmount > p!.collateralBalance ? collAmount - p!.collateralBalance : 0n;
-            const needsApproval = collDelta > 0n && collDelta > p!.userCollateralAllowance;
-            const label = document.querySelector(".btn-action-label") as HTMLElement;
-            label.textContent = needsApproval
-                ? i18n.actionApprove.replace("{symbol}", p!.collateralSymbol)
-                : i18n.actionAdjust;
-            const noChange = mintAmount === p!.minted && collAmount === p!.collateralBalance && liqPrice === p!.price;
-            ($<HTMLButtonElement>("btn-adjust")).disabled = !!err || noChange;
-        }
-
-        mintInput.addEventListener("input", () => { mintAmount = safeParse(mintInput.value, 18); refresh(); });
-        collInput.addEventListener("input", () => { collAmount = safeParse(collInput.value, dec); refresh(); });
-        priceInput.addEventListener("input", () => { liqPrice = safeParse(priceInput.value, priceDigits); refresh(); });
-
-        $("btn-adjust").addEventListener("click", async () => {
-            if (!connected) return;
-            const errEl = $("adjust-error");
-            if (errEl.querySelector(".rpc-error")) {
+        // Validation message
+        const err = getError(p);
+        const errEl = $("adjust-error");
+        if (!errEl.querySelector(".rpc-error")) {
+            if (err) {
+                errEl.textContent = err;
+                errEl.className = "mt-4 text-[13px] text-primary";
+                errEl.classList.remove("hidden");
+            } else {
                 errEl.classList.add("hidden");
-                errEl.innerHTML = "";
+                errEl.textContent = "";
             }
+        }
 
-            if (!(await ensureMainnet())) return;
+        // Outcome math
+        const diff = mintAmount - p.minted;
+        const reservePPM = BigInt(p.reserveContribution);
+        const reserveDelta = (diff * reservePPM) / 1_000_000n;
+        const secsLeft = BigInt(Math.max(0, p.expiration - Math.floor(Date.now() / 1000)));
+        const feePPM = (secsLeft * BigInt(p.annualInterestPPM)) / BigInt(365 * 86400);
+        const fee = diff > 0n ? (diff * feePPM) / 1_000_000n : 0n;
+        const wallet = diff - reserveDelta - fee;
 
-            const collDelta = collAmount > p!.collateralBalance ? collAmount - p!.collateralBalance : 0n;
-            const needsApproval = collDelta > 0n && collDelta > p!.userCollateralAllowance;
+        const absDiff = diff < 0n ? -diff : diff;
+        const pct = (n: bigint) =>
+            absDiff > 0n
+                ? ((Number((n < 0n ? -n : n) * 10_000n / absDiff) / 100).toFixed(2))
+                : "0.00";
 
-            const publicClient = getPublicClient("ethereum");
-            const rawProvider = getRawProvider();
-            if (!rawProvider) { toast(i18n.notConnectedToast, "error"); return; }
-            const walletClient = makeWalletClient(rawProvider, "ethereum");
+        const isInc = diff >= 0n;
+        $("o-current").textContent = `${fmtZCHF(fromBig(p.minted, 18))} ZCHF`;
+        $("o-future").textContent = `${fmtZCHF(fromBig(mintAmount, 18))} ZCHF`;
 
-            const btn = $<HTMLButtonElement>("btn-adjust");
-            const label = document.querySelector(".btn-action-label") as HTMLElement;
-            const orig = label.textContent ?? "";
-            btn.disabled = true;
+        // Wallet row (label + sign + pct)
+        $("o-wallet-label").textContent = isInc ? i18n.outcomeWalletInc : i18n.outcomeWalletDec;
+        $("o-wallet-pct").textContent = `(${pct(wallet)}%)`;
+        $("o-wallet").textContent = `${wallet >= 0n ? "" : "−"}${fmtZCHF(fromBig(wallet < 0n ? -wallet : wallet, 18))} ZCHF`;
 
-            try {
-                if (needsApproval) {
-                    label.textContent = i18n.actionApproving.replace("{symbol}", p!.collateralSymbol);
-                    const hash = await walletClient.writeContract({
-                        address: p!.collateral,
-                        abi: erc20Abi,
-                        functionName: "approve",
-                        args: [p!.address, MAX_UINT256],
-                        account: connected,
-                        chain: mainnet,
-                    });
-                    await publicClient.waitForTransactionReceipt({ hash });
-                    toast(i18n.toastApproved.replace("{symbol}", p!.collateralSymbol), "success");
-                    await refreshPositions();
-                    navigate(p!.address);
-                    return;
-                }
+        // Reserve row
+        $("o-reserve-label").textContent = isInc ? i18n.outcomeReserveAdd : i18n.outcomeReserveReturn;
+        $("o-reserve-pct").textContent = `(${pct(reserveDelta)}%)`;
+        $("o-reserve").textContent = `${fmtZCHF(fromBig(reserveDelta < 0n ? -reserveDelta : reserveDelta, 18))} ZCHF`;
 
-                label.textContent = i18n.actionAdjusting;
+        // Fee row
+        $("o-fee-pct").textContent = `(${pct(fee)}%)`;
+        $("o-fee").textContent = `−${fmtZCHF(fromBig(fee, 18))} ZCHF`;
+
+        // Button state
+        const collDelta = collAmount > p.collateralBalance ? collAmount - p.collateralBalance : 0n;
+        const needsApproval = collDelta > 0n && collDelta > p.userCollateralAllowance;
+        const labelEl = document.querySelector(".btn-action-label") as HTMLElement;
+        labelEl.textContent = needsApproval
+            ? i18n.actionApprove.replace("{symbol}", p.collateralSymbol)
+            : i18n.actionAdjust;
+        const noChange = mintAmount === p.minted && collAmount === p.collateralBalance && liqPrice === p.price;
+        ($<HTMLButtonElement>("btn-adjust")).disabled = !!err || noChange;
+    }
+
+    async function doAdjust(p: MyPositionDetail) {
+        if (!connected || !editor) return;
+        const { mintAmount, collAmount, liqPrice } = editor;
+        const errEl = $("adjust-error");
+        if (errEl.querySelector(".rpc-error")) {
+            errEl.classList.add("hidden");
+            errEl.innerHTML = "";
+        }
+
+        if (!(await ensureMainnet())) return;
+
+        const collDelta = collAmount > p.collateralBalance ? collAmount - p.collateralBalance : 0n;
+        const needsApproval = collDelta > 0n && collDelta > p.userCollateralAllowance;
+
+        const publicClient = getPublicClient("ethereum");
+        const rawProvider = getRawProvider();
+        if (!rawProvider) { toast(i18n.notConnectedToast, "error"); return; }
+        const walletClient = makeWalletClient(rawProvider, "ethereum");
+
+        const btn = $<HTMLButtonElement>("btn-adjust");
+        const labelEl = document.querySelector(".btn-action-label") as HTMLElement;
+        const orig = labelEl.textContent ?? "";
+        btn.disabled = true;
+
+        try {
+            if (needsApproval) {
+                labelEl.textContent = i18n.actionApproving.replace("{symbol}", p.collateralSymbol);
                 const hash = await walletClient.writeContract({
-                    address: p!.address,
-                    abi: PositionV2ABI,
-                    functionName: "adjust",
-                    args: [mintAmount, collAmount, liqPrice],
-                    account: connected,
-                    chain: mainnet,
+                    address: p.collateral, abi: erc20Abi, functionName: "approve",
+                    args: [p.address, MAX_UINT256], account: connected, chain: mainnet,
                 });
                 await publicClient.waitForTransactionReceipt({ hash });
-                toast(i18n.toastAdjusted, "success");
+                toast(i18n.toastApproved.replace("{symbol}", p.collateralSymbol), "success");
                 await refreshPositions();
-                navigate(p!.address);
-            } catch (err) {
-                if (isUserCancelErr(err)) {
-                    toast(i18n.cancelled, "info");
-                } else if (isWalletRpcError(err)) {
-                    errEl.classList.remove("hidden");
-                    errEl.className = "";
-                    errEl.innerHTML = `<div class="rpc-error">
-                        <div class="rpc-error-title">${i18n.errRpcTitle}</div>
-                        <div class="rpc-error-body">${i18n.errRpcBody}</div>
-                        <div class="rpc-error-help">${i18n.errRpcHelp}</div>
-                    </div>`;
-                } else {
-                    const { message } = friendlyError(err);
-                    toast(message, "error");
-                }
-            } finally {
-                label.textContent = orig;
-                btn.disabled = false;
-                refresh();
+                return;
             }
-        });
 
-        refresh();
+            labelEl.textContent = i18n.actionAdjusting;
+            const hash = await walletClient.writeContract({
+                address: p.address, abi: PositionV2ABI, functionName: "adjust",
+                args: [mintAmount, collAmount, liqPrice], account: connected, chain: mainnet,
+            });
+            await publicClient.waitForTransactionReceipt({ hash });
+            toast(i18n.toastAdjusted, "success");
+            await refreshPositions();
+        } catch (err) {
+            if (isUserCancelErr(err)) toast(i18n.cancelled, "info");
+            else if (isWalletRpcError(err)) {
+                errEl.classList.remove("hidden");
+                errEl.className = "mt-4";
+                errEl.innerHTML = `<div class="rpc-error">
+                    <div class="rpc-error-title">${i18n.errRpcTitle}</div>
+                    <div class="rpc-error-body">${i18n.errRpcBody}</div>
+                    <div class="rpc-error-help">${i18n.errRpcHelp}</div>
+                </div>`;
+            } else {
+                const { message } = friendlyError(err);
+                toast(message, "error");
+            }
+        } finally {
+            labelEl.textContent = orig;
+            btn.disabled = false;
+            refresh(p);
+        }
     }
 
     // ==================== INIT ====================
-    $("btn-back").addEventListener("click", () => navigate(null));
+    $("btn-back").onclick = () => navigate(null);
 
     async function refreshPositions() {
-        if (!connected) { positions = []; renderList(); return; }
+        if (!connected) { positions = []; lastRenderedAddress = null; renderList(); return; }
         setListState("loading");
         try {
             const addrs = await findUserPositions(connected);
@@ -573,6 +713,7 @@ const i18n = {
         const newAddr = w?.accounts[0]?.address as Address | null;
         if (newAddr !== connected) {
             connected = newAddr;
+            lastRenderedAddress = null;
             await refreshPositions();
         } else {
             applyRoute();
