@@ -71,13 +71,17 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
 
     <script id="position-data" type="application/json" set:html={JSON.stringify({
         address: position.address,
+        original: position.original,
+        isOriginal: position.isOriginal,
         collateral: position.collateral,
+        collateralName: position.collateralName,
         collateralSymbol: position.collateralSymbol,
         collateralDecimals: position.collateralDecimals,
         minimumCollateral: position.minimumCollateral,
         limit: position.limit,
         expiration: position.expiration,
         start: position.start,
+        challengePeriod: position.challengePeriod,
         riskPremiumPPM: position.riskPremiumPPM,
         reserveContribution: position.reserveContribution,
     })}></script>
@@ -85,20 +89,13 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
 
 <script>
     import { getMarketPriceCHF } from "@lib/prices";
+    import { findStaticPosition, loadPositionDetail, type PositionStaticDetail } from "@lib/positionDetail";
 
     const $ = (id: string) => document.getElementById(id) as HTMLElement;
-    const data = JSON.parse($("position-data").textContent || "{}") as {
-        collateralSymbol: string; collateralDecimals: number;
-        minimumCollateral: string; limit: string; expiration: number; start: number;
-        riskPremiumPPM: number; reserveContribution: number;
-    };
-
-    // Stub parent prices keyed by symbol — replaced when contract reads are wired.
-    // Numbers come from the position state we already saw in your screenshots.
-    const STUB_PARENT_PRICE: Record<string, number> = {
-        BOSS: 5, CBBTC: 45000, CRV: 0.12, GNO: 30, LENDS: 20, LSETH: 1400,
-        PAXG: 3000, REALU: 1.20, SPYON: 450, WBTC: 37000, WETH: 1200,
-        WSTETH: 1300, XAUT: 2922, YSYBOLD: 0.75,
+    const data = JSON.parse($("position-data").textContent || "{}") as PositionStaticDetail & {
+        // serialised bigints come through as strings in JSON; cast in code below
+        limit: any;
+        minimumCollateral: any;
     };
 
     const PRICE_DIGIT = 36 - data.collateralDecimals;
@@ -120,28 +117,12 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
     };
     const fromBig = (v: bigint, dec: number) => Number(v) / Math.pow(10, dec);
 
-    // ============================================================
-    // Decimal-safe input helpers
-    // ============================================================
-    // The deposit / mint inputs are plain text fields (`type="text"`) so we
-    // can show large numbers and accept "." or "," as decimal separators.
-    // That means we need to police what the user types ourselves.
-    //
-    //   isValidPartial(value, dec)  → does the in-progress text obey the rules?
-    //                                 used by `beforeinput` to block bad keys.
-    //   clampDecimals(raw, dec)     → sanitise + trim (last line of defence
-    //                                 for paste, autofill, browser quirks).
-    //   applyClamp(input, dec)      → run clamp, write back, restore caret.
-
-    /** True if `next` is a valid in-progress decimal with at most `dec` fractional digits. */
+    // ---- Decimal-safe input helpers ----
     const isValidPartial = (next: string, dec: number): boolean => {
         if (next === "") return true;
-        // digits, optional single dot, optional fractional digits
         const re = dec === 0 ? /^\d*$/ : new RegExp(`^\\d*(\\.\\d{0,${dec}})?$`);
         return re.test(next);
     };
-
-    /** Strip junk and clamp a string to at most `dec` fractional digits. */
     const clampDecimals = (raw: string, dec: number): string => {
         let s = raw.replace(/,/g, ".").replace(/[^\d.]/g, "");
         const firstDot = s.indexOf(".");
@@ -152,8 +133,6 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         }
         return s;
     };
-
-    /** Run clamp on an input element's value, write it back, restore caret. */
     const applyClamp = (input: HTMLInputElement, dec: number): string => {
         const trimmed = clampDecimals(input.value, dec);
         if (trimmed !== input.value) {
@@ -170,15 +149,22 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
     // ---- State ----
     let lastEdited: "coll" | "mint" = "coll";
     let linked = true;
-    let collAmount = BigInt(data.minimumCollateral);                    // bigint, collateral wei
-    let newPrice = toBig(STUB_PARENT_PRICE[data.collateralSymbol.toUpperCase()] ?? 1, PRICE_DIGIT); // bigint, price scale
-    let parentPrice = newPrice;                                         // bigint, parent's reference price
-    let mintAmount = (newPrice * collAmount) / 10n ** 18n;              // bigint, ZCHF wei
+    let collAmount = BigInt(data.minimumCollateral);
+    let parentPrice = 1n;                                  // from chain on load
+    let newPrice = parentPrice;
+    let mintAmount = 0n;
 
+    // Live state (filled by multicall)
     let userBalance = 0n;
-    let availableForClones = BigInt("1928456000000000000000000");
-    let annualInterestPPM = 18000;
-    let collateralPriceZchf = 0;                                        // ZCHF per 1 unit collateral
+    let availableForClones = 0n;
+    let annualInterestPPM = 0;
+    let allowanceHub = 0n;
+    let allowanceHelper = 0n;
+    let isClosed = false;
+    let cooldown = 0;
+    let challengedAmount = 0n;
+
+    let collateralPriceZchf = 0;
 
     // ---- Element refs ----
     const e = {
@@ -201,17 +187,15 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         outMinted: $("out-minted"),
         outReserve: $("out-reserve"),
         outReservePct: $("out-reserve-pct"),
+        outRepaid: $("out-repaid"),
+        outRepaidPct: $("out-repaid-pct"),
         outFee: $("out-fee"),
         outRate: $("out-rate"),
         outNet: $("out-net"),
         connect: $("btn-connect") as HTMLButtonElement,
     };
 
-    // ---- Slider math (Frankencoin-style) ----
-    // sliderMin = collateralPriceZchf * 0.1
-    // sliderMax = collateralPriceZchf
-    // sourcePct = (parentPriceFloat - sliderMin) / (sliderMax - sliderMin) * 100
-    // valuePct  = (newPriceFloat    - sliderMin) / (sliderMax - sliderMin) * 100
+    // ---- Slider math ----
     function bounds() {
         const m = collateralPriceZchf || 1;
         return { min: m * 0.1, max: m };
@@ -247,11 +231,10 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         render();
     }
 
-    // ---- Render: pure projection of state -> DOM ----
+    // ---- Render ----
     function render() {
         const dec = data.collateralDecimals;
 
-        // Price text + slider visuals
         const priceFloat = fromBig(newPrice, PRICE_DIGIT);
         e.priceValue.textContent = fmt(priceFloat, 2, priceFloat < 1 ? 4 : 2);
 
@@ -261,20 +244,12 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
             e.slider.value = String(priceToSlider(newPrice));
         }
 
-        // LTV
         e.ltv.textContent = collateralPriceZchf > 0
             ? `${fmt((priceFloat / collateralPriceZchf) * 100, 2, 2)}%`
             : "—";
 
-        // Cooldown warning when above parent
         e.cooldownWarn.classList.toggle("hidden", newPrice <= parentPrice);
 
-        // Mint price = clamped to parent (above-parent waits for cooldown)
-        const mintPrice = newPrice <= parentPrice ? newPrice : parentPrice;
-
-        // Inputs reflect state — but skip whichever field is focused, otherwise
-        // typing "0." gets eaten as the field is rewritten on every keystroke.
-        // Plain formatter (no thousand separators), token-correct decimal precision.
         if (document.activeElement !== e.coll) {
             e.coll.value = fmtPlain(fromBig(collAmount, dec), dec);
         }
@@ -283,9 +258,17 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         }
 
         // Outcome breakdown
+        // Per Frankencoin: the rate LABEL shows the *effective* annual rate
+        // (gross-up that accounts for the reserve cut), while the upfront
+        // fee CHARGED uses the *nominal* annualInterestPPM. Both come from
+        // chain — annualInterestPPM already includes leadrate + risk premium.
         const reservePct = data.reserveContribution / 10000;
-        const interestPct = annualInterestPPM / 10000;
+        const repaidPct = 100 - reservePct;
+        const reserveRatio = data.reserveContribution / 1_000_000;        // 0..1
+        const nominalRate = annualInterestPPM / 1_000_000;                 // 0..1
+        const effectiveRate = reserveRatio < 1 ? nominalRate / (1 - reserveRatio) : nominalRate;
         const reserveAmt = (mintAmount * BigInt(data.reserveContribution)) / 1_000_000n;
+        const repaidAmt = mintAmount - reserveAmt;
         const dateTs = e.date.value ? Math.floor(new Date(e.date.value).getTime() / 1000) : data.expiration;
         const secs = Math.max(0, dateTs - Math.floor(Date.now() / 1000));
         const fee = (mintAmount * BigInt(secs) * BigInt(annualInterestPPM)) / (BigInt(365 * 86400) * 1_000_000n);
@@ -294,23 +277,31 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         e.outMinted.textContent = `${fmt(fromBig(mintAmount, 18), 0, 2)} ZCHF`;
         e.outReserve.textContent = `−${fmt(fromBig(reserveAmt, 18), 0, 2)} ZCHF`;
         e.outReservePct.textContent = `(${fmt(reservePct, 0, 2)}%)`;
+        e.outRepaid.textContent = `${fmt(fromBig(repaidAmt, 18), 0, 2)} ZCHF`;
+        e.outRepaidPct.textContent = `(${fmt(repaidPct, 0, 2)}%)`;
         e.outFee.textContent = `−${fmt(fromBig(fee, 18), 0, 2)} ZCHF`;
-        e.outRate.textContent = `(${fmt(interestPct, 2, 2)}% per year)`;
+        e.outRate.textContent = `(${fmt(effectiveRate * 100, 2, 2)}% per year)`;
         e.outNet.textContent = `${fmt(fromBig(net, 18), 0, 2)} ZCHF`;
     }
 
     // ---- Input handlers ----
+    const guardKeystrokes = (input: HTMLInputElement, dec: number) => {
+        input.addEventListener("beforeinput", (ev) => {
+            const ie = ev as InputEvent;
+            if (!ie.data) return;
+            const start = input.selectionStart ?? input.value.length;
+            const end = input.selectionEnd ?? input.value.length;
+            const insert = ie.data.replace(/,/g, ".");
+            const next = input.value.slice(0, start) + insert + input.value.slice(end);
+            if (!isValidPartial(next, dec)) ie.preventDefault();
+        });
+    };
+    guardKeystrokes(e.coll, data.collateralDecimals);
+    guardKeystrokes(e.mint, 18);
+
     e.coll.addEventListener("input", () => {
         lastEdited = "coll";
-        // Clamp the raw text to the token's decimal precision and write it back
-        // so the user visibly cannot type more decimals than allowed.
-        const trimmed = clampDecimals(e.coll.value, data.collateralDecimals);
-        if (trimmed !== e.coll.value) {
-            const pos = e.coll.selectionStart;
-            e.coll.value = trimmed;
-            // best-effort caret restore
-            if (pos !== null) e.coll.setSelectionRange(Math.min(pos, trimmed.length), Math.min(pos, trimmed.length));
-        }
+        const trimmed = applyClamp(e.coll, data.collateralDecimals);
         collAmount = toBig(parseNum(trimmed), data.collateralDecimals);
         if (linked) {
             const mintPrice = newPrice <= parentPrice ? newPrice : parentPrice;
@@ -320,13 +311,7 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
     });
     e.mint.addEventListener("input", () => {
         lastEdited = "mint";
-        // ZCHF is always 18 decimals — clamp to that.
-        const trimmed = clampDecimals(e.mint.value, 18);
-        if (trimmed !== e.mint.value) {
-            const pos = e.mint.selectionStart;
-            e.mint.value = trimmed;
-            if (pos !== null) e.mint.setSelectionRange(Math.min(pos, trimmed.length), Math.min(pos, trimmed.length));
-        }
+        const trimmed = applyClamp(e.mint, 18);
         mintAmount = toBig(parseNum(trimmed), 18);
         if (linked) {
             const mintPrice = newPrice <= parentPrice ? newPrice : parentPrice;
@@ -351,7 +336,6 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         e.linkWrap.classList.toggle("broken", !linked);
         if (linked && newPrice > parentPrice) {
             newPrice = parentPrice;
-            // recompute paired field
             if (lastEdited === "coll") mintAmount = (collAmount * newPrice) / 10n ** 18n;
             else if (newPrice > 0n) collAmount = (mintAmount * 10n ** 18n + newPrice - 1n) / newPrice;
         }
@@ -380,15 +364,45 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
     // ---- Init ----
     e.date.max = new Date(data.expiration * 1000).toISOString().slice(0, 10);
     e.date.min = new Date().toISOString().slice(0, 10);
-    e.balanceColl.textContent = fmt(fromBig(userBalance, data.collateralDecimals), 2, 4);
-    e.mintable.textContent = fmt(fromBig(availableForClones, 18), 0, 0);
     applyTab("MAX");
 
-    // First render with stub data so layout is correct immediately
-    render();
-
-    // Async load of market price → re-renders slider section properly
+    // -------------------------------------------------------------------
+    // Live multicall: replace ALL stubs with real on-chain values
+    // -------------------------------------------------------------------
     (async () => {
+        const staticInfo = findStaticPosition(data.address);
+        if (!staticInfo) return;
+
+        // Detect connected wallet from window if available, otherwise null
+        const connected = (window as any).__userAddress as `0x${string}` | undefined;
+        const userAddr = connected ?? null;
+
+        try {
+            const detail = await loadPositionDetail(staticInfo, userAddr);
+
+            parentPrice = detail.price;
+            newPrice = detail.price;
+            availableForClones = detail.availableForClones;
+            annualInterestPPM = detail.annualInterestPPM;
+            userBalance = detail.userBalance;
+            allowanceHub = detail.allowanceHub;
+            allowanceHelper = detail.allowanceHelper;
+            isClosed = detail.isClosed;
+            cooldown = detail.cooldown;
+            challengedAmount = detail.challengedAmount;
+
+            // Initial mint amount = minColl × parentPrice (Frankencoin's pattern)
+            mintAmount = (parentPrice * collAmount) / 10n ** 18n;
+
+            e.balanceColl.textContent = fmt(fromBig(userBalance, data.collateralDecimals), 2, 4);
+            e.mintable.textContent = fmt(fromBig(availableForClones, 18), 0, 0);
+
+            render();
+        } catch (err) {
+            console.error("loadPositionDetail failed:", err);
+        }
+
+        // Async market price load
         const market = await getMarketPriceCHF(data.collateralSymbol);
         if (market === null || market <= 0) {
             e.sliderSection.classList.add("hidden");
@@ -399,4 +413,7 @@ const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
         collateralPriceZchf = market;
         render();
     })();
+
+    // Initial render before any data lands
+    render();
 </script>

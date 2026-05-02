@@ -3,11 +3,12 @@ import LinkIcon from "@assets/icons/square-arrow-out-up-right.svg";
 
 interface Props {
     href: string;
+    title?: string;
     class?: string;
     id?: string;
 }
 
-const { href, class: className = "", id } = Astro.props;
+const { href, title, class: className = "", id } = Astro.props;
 ---
 
 <a
@@ -15,6 +16,7 @@ const { href, class: className = "", id } = Astro.props;
     target="_blank"
     rel="noopener"
     id={id}
+    title={title}
     class:list={["inline-flex items-center gap-1.5 text-primary hover:underline", className]}
 >
     <slot />
