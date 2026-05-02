@@ -6,7 +6,7 @@ export const shared = {
         // Nav
         nav_borrow: "Borrow",
         nav_earn: "Earn",
-        nav_dashboard: "Dashboard",
+        nav_my_positions: "My Positions",
         nav_transfer: "Transfer",
 
         // Wallet
@@ -26,7 +26,7 @@ export const shared = {
     de: {
         nav_borrow: "Leihen",
         nav_earn: "Sparen",
-        nav_dashboard: "Übersicht",
+        nav_my_positions: "Übersicht",
         nav_transfer: "Übertragen",
 
         wallet_connect: "Verbinden",
@@ -43,7 +43,7 @@ export const shared = {
     fr: {
         nav_borrow: "Emprunter",
         nav_earn: "Épargner",
-        nav_dashboard: "Tableau de bord",
+        nav_my_positions: "Tableau de bord",
         nav_transfer: "Transférer",
 
         wallet_connect: "Connecter",
@@ -60,7 +60,7 @@ export const shared = {
     it: {
         nav_borrow: "Prestiti",
         nav_earn: "Risparmi",
-        nav_dashboard: "Pannello",
+        nav_my_positions: "Pannello",
         nav_transfer: "Trasferisci",
 
         wallet_connect: "Connetti",
@@ -77,7 +77,7 @@ export const shared = {
     es: {
         nav_borrow: "Préstamos",
         nav_earn: "Ahorros",
-        nav_dashboard: "Panel",
+        nav_my_positions: "Panel",
         nav_transfer: "Transferir",
 
         wallet_connect: "Conectar",

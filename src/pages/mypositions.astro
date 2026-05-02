@@ -1,0 +1,590 @@
+---
+import Layout from "@layouts/Layout.astro";
+import Card from "@components/Card.astro";
+import WalletConnect from "@components/WalletConnect.astro";
+import { t, getLocale } from "@i18n/t";
+
+import bossIcon from "@assets/tokens/boss.svg?url";
+import cbbtcIcon from "@assets/tokens/cbbtc.svg?url";
+import crvIcon from "@assets/tokens/crv.svg?url";
+import gnoIcon from "@assets/tokens/gno.svg?url";
+import lendsIcon from "@assets/tokens/lends.svg?url";
+import lsethIcon from "@assets/tokens/lseth.svg?url";
+import paxgIcon from "@assets/tokens/paxg.svg?url";
+import realuIcon from "@assets/tokens/realu.svg?url";
+import spyonIcon from "@assets/tokens/spyon.svg?url";
+import wbtcIcon from "@assets/tokens/wbtc.svg?url";
+import wethIcon from "@assets/tokens/weth.svg?url";
+import wstethIcon from "@assets/tokens/wsteth.svg?url";
+import xautIcon from "@assets/tokens/xaut.svg?url";
+import ysyboldIcon from "@assets/tokens/ysybold.svg?url";
+
+const TOKEN_ICONS: Record<string, string> = {
+    boss: bossIcon, cbbtc: cbbtcIcon, crv: crvIcon, gno: gnoIcon, lends: lendsIcon,
+    lseth: lsethIcon, paxg: paxgIcon, realu: realuIcon, spyon: spyonIcon, wbtc: wbtcIcon,
+    weth: wethIcon, wsteth: wstethIcon, xaut: xautIcon, ysybold: ysyboldIcon,
+};
+
+const tt = t(Astro.url);
+const locale = getLocale(Astro.url);
+
+const i18n = {
+    pageTitle: tt("mypos_page_title"),
+    pageSubtitle: tt("mypos_subtitle"),
+    notConnected: tt("wallet_not_connected"),
+    empty: tt("mypos_empty"),
+    loading: tt("mypos_loading"),
+    cardMinted: tt("mypos_card_minted"),
+    cardCollateral: tt("mypos_card_collateral"),
+    cardLiqPrice: tt("mypos_card_liq_price"),
+    cardExpires: tt("mypos_card_expires"),
+    statusActive: tt("mint_status_active"),
+    statusCooldown: tt("mypos_status_cooldown_short"),
+    statusClosed: tt("mypos_status_closed"),
+    statusChallenged: tt("mypos_status_challenged"),
+    badgeClone: tt("mint_badge_clone"),
+    manageTitle: tt("mypos_manage_title"),
+    manageBack: tt("mypos_back"),
+    labelMint: tt("mypos_label_mint"),
+    labelCollateral: tt("mypos_label_collateral"),
+    labelLiqPrice: tt("mypos_label_liq_price"),
+    labelMaturity: tt("mypos_label_maturity"),
+    labelInterest: tt("mypos_label_interest"),
+    labelBalance: tt("earn_balance_wallet"),
+    actionAdjust: tt("mypos_action_adjust"),
+    actionAdjusting: tt("mypos_action_adjusting"),
+    actionApprove: tt("mint_action_approve_required"),
+    actionApproving: tt("mint_action_approving"),
+    actionSwitching: tt("mint_action_switching"),
+    outcomeCurrent: tt("mypos_outcome_current"),
+    outcomeFuture: tt("mypos_outcome_future"),
+    outcomeWallet: tt("mypos_outcome_wallet"),
+    outcomeReserve: tt("mypos_outcome_reserve"),
+    outcomeFee: tt("mypos_outcome_fee"),
+    errCooldown: tt("mypos_err_cooldown"),
+    errClosed: tt("mypos_err_closed"),
+    errChallenged: tt("mypos_err_challenged"),
+    errAmountLimit: tt("mypos_err_amount_limit"),
+    errCollateralLow: tt("mypos_err_collateral_low"),
+    errBalanceLow: tt("mypos_err_balance_low_zchf"),
+    errPriceLocked: tt("mypos_err_price_locked"),
+    toastApproved: tt("mypos_toast_approved"),
+    toastAdjusted: tt("mypos_toast_adjusted"),
+    cancelled: tt("common_cancelled"),
+    notConnectedToast: tt("wallet_not_connected"),
+    errRpcTitle: tt("mint_err_rpc_title"),
+    errRpcBody: tt("mint_err_rpc_body"),
+    errRpcHelp: tt("mint_err_rpc_help"),
+};
+---
+
+<Layout title={`${i18n.pageTitle} | Frankencoin dApp`} description={i18n.pageSubtitle}>
+    <main class="mx-auto max-w-5xl px-4 py-10 md:px-6 md:py-12">
+        <header class="mb-8">
+            <h1 class="text-[28px] font-bold tracking-tight">{i18n.pageTitle}</h1>
+            <p class="mt-2 text-[14px] opacity-80">{i18n.pageSubtitle}</p>
+        </header>
+
+        <!-- LIST VIEW -->
+        <section id="view-list">
+            <div id="list-state-disconnected" class="hidden">
+                <Card title={i18n.notConnected}>
+                    <p class="mb-4 text-[14px] opacity-80">{i18n.notConnected}</p>
+                    <WalletConnect />
+                </Card>
+            </div>
+
+            <div id="list-state-loading" class="hidden">
+                <Card title={i18n.loading}>
+                    <p class="text-[14px] opacity-90">{i18n.loading}</p>
+                </Card>
+            </div>
+
+            <div id="list-state-empty" class="hidden">
+                <Card title={i18n.empty}>
+                    <p class="text-[14px] opacity-80">{i18n.empty}</p>
+                </Card>
+            </div>
+
+            <div data-token-icons={JSON.stringify(TOKEN_ICONS)} class="hidden"></div>
+            <div id="list-grid" class="grid grid-cols-1 gap-4 md:grid-cols-2" style="display:none"></div>
+        </section>
+
+        <!-- MANAGE VIEW -->
+        <section id="view-manage" class="hidden">
+            <button id="btn-back" class="mb-6 inline-flex items-center gap-1 text-[14px] opacity-90 transition-opacity hover:opacity-100">
+                ← <span>{i18n.manageBack}</span>
+            </button>
+            <div id="manage-content"></div>
+        </section>
+    </main>
+
+    <script id="mypos-i18n" type="application/json" set:html={JSON.stringify(i18n)}></script>
+    <script id="mypos-locale" type="application/json" set:html={JSON.stringify(locale)}></script>
+</Layout>
+
+<script>
+    import { type Address, formatUnits, parseUnits, erc20Abi } from "viem";
+    import { getOnboard } from "@lib/onboard";
+    import { mainnet } from "viem/chains";
+    import { getPublicClient, makeWalletClient } from "@lib/client";
+    import { toast } from "@lib/toast";
+    import { friendlyError } from "@lib/errors";
+    import { findUserPositions, loadMyPositionDetails, clearAllPositionsCache, type MyPositionDetail } from "@lib/myPositions";
+    import { POSITION_V2_ABI as PositionV2ABI } from "@abi/position";
+
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+
+    const i18n = JSON.parse($("mypos-i18n").textContent || "{}") as Record<string, string>;
+    const locale = JSON.parse($("mypos-locale").textContent || '"en"') as string;
+
+    const iconHost = document.querySelector<HTMLElement>("[data-token-icons]")!;
+    const tokenIcons = JSON.parse(iconHost.dataset.tokenIcons || "{}") as Record<string, string>;
+    const iconFor = (sym: string): string | null => tokenIcons[sym.toLowerCase()] ?? null;
+
+    const numberLocale = ({ en: "en-US", de: "de-CH", fr: "fr-CH", it: "it-CH", es: "es-ES" } as Record<string, string>)[locale] ?? "en-US";
+
+    const ETH_CHAIN_ID_HEX = "0x1";
+    const ONE_E18 = 10n ** 18n;
+    const MAX_UINT256 = (1n << 256n) - 1n;
+
+    // ==================== RAW PROVIDER ====================
+    function getRawProvider(): any {
+        const eth = (window as any).ethereum;
+        if (!eth) return null;
+        if (Array.isArray(eth.providers) && eth.providers.length) {
+            const mm = eth.providers.find((p: any) => p.isMetaMask && !p.isBraveWallet);
+            return mm ?? eth.providers[0];
+        }
+        return eth;
+    }
+    async function readChainId(): Promise<string | null> {
+        const p = getRawProvider();
+        if (!p?.request) return null;
+        try {
+            const id = await p.request({ method: "eth_chainId" });
+            return typeof id === "string" ? id.toLowerCase() : null;
+        } catch { return null; }
+    }
+    async function ensureMainnet(): Promise<boolean> {
+        const cur = await readChainId();
+        if (cur === ETH_CHAIN_ID_HEX) return true;
+        const p = getRawProvider();
+        if (!p?.request) { toast(i18n.notConnectedToast, "error"); return false; }
+        try {
+            await p.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ETH_CHAIN_ID_HEX }] });
+            const after = await readChainId();
+            return after === ETH_CHAIN_ID_HEX;
+        } catch (err: any) {
+            if (err?.code === 4001 || /reject|denied/i.test(err?.message ?? "")) {
+                toast(i18n.cancelled, "info");
+                return false;
+            }
+            const { message } = friendlyError(err);
+            toast(message, "error");
+            return false;
+        }
+    }
+    function isUserCancelErr(err: any): boolean {
+        const code = err?.code ?? err?.cause?.code;
+        if (code === 4001) return true;
+        return /reject|denied|cancel/i.test(err?.message ?? "");
+    }
+    function isWalletRpcError(err: any): boolean {
+        const msg = (err?.message ?? err?.cause?.message ?? "").toString().toLowerCase();
+        const code = err?.code ?? err?.cause?.code;
+        if (msg.includes("json-rpc") || msg.includes("json rpc")) return true;
+        if (code === -32603 || code === -32000 || code === -32601 || code === -32006) return true;
+        return false;
+    }
+
+    // ==================== STATE ====================
+    let connected: Address | null = null;
+    let positions: MyPositionDetail[] = [];
+    let view: "list" | "manage" = "list";
+    let activeAddress: Address | null = null;
+
+    // ==================== FORMAT HELPERS ====================
+    const fmt = (n: number, max = 2) =>
+        n.toLocaleString(numberLocale, { minimumFractionDigits: 0, maximumFractionDigits: max });
+    const fmtZCHF = (n: number) =>
+        n.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fromBig = (v: bigint, dec: number) => Number(v) / Math.pow(10, dec);
+    const fmtDate = (ts: number) => ts > 0
+        ? new Date(ts * 1000).toLocaleDateString(numberLocale, { day: "2-digit", month: "short", year: "numeric" })
+        : "—";
+
+    const isCooldown = (p: MyPositionDetail) => p.cooldown * 1000 > Date.now();
+    const isChallenged = (p: MyPositionDetail) => p.challengedAmount > 0n;
+
+    function statusOf(p: MyPositionDetail): { label: string; cls: string } {
+        if (p.isClosed) return { label: i18n.statusClosed, cls: "bg-foreground/15 opacity-90" };
+        if (isChallenged(p)) return { label: i18n.statusChallenged, cls: "bg-primary/15 text-primary" };
+        if (isCooldown(p)) return { label: i18n.statusCooldown, cls: "bg-foreground/15" };
+        return { label: i18n.statusActive, cls: "bg-foreground/10" };
+    }
+
+    // ==================== ROUTING ====================
+    function urlAddress(): Address | null {
+        const sp = new URLSearchParams(location.search);
+        const a = sp.get("address");
+        return a && /^0x[a-fA-F0-9]{40}$/.test(a) ? (a as Address) : null;
+    }
+    function navigate(target: Address | null) {
+        const url = new URL(location.href);
+        if (target) url.searchParams.set("address", target);
+        else url.searchParams.delete("address");
+        history.pushState({}, "", url);
+        applyRoute();
+    }
+    function applyRoute() {
+        const p = urlAddress();
+        view = p ? "manage" : "list";
+        activeAddress = p;
+        $("view-list").classList.toggle("hidden", view !== "list");
+        $("view-manage").classList.toggle("hidden", view !== "manage");
+        if (view === "list") renderList();
+        else renderManage();
+    }
+    window.addEventListener("popstate", applyRoute);
+
+    // ==================== LIST VIEW ====================
+    function setListState(state: "disconnected" | "loading" | "empty" | "grid") {
+        const states = ["disconnected", "loading", "empty"] as const;
+        for (const s of states) {
+            $(`list-state-${s}`).classList.toggle("hidden", s !== state);
+        }
+        const grid = $("list-grid") as HTMLElement;
+        grid.style.display = state === "grid" ? "" : "none";
+    }
+
+    function renderList() {
+        if (!connected) { setListState("disconnected"); return; }
+        if (positions.length === 0) { setListState("empty"); return; }
+
+        const grid = $("list-grid");
+        grid.innerHTML = "";
+        for (const p of positions) {
+            const status = statusOf(p);
+            const icon = iconFor(p.collateralSymbol);
+            const iconHtml = icon
+                ? `<img src="${icon}" alt="" class="h-9 w-9 shrink-0 rounded-full" />`
+                : `<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[12px] font-bold">${p.collateralSymbol.slice(0, 3)}</div>`;
+
+            const card = document.createElement("a");
+            card.href = `?address=${p.address}`;
+            card.className = "block rounded-md border border-foreground/10 bg-background p-5 transition-colors hover:border-foreground/30";
+            card.onclick = (ev) => { ev.preventDefault(); navigate(p.address); };
+            card.innerHTML = `
+                <div class="mb-4 flex items-center gap-3">
+                    ${iconHtml}
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <div class="text-[15px] font-bold">${p.collateralName}</div>
+                            <span class="inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${status.cls}">${status.label}</span>
+                            ${p.isClone ? `<span class="inline-block rounded bg-foreground/10 px-1.5 py-0.5 text-[11px] font-medium opacity-90">${i18n.badgeClone}</span>` : ""}
+                        </div>
+                        <div class="text-[12px] opacity-90">${p.collateralSymbol}</div>
+                    </div>
+                </div>
+                <div class="space-y-2 text-[14px]">
+                    <div class="flex justify-between"><span class="opacity-90">${i18n.cardMinted}</span><span class="font-medium">${fmtZCHF(fromBig(p.minted, 18))} ZCHF</span></div>
+                    <div class="flex justify-between"><span class="opacity-90">${i18n.cardCollateral}</span><span class="font-medium">${fmt(fromBig(p.collateralBalance, p.collateralDecimals), 4)} ${p.collateralSymbol}</span></div>
+                    <div class="flex justify-between"><span class="opacity-90">${i18n.cardLiqPrice}</span><span class="font-medium">${fmtZCHF(fromBig(p.price, 36 - p.collateralDecimals))} ZCHF</span></div>
+                    <div class="flex justify-between"><span class="opacity-90">${i18n.cardExpires}</span><span class="font-medium">${fmtDate(p.expiration)}</span></div>
+                </div>
+            `;
+            grid.appendChild(card);
+        }
+        setListState("grid");
+    }
+
+    // ==================== MANAGE VIEW ====================
+    function renderManage() {
+        const root = $("manage-content");
+        const p = positions.find(x => x.address.toLowerCase() === activeAddress?.toLowerCase());
+        if (!p) {
+            root.innerHTML = `
+                <div class="rounded-md border border-foreground/10 bg-background p-6">
+                    <p class="text-center text-[14px] opacity-90">${i18n.loading}</p>
+                </div>`;
+            return;
+        }
+        const dec = p.collateralDecimals;
+        const priceDigits = 36 - dec;
+        const status = statusOf(p);
+        const icon = iconFor(p.collateralSymbol);
+        const iconHtml = icon
+            ? `<img src="${icon}" alt="" class="h-10 w-10 shrink-0 rounded-full" />`
+            : `<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[13px] font-bold">${p.collateralSymbol.slice(0, 3)}</div>`;
+
+        root.innerHTML = `
+            <div class="mb-6 flex items-center gap-3">
+                ${iconHtml}
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h2 class="text-[20px] font-bold tracking-tight">${p.collateralName}</h2>
+                        <span class="inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${status.cls}">${status.label}</span>
+                        ${p.isClone ? `<span class="inline-block rounded bg-foreground/10 px-1.5 py-0.5 text-[11px] font-medium opacity-90">${i18n.badgeClone}</span>` : ""}
+                    </div>
+                    <div class="mt-1 text-[12px] opacity-90 break-all">${p.address}</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div class="rounded-md border border-foreground/10 bg-background p-6">
+                    <h3 class="mb-5 text-[20px] font-bold tracking-tight">${i18n.manageTitle}</h3>
+                    <div class="space-y-5">
+                        <div>
+                            <div class="mb-2 flex items-center justify-between text-[14px]">
+                                <label for="i-mint" class="font-bold opacity-90">${i18n.labelMint}</label>
+                                <span class="opacity-90">${fmtZCHF(fromBig(p.userZchfBalance, 18))} ZCHF</span>
+                            </div>
+                            <div class="relative">
+                                <input id="i-mint" type="text" inputmode="decimal" autocomplete="off"
+                                    class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 pr-16 text-[15px] font-medium focus:border-foreground/40 focus:outline-none" />
+                                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[14px] opacity-90">ZCHF</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="mb-2 flex items-center justify-between text-[14px]">
+                                <label for="i-coll" class="font-bold opacity-90">${i18n.labelCollateral}</label>
+                                <span class="opacity-90">${fmt(fromBig(p.userCollateralBalance, dec), 4)} ${p.collateralSymbol}</span>
+                            </div>
+                            <div class="relative">
+                                <input id="i-coll" type="text" inputmode="decimal" autocomplete="off"
+                                    class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 pr-20 text-[15px] font-medium focus:border-foreground/40 focus:outline-none" />
+                                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[14px] opacity-90">${p.collateralSymbol}</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="i-price" class="mb-2 block text-[14px] font-bold opacity-90">${i18n.labelLiqPrice}</label>
+                            <div class="relative">
+                                <input id="i-price" type="text" inputmode="decimal" autocomplete="off"
+                                    class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 pr-16 text-[15px] font-medium focus:border-foreground/40 focus:outline-none" />
+                                <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[14px] opacity-90">ZCHF</span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-2 border-t border-foreground/10 pt-4 text-[14px]">
+                            <div class="flex justify-between"><span class="opacity-90">${i18n.labelInterest}</span><span>${(p.annualInterestPPM / 10000).toFixed(2)}%</span></div>
+                            <div class="flex justify-between"><span class="opacity-90">${i18n.labelMaturity}</span><span>${fmtDate(p.expiration)}</span></div>
+                        </div>
+
+                        <div id="adjust-error" class="hidden text-[13px] text-primary"></div>
+
+                        <button id="btn-adjust"
+                            class="inline-flex w-full items-center justify-center gap-2 rounded-md border border-transparent bg-primary px-5 py-2.5 text-[15px] font-semibold text-[#FAF7F2] transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 dark:text-[#030303]">
+                            <span class="btn-action-label">${i18n.actionAdjust}</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="rounded-md border border-foreground/10 bg-background p-6">
+                    <h3 class="mb-5 text-[20px] font-bold tracking-tight">${i18n.outcomeFuture}</h3>
+                    <div class="space-y-3 text-[14px]">
+                        <div class="flex justify-between"><span class="opacity-90">${i18n.outcomeCurrent}</span><span id="o-current">—</span></div>
+                        <div class="flex justify-between"><span class="opacity-90">${i18n.outcomeWallet}</span><span id="o-wallet">—</span></div>
+                        <div class="flex justify-between"><span class="opacity-90">${i18n.outcomeReserve}</span><span id="o-reserve">—</span></div>
+                        <div class="flex justify-between"><span class="opacity-90">${i18n.outcomeFee}</span><span id="o-fee">—</span></div>
+                        <div class="flex justify-between border-t border-foreground/10 pt-3 font-bold"><span>${i18n.outcomeFuture}</span><span id="o-future">—</span></div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const mintInput = $<HTMLInputElement>("i-mint");
+        const collInput = $<HTMLInputElement>("i-coll");
+        const priceInput = $<HTMLInputElement>("i-price");
+        mintInput.value = formatUnits(p.minted, 18);
+        collInput.value = formatUnits(p.collateralBalance, dec);
+        priceInput.value = formatUnits(p.price, priceDigits);
+
+        let mintAmount = p.minted;
+        let collAmount = p.collateralBalance;
+        let liqPrice = p.price;
+
+        const safeParse = (s: string, dp: number): bigint => {
+            try { return parseUnits((s.trim().replace(/,/g, ".") || "0") as `${number}`, dp); }
+            catch { return 0n; }
+        };
+
+        function getError(): string | null {
+            if (p!.isClosed) return i18n.errClosed;
+            if (isCooldown(p!)) return i18n.errCooldown;
+            if (isChallenged(p!) && collAmount < p!.collateralBalance) return i18n.errChallenged;
+            const max = p!.availableForMinting + p!.minted;
+            if (mintAmount > max) return i18n.errAmountLimit;
+            if (liqPrice * collAmount < mintAmount * ONE_E18) return i18n.errCollateralLow;
+            if (mintAmount > p!.minted && liqPrice > p!.price) return i18n.errPriceLocked;
+            const diff = mintAmount - p!.minted;
+            if (diff < 0n) {
+                const reserveReturn = ((-diff) * BigInt(p!.reserveContribution)) / 1_000_000n;
+                const cashNeeded = (-diff) - reserveReturn;
+                if (cashNeeded > p!.userZchfBalance) return i18n.errBalanceLow;
+            }
+            return null;
+        }
+
+        function refresh() {
+            const err = getError();
+            const errEl = $("adjust-error");
+            if (!errEl.querySelector(".rpc-error")) {
+                if (err) {
+                    errEl.textContent = err;
+                    errEl.className = "text-[13px] text-primary";
+                    errEl.classList.remove("hidden");
+                } else {
+                    errEl.classList.add("hidden");
+                    errEl.textContent = "";
+                }
+            }
+
+            const diff = mintAmount - p!.minted;
+            const reservePPM = BigInt(p!.reserveContribution);
+            const reserveDelta = (diff * reservePPM) / 1_000_000n;
+            const secsLeft = BigInt(Math.max(0, p!.expiration - Math.floor(Date.now() / 1000)));
+            const feePPM = (secsLeft * BigInt(p!.annualInterestPPM)) / BigInt(365 * 86400);
+            const fee = diff > 0n ? (diff * feePPM) / 1_000_000n : 0n;
+            const wallet = diff - reserveDelta - fee;
+
+            const sign = (v: bigint) =>
+                `${v >= 0n ? "+" : "−"}${fmtZCHF(fromBig(v < 0n ? -v : v, 18))}`;
+
+            $("o-current").textContent = `${fmtZCHF(fromBig(p!.minted, 18))} ZCHF`;
+            $("o-future").textContent = `${fmtZCHF(fromBig(mintAmount, 18))} ZCHF`;
+            $("o-wallet").textContent = `${sign(wallet)} ZCHF`;
+            $("o-reserve").textContent = `${sign(-reserveDelta)} ZCHF`;
+            $("o-fee").textContent = `−${fmtZCHF(fromBig(fee, 18))} ZCHF`;
+
+            const collDelta = collAmount > p!.collateralBalance ? collAmount - p!.collateralBalance : 0n;
+            const needsApproval = collDelta > 0n && collDelta > p!.userCollateralAllowance;
+            const label = document.querySelector(".btn-action-label") as HTMLElement;
+            label.textContent = needsApproval
+                ? i18n.actionApprove.replace("{symbol}", p!.collateralSymbol)
+                : i18n.actionAdjust;
+            const noChange = mintAmount === p!.minted && collAmount === p!.collateralBalance && liqPrice === p!.price;
+            ($<HTMLButtonElement>("btn-adjust")).disabled = !!err || noChange;
+        }
+
+        mintInput.addEventListener("input", () => { mintAmount = safeParse(mintInput.value, 18); refresh(); });
+        collInput.addEventListener("input", () => { collAmount = safeParse(collInput.value, dec); refresh(); });
+        priceInput.addEventListener("input", () => { liqPrice = safeParse(priceInput.value, priceDigits); refresh(); });
+
+        $("btn-adjust").addEventListener("click", async () => {
+            if (!connected) return;
+            const errEl = $("adjust-error");
+            if (errEl.querySelector(".rpc-error")) {
+                errEl.classList.add("hidden");
+                errEl.innerHTML = "";
+            }
+
+            if (!(await ensureMainnet())) return;
+
+            const collDelta = collAmount > p!.collateralBalance ? collAmount - p!.collateralBalance : 0n;
+            const needsApproval = collDelta > 0n && collDelta > p!.userCollateralAllowance;
+
+            const publicClient = getPublicClient("ethereum");
+            const rawProvider = getRawProvider();
+            if (!rawProvider) { toast(i18n.notConnectedToast, "error"); return; }
+            const walletClient = makeWalletClient(rawProvider, "ethereum");
+
+            const btn = $<HTMLButtonElement>("btn-adjust");
+            const label = document.querySelector(".btn-action-label") as HTMLElement;
+            const orig = label.textContent ?? "";
+            btn.disabled = true;
+
+            try {
+                if (needsApproval) {
+                    label.textContent = i18n.actionApproving.replace("{symbol}", p!.collateralSymbol);
+                    const hash = await walletClient.writeContract({
+                        address: p!.collateral,
+                        abi: erc20Abi,
+                        functionName: "approve",
+                        args: [p!.address, MAX_UINT256],
+                        account: connected,
+                        chain: mainnet,
+                    });
+                    await publicClient.waitForTransactionReceipt({ hash });
+                    toast(i18n.toastApproved.replace("{symbol}", p!.collateralSymbol), "success");
+                    await refreshPositions();
+                    navigate(p!.address);
+                    return;
+                }
+
+                label.textContent = i18n.actionAdjusting;
+                const hash = await walletClient.writeContract({
+                    address: p!.address,
+                    abi: PositionV2ABI,
+                    functionName: "adjust",
+                    args: [mintAmount, collAmount, liqPrice],
+                    account: connected,
+                    chain: mainnet,
+                });
+                await publicClient.waitForTransactionReceipt({ hash });
+                toast(i18n.toastAdjusted, "success");
+                await refreshPositions();
+                navigate(p!.address);
+            } catch (err) {
+                if (isUserCancelErr(err)) {
+                    toast(i18n.cancelled, "info");
+                } else if (isWalletRpcError(err)) {
+                    errEl.classList.remove("hidden");
+                    errEl.className = "";
+                    errEl.innerHTML = `<div class="rpc-error">
+                        <div class="rpc-error-title">${i18n.errRpcTitle}</div>
+                        <div class="rpc-error-body">${i18n.errRpcBody}</div>
+                        <div class="rpc-error-help">${i18n.errRpcHelp}</div>
+                    </div>`;
+                } else {
+                    const { message } = friendlyError(err);
+                    toast(message, "error");
+                }
+            } finally {
+                label.textContent = orig;
+                btn.disabled = false;
+                refresh();
+            }
+        });
+
+        refresh();
+    }
+
+    // ==================== INIT ====================
+    $("btn-back").addEventListener("click", () => navigate(null));
+
+    async function refreshPositions() {
+        if (!connected) { positions = []; renderList(); return; }
+        setListState("loading");
+        try {
+            const addrs = await findUserPositions(connected);
+            positions = await loadMyPositionDetails(addrs, connected);
+        } catch (err) {
+            console.error("[mypositions] refresh failed:", err);
+            positions = [];
+        }
+        applyRoute();
+    }
+
+    getOnboard().state.select("wallets").subscribe(async (wallets) => {
+        const w = wallets[0];
+        const newAddr = w?.accounts[0]?.address as Address | null;
+        if (newAddr !== connected) {
+            connected = newAddr;
+            await refreshPositions();
+        } else {
+            applyRoute();
+        }
+    });
+
+    applyRoute();
+
+    window.addEventListener("storage", (ev) => {
+        if (ev.key === "frnk:invalidatePositions:v1") {
+            clearAllPositionsCache();
+            refreshPositions();
+        }
+    });
+</script>

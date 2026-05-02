@@ -11,7 +11,6 @@ export const POSITION_V2_ABI = parseAbi([
     "function challengePeriod() view returns (uint40)",
     "function riskPremiumPPM() view returns (uint24)",
     "function reserveContribution() view returns (uint24)",
-
     // Mutable / live
     "function price() view returns (uint256)",
     "function minted() view returns (uint256)",
@@ -23,4 +22,10 @@ export const POSITION_V2_ABI = parseAbi([
     "function annualInterestPPM() view returns (uint24)",
     "function calculateCurrentFee() view returns (uint24)",
     "function owner() view returns (address)",
+    // Writes
+    "function adjust(uint256 newMinted, uint256 newCollateral, uint256 newPrice)",
+    "function adjustPrice(uint256 newPrice)",
+    "function mint(address target, uint256 amount)",
+    "function repay(uint256 amount) returns (uint256)",
+    "function withdrawCollateral(address target, uint256 amount)",
 ]);
