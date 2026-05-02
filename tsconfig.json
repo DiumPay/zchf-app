@@ -1,18 +1,18 @@
 {
-  "extends": "astro/tsconfigs/strict",
-  "compilerOptions": {
-    "paths": {
-      "@components/*": ["./src/components/*"],
-      "@assets/*": ["./src/assets/*"],
-      "@layouts/*": ["./src/layouts/*"],
-      "@lib/*": ["./src/lib/*"],
-      "@config/*": ["./src/config/*"],
-      "@abi/*": ["./src/abi/*"],
-      "@i18n/*": ["./src/i18n/*"],
-      "@pages/*": ["./src/pages/*"],
-      "@data/*": ["./src/data/*"],
-    }
-  },
-  "include": [".astro/types.d.ts", "**/*", "src"],
-  "exclude": ["dist"]
+    "extends": "astro/tsconfigs/strict",
+    "compilerOptions": {
+        "paths": {
+            "@components/*": ["./src/components/*"],
+            "@assets/*": ["./src/assets/*"],
+            "@layouts/*": ["./src/layouts/*"],
+            "@lib/*": ["./src/lib/*"],
+            "@config/*": ["./src/config/*"],
+            "@abi/*": ["./src/abi/*"],
+            "@i18n/*": ["./src/i18n/*"],
+            "@pages/*": ["./src/pages/*"],
+            "@data/*": ["./src/data/*"]
+        }
+    },
+    "include": [".astro/types.d.ts", "**/*", "src"],
+    "exclude": ["dist"]
 }

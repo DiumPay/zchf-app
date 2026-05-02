@@ -116,6 +116,8 @@ const TOKEN_ICONS: Record<string, string> = {
 <script>
     import { loadPositionsCached, liquidationPriceUnits, positionStatus, effectiveInterestPPM, type Position } from "@lib/positions";
     import { getMarketPriceCHF } from "@lib/prices";
+    import { localePath } from "@i18n/t";
+    import type { Locale } from "@i18n/messages";
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -164,8 +166,8 @@ const TOKEN_ICONS: Record<string, string> = {
     function ltvCell(p: Position): string {
         const sym = p.collateralSymbol.toUpperCase();
         const market = priceMap[sym];
-        if (market === undefined) return `<span class="opacity-50">…</span>`;
-        if (market === null) return `<span class="opacity-50">N/A</span>`;
+        if (market === undefined) return `<span class="opacity-80">…</span>`;
+        if (market === null) return `<span class="opacity-80">N/A</span>`;
         const ltv = (liquidationPriceUnits(p) / market) * 100;
         return `${ltv.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
     }
@@ -236,7 +238,7 @@ const TOKEN_ICONS: Record<string, string> = {
         list.querySelectorAll<HTMLButtonElement>("[data-position]").forEach(btn => {
             btn.addEventListener("click", () => {
                 const addr = btn.dataset.position;
-                window.location.href = `/mint/${addr}`;
+                window.location.href = localePath(locale as Locale, `/mint/${addr}`);
             });
         });
     }

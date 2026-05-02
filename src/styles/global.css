@@ -35,3 +35,25 @@ body {
 code, pre, kbd, samp, .mono {
   font-family: 'JetBrains Mono Variable', monospace;
 }
+
+.rpc-error {
+    background-color: color-mix(in srgb, var(--color-primary) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+    border-radius: 0.5rem;
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+.rpc-error-title {
+    font-weight: 600;
+    color: var(--color-primary);
+    margin-bottom: 0.25rem;
+}
+.rpc-error-body {
+    color: var(--color-muted-foreground);
+    margin-bottom: 0.5rem;
+}
+.rpc-error-help {
+    color: var(--color-foreground);
+    font-size: 0.8125rem;
+}

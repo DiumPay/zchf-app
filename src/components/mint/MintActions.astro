@@ -2,20 +2,18 @@
 import Button from "@components/Button.astro";
 
 interface Props {
-    approveLabel: string;
     mintLabel: string;
     connectLabel: string;
 }
 
-const { approveLabel, mintLabel, connectLabel } = Astro.props;
+const { mintLabel, connectLabel } = Astro.props;
 ---
 
 <div>
     <div id="actions-connected" class="hidden">
-        <div id="approve-row" class="hidden mb-3">
-            <Button id="btn-approve" fullWidth>{approveLabel}</Button>
-        </div>
-        <Button id="btn-borrow" fullWidth>{mintLabel}</Button>
+        <Button id="btn-action" fullWidth>
+            <span class="btn-action-label">{mintLabel}</span>
+        </Button>
     </div>
     <div id="actions-disconnected">
         <Button id="btn-connect" fullWidth>{connectLabel}</Button>
@@ -23,3 +21,4 @@ const { approveLabel, mintLabel, connectLabel } = Astro.props;
 </div>
 
 <p id="banner" class="mt-4 hidden rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-[13px] text-amber-700 dark:text-amber-400"></p>
+<p id="action-error" class="mt-2 hidden text-[13px] text-primary"></p>

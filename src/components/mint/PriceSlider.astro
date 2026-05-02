@@ -1,14 +1,5 @@
 ---
 // 1:1 port of Frankencoin's LiquidationSlider.tsx structure.
-//   .full-gradient  — green→amber→red, full width, never moves
-//   .grey-cover     — left: var(--source); right: 0  (covers source→end)
-//   .source-line    — left: var(--source); thin vertical mark
-//   .source-label   — left: var(--source); "REFERENCE" text above
-//   .thumb          — left: var(--value); the visual circle
-//   <input>         — invisible, full width, drives --value via JS
-//
-// Both vars are percent strings, e.g. "67.3%". Set on the OUTER container.
-
 interface Props {
     label: string;
     referenceLabel: string;
@@ -22,45 +13,58 @@ const { label, referenceLabel, ltvLabel, cooldownWarning, fallbackTitle, fallbac
 ---
 <div id="slider-section" class="rounded-md border border-foreground/15 px-4 py-3" style="--source: 50%; --value: 50%;">
     <div class="my-1 flex items-center">
-        <span class="flex-1 text-[14px] font-bold text-foreground/80">{label}</span>
-        <span class="text-[18px] font-bold text-foreground tabular-nums">
+        <!-- FIX: Changed span to <label> and linked to the input ID -->
+        <label for="slider-price" class="flex-1 text-[14px] font-bold text-foreground/80 cursor-pointer">
+            {label}
+        </label>
+        <span class="text-[18px] font-bold text-foreground tabular-nums" aria-live="polite">
             <span id="price-value">—</span>
             <span class="ml-1 text-[14px] font-medium text-muted-foreground">ZCHF</span>
         </span>
     </div>
+
     <div class="relative pt-3 pb-2">
-        <!-- "REFERENCE" label sits above the track at source position -->
-        <div id="source-label" class="absolute -top-1 -translate-x-1/2 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400" style="left: var(--source);">
+        <!-- Decorative label: aria-hidden because the primary label is above -->
+        <div id="source-label" aria-hidden="true" class="absolute -top-1 -translate-x-1/2 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400" style="left: var(--source);">
             {referenceLabel}
         </div>
-        <!-- Track -->
+
         <div class="relative flex h-8 items-center">
-            <div class="absolute inset-x-0 h-3 overflow-hidden rounded-full">
-                <!-- full gradient -->
+            <!-- Decorative Track -->
+            <div class="absolute inset-x-0 h-3 overflow-hidden rounded-full" aria-hidden="true">
                 <div class="absolute inset-0 bg-[linear-gradient(to_right,#22c55e_0%,#eab308_50%,#f97316_100%)]"></div>
-                <!-- grey cover from source to end -->
                 <div class="absolute right-0 top-0 bottom-0 bg-gray-300 dark:bg-gray-600" style="left: var(--source);"></div>
-                <!-- vertical source line -->
-                <div class="absolute top-0 bottom-0 w-0.5 bg-amber-700 dark:bg-amber-400" style="left: var(--source);"></div>
+                <div class="absolute top-0 bottom-0 w-0.5 bg-amber-700 dark:text-amber-400" style="left: var(--source);"></div>
             </div>
-            <!-- thumb -->
-            <div class="pointer-events-none absolute h-5 w-5 -translate-x-1/2 rounded-full border-2 border-foreground bg-background shadow-md" style="left: var(--value);"></div>
-            <!-- invisible input drives events -->
-            <input id="slider-price" type="range" min="0" max="1000" step="1" value="500"
-                class="absolute inset-0 z-10 w-full cursor-pointer opacity-0" />
+
+            <!-- Visual Thumb -->
+            <div aria-hidden="true" class="pointer-events-none absolute h-5 w-5 -translate-x-1/2 rounded-full border-2 border-foreground bg-background shadow-md" style="left: var(--value);"></div>
+
+            <!-- Invisible input drives events -->
+            <input 
+                id="slider-price" 
+                type="range" 
+                min="0" 
+                max="1000" 
+                step="1" 
+                value="500"
+                class="absolute inset-0 z-10 w-full cursor-pointer opacity-0" 
+            />
         </div>
     </div>
+
     <div class="flex flex-row gap-2 py-1 text-[13px]">
         <div class="flex flex-1 flex-row gap-2">
             <span class="text-muted-foreground">{ltvLabel}</span>
-            <span id="ltv-value" class="font-bold text-foreground">—</span>
+            <span id="ltv-value" class="font-bold text-foreground" aria-live="polite">—</span>
         </div>
-        <span id="cooldown-warning" class="hidden text-amber-600 dark:text-amber-400">{cooldownWarning}</span>
+        <span id="cooldown-warning" class="hidden text-amber-600 dark:text-amber-400" role="alert">{cooldownWarning}</span>
     </div>
 </div>
-<!-- Hidden when there's no market price feed for this collateral -->
+
+<!-- Hidden when there's no market price feed -->
 <div id="slider-fallback" class="hidden rounded-md border border-foreground/15 bg-muted/30 p-5">
-    <div class="text-[14px] font-bold text-foreground/80">{fallbackTitle}</div>
+    <h3 class="text-[14px] font-bold text-foreground/80">{fallbackTitle}</h3>
     <div class="mt-1 flex items-baseline gap-2">
         <span id="price-value-static" class="text-[18px] font-bold tabular-nums">—</span>
         <span class="text-[13px] text-muted-foreground">ZCHF</span>
