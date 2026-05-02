@@ -1,0 +1,77 @@
+---
+import LinkIcon from "@assets/icons/link.svg";
+
+interface Props {
+    collateralSymbol: string;
+    collateralIconUrl: string | null;
+    zchfIconUrl: string;
+}
+
+const { collateralSymbol, collateralIconUrl, zchfIconUrl } = Astro.props;
+---
+
+<div class="relative grid grid-cols-1 gap-3 md:grid-cols-2">
+    <div id="deposit-card" class="rounded-md border border-foreground/15 bg-muted/30 p-4 transition-colors focus-within:border-foreground/40">
+        <div class="mb-2 flex items-center justify-between text-[12px] font-bold uppercase tracking-wide text-muted-foreground">
+            <span>Deposit</span>
+            <button id="btn-max-coll" type="button" class="text-primary normal-case hover:underline disabled:opacity-50">Max</button>
+        </div>
+        <div class="flex items-baseline justify-between gap-3">
+            <input id="input-coll" type="text" inputmode="decimal" placeholder="0.00"
+                class="w-0 flex-1 bg-transparent text-[26px] font-bold text-foreground placeholder:text-foreground/30 focus:outline-none disabled:opacity-50" />
+            <div class="flex items-center gap-2 shrink-0">
+                {collateralIconUrl
+                    ? <img src={collateralIconUrl} alt="" class="h-5 w-5 rounded-full" />
+                    : <div class="h-5 w-5 rounded-full bg-foreground/15"></div>
+                }
+                <span class="text-[14px] font-medium">{collateralSymbol}</span>
+            </div>
+        </div>
+        <div class="mt-2 flex items-center justify-between text-[12px] text-muted-foreground">
+            <span>Balance</span>
+            <span id="balance-coll" class="font-mono text-foreground/85">0.00</span>
+        </div>
+    </div>
+
+    <div id="mint-card" class="rounded-md border-2 border-primary/60 bg-primary/5 p-4 transition-colors focus-within:border-primary">
+        <div class="mb-2 flex items-center justify-between text-[12px] font-bold uppercase tracking-wide text-muted-foreground">
+            <span>Mint now</span>
+            <button id="btn-max-mint" type="button" class="text-primary normal-case hover:underline disabled:opacity-50">Max</button>
+        </div>
+        <div class="flex items-baseline justify-between gap-3">
+            <input id="input-mint" type="text" inputmode="decimal" placeholder="0.00"
+                class="w-0 flex-1 bg-transparent text-[26px] font-bold text-foreground placeholder:text-foreground/30 focus:outline-none disabled:opacity-50" />
+            <div class="flex items-center gap-2 shrink-0">
+                <img src={zchfIconUrl} alt="" class="h-5 w-5 rounded-full" />
+                <span class="text-[14px] font-medium">ZCHF</span>
+            </div>
+        </div>
+        <div class="mt-2 flex items-center justify-between text-[12px] text-muted-foreground">
+            <span>Mintable</span>
+            <span id="mintable-amount" class="font-mono text-foreground/85">0</span>
+        </div>
+    </div>
+
+    <button id="btn-link" type="button" aria-label="Toggle linked inputs"
+        class="absolute left-1/2 top-1/2 z-10 hidden h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-foreground/15 bg-background shadow-sm transition-colors hover:border-foreground/40 md:flex">
+        <span id="link-wrap" class="relative inline-flex">
+            <LinkIcon class="h-4 w-4" aria-hidden="true" />
+        </span>
+    </button>
+</div>
+
+<style>
+    /* Diagonal strikethrough overlay when link is broken */
+    #link-wrap.broken { opacity: 0.45; }
+    #link-wrap.broken::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 130%;
+        height: 1.5px;
+        background: currentColor;
+        transform: translate(-50%, -50%) rotate(-35deg);
+        border-radius: 999px;
+    }
+</style>

@@ -105,7 +105,12 @@ const clientStrings = {
 
                     <div id="amount-error" class="hidden text-[13px] text-primary">—</div>
 
-                    <Button id="btn-transfer" fullWidth>{tt("transfer_btn_transfer")}</Button>
+                    <div id="actions-connected" class="hidden">
+                        <Button id="btn-transfer" fullWidth>{tt("transfer_btn_transfer")}</Button>
+                    </div>
+                    <div id="actions-disconnected">
+                        <Button id="btn-connect" fullWidth>{tt("wallet_connect")}</Button>
+                    </div>
                 </div>
             </Card>
 
@@ -179,6 +184,9 @@ const clientStrings = {
         btnMax: $<HTMLButtonElement>("btn-max"),
         btnOwn: $<HTMLButtonElement>("btn-own"),
         btnTransfer: $<HTMLButtonElement>("btn-transfer"),
+        btnConnect: $<HTMLButtonElement>("btn-connect"),
+        actionsConnected: $("actions-connected"),
+        actionsDisconnected: $("actions-disconnected"),
         outSender: $<HTMLAnchorElement>("out-sender"),
         outFrom: $("out-from"),
         outRecipient: $<HTMLAnchorElement>("out-recipient"),
@@ -537,6 +545,18 @@ const clientStrings = {
 
     // ----------- Wire up -----------
 
+    function setConnectedUI(isConnected: boolean) {
+        els.actionsConnected.classList.toggle("hidden", !isConnected);
+        els.actionsDisconnected.classList.toggle("hidden", isConnected);
+        els.amount.disabled = !isConnected;
+        els.recipient.disabled = !isConnected;
+        els.reference.disabled = !isConnected;
+        els.targetChain.disabled = !isConnected;
+        els.btnMax.disabled = !isConnected;
+        els.btnOwn.disabled = !isConnected;
+    }
+
+    els.btnConnect.addEventListener("click", () => { getOnboard().connectWallet(); });
     els.btnTransfer.addEventListener("click", runTransfer);
     els.btnMax.addEventListener("click", () => { els.amount.value = formatUnits(walletBalRaw, 18); updateOutcome(); });
     els.btnOwn.addEventListener("click", () => { if (connected) { els.recipient.value = connected; updateOutcome(); }});
@@ -558,20 +578,19 @@ const clientStrings = {
         if (w?.accounts[0]) {
             connected = w.accounts[0].address as Address;
             els.senderDisplay.textContent = connected;
-            els.btnMax.disabled = false;
-            els.btnOwn.disabled = false;
+            setConnectedUI(true);
             loadBalance().catch(() => {});
         } else {
             connected = null;
             els.senderDisplay.textContent = i18n.err_not_connected;
-            els.btnMax.disabled = true;
-            els.btnOwn.disabled = true;
             walletBalRaw = 0n;
             els.balance.textContent = "—";
+            setConnectedUI(false);
         }
         updateOutcome();
     });
 
+    setConnectedUI(false);
     populateTargetChain();
     renderHistory();
     updateOutcome();

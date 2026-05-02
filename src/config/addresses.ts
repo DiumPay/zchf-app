@@ -3,6 +3,8 @@ import type { ChainKey } from "@config/network";
 export interface ChainAddresses {
     savings: `0x${string}`;
     zchf: `0x${string}`;
+    mintingHubV2?: `0x${string}`;
+    cloneHelper?: `0x${string}`;
     /** TransferReference contract (with CCIP cross-chain transfers). */
     transferReference?: `0x${string}`;
     equity?: `0x${string}`;
@@ -16,6 +18,8 @@ export const ADDRESSES: Record<ChainKey, ChainAddresses> = {
     ethereum: {
         savings: "0x27d9AD987BdE08a0d083ef7e0e4043C857A17B38",
         zchf: "0xB58E61C3098d85632Df34EecfB899A1Ed80921cB",
+        mintingHubV2: "0xDe12B620A8a714476A97EfD14E6F7180Ca653557",
+        cloneHelper:  "0x55cD2820735Db56ca0965BE224D71994265F8bee",
         transferReference: "0xf98c221661F51578f5E5236B189a493E2a8a1916",
         equity: "0x1bA26788dfDe592fec8bcB0Eaff472a42BE341B2",
     },

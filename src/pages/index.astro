@@ -236,7 +236,7 @@ const TOKEN_ICONS: Record<string, string> = {
         list.querySelectorAll<HTMLButtonElement>("[data-position]").forEach(btn => {
             btn.addEventListener("click", () => {
                 const addr = btn.dataset.position;
-                window.location.href = `/borrow/${addr}`;
+                window.location.href = `/mint/${addr}`;
             });
         });
     }

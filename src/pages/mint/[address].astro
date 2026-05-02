@@ -1,0 +1,402 @@
+---
+import Layout from "@layouts/Layout.astro";
+import Card from "@components/Card.astro";
+import MintHeader from "@components/mint/MintHeader.astro";
+import LinkedInputs from "@components/mint/LinkedInputs.astro";
+import PriceSlider from "@components/mint/PriceSlider.astro";
+import ExpirationPicker from "@components/mint/ExpirationPicker.astro";
+import OutcomeBreakdown from "@components/mint/OutcomeBreakdown.astro";
+import MintActions from "@components/mint/MintActions.astro";
+import snapshot from "@data/positions-snapshot.json";
+
+import zchfIcon from "@assets/tokens/zchf.svg?url";
+import bossIcon from "@assets/tokens/boss.svg?url";
+import cbbtcIcon from "@assets/tokens/cbbtc.svg?url";
+import crvIcon from "@assets/tokens/crv.svg?url";
+import gnoIcon from "@assets/tokens/gno.svg?url";
+import lendsIcon from "@assets/tokens/lends.svg?url";
+import lsethIcon from "@assets/tokens/lseth.svg?url";
+import paxgIcon from "@assets/tokens/paxg.svg?url";
+import realuIcon from "@assets/tokens/realu.svg?url";
+import spyonIcon from "@assets/tokens/spyon.svg?url";
+import wbtcIcon from "@assets/tokens/wbtc.svg?url";
+import wethIcon from "@assets/tokens/weth.svg?url";
+import wstethIcon from "@assets/tokens/wsteth.svg?url";
+import xautIcon from "@assets/tokens/xaut.svg?url";
+import ysyboldIcon from "@assets/tokens/ysybold.svg?url";
+
+const ICONS: Record<string, string> = {
+    boss: bossIcon, cbbtc: cbbtcIcon, crv: crvIcon, gno: gnoIcon, lends: lendsIcon,
+    lseth: lsethIcon, paxg: paxgIcon, realu: realuIcon, spyon: spyonIcon, wbtc: wbtcIcon,
+    weth: wethIcon, wsteth: wstethIcon, xaut: xautIcon, ysybold: ysyboldIcon,
+};
+
+export async function getStaticPaths() {
+    return snapshot.positions.map(p => ({
+        params: { address: p.address },
+        props: { position: p },
+    }));
+}
+
+const { position } = Astro.props;
+const iconUrl = ICONS[position.collateralSymbol.toLowerCase()] ?? null;
+---
+
+<Layout title={`Mint against ${position.collateralSymbol} | Frankencoin dApp`} description={`Mint ZCHF against ${position.collateralName}.`}>
+    <main class="mx-auto max-w-3xl px-4 py-10 md:px-6 md:py-12">
+
+        <MintHeader
+            name={position.collateralName}
+            symbol={position.collateralSymbol}
+            iconUrl={iconUrl}
+            address={position.address}
+            collateral={position.collateral}
+            isClone={!position.isOriginal}
+        />
+
+        <Card title="Mint Frankencoins">
+            <div class="space-y-5">
+                <LinkedInputs
+                    collateralSymbol={position.collateralSymbol}
+                    collateralIconUrl={iconUrl}
+                    zchfIconUrl={zchfIcon}
+                />
+                <PriceSlider />
+                <ExpirationPicker />
+                <OutcomeBreakdown />
+                <MintActions collateralSymbol={position.collateralSymbol} />
+            </div>
+        </Card>
+    </main>
+
+    <script id="position-data" type="application/json" set:html={JSON.stringify({
+        address: position.address,
+        collateral: position.collateral,
+        collateralSymbol: position.collateralSymbol,
+        collateralDecimals: position.collateralDecimals,
+        minimumCollateral: position.minimumCollateral,
+        limit: position.limit,
+        expiration: position.expiration,
+        start: position.start,
+        riskPremiumPPM: position.riskPremiumPPM,
+        reserveContribution: position.reserveContribution,
+    })}></script>
+</Layout>
+
+<script>
+    import { getMarketPriceCHF } from "@lib/prices";
+
+    const $ = (id: string) => document.getElementById(id) as HTMLElement;
+    const data = JSON.parse($("position-data").textContent || "{}") as {
+        collateralSymbol: string; collateralDecimals: number;
+        minimumCollateral: string; limit: string; expiration: number; start: number;
+        riskPremiumPPM: number; reserveContribution: number;
+    };
+
+    // Stub parent prices keyed by symbol — replaced when contract reads are wired.
+    // Numbers come from the position state we already saw in your screenshots.
+    const STUB_PARENT_PRICE: Record<string, number> = {
+        BOSS: 5, CBBTC: 45000, CRV: 0.12, GNO: 30, LENDS: 20, LSETH: 1400,
+        PAXG: 3000, REALU: 1.20, SPYON: 450, WBTC: 37000, WETH: 1200,
+        WSTETH: 1300, XAUT: 2922, YSYBOLD: 0.75,
+    };
+
+    const PRICE_DIGIT = 36 - data.collateralDecimals;
+    const SLIDER_RES = 1000;
+
+    // ---- Helpers ----
+    const fmt = (n: number, min = 2, max = 2) =>
+        n.toLocaleString("en-US", { minimumFractionDigits: min, maximumFractionDigits: max });
+    const fmtPlain = (n: number, max = 8) =>
+        n.toLocaleString("en-US", { useGrouping: false, maximumFractionDigits: max });
+    const parseNum = (s: string) => {
+        const n = parseFloat(s.trim().replace(/,/g, ""));
+        return Number.isFinite(n) && n >= 0 ? n : 0;
+    };
+    const toBig = (n: number, dec: number): bigint => {
+        if (n <= 0) return 0n;
+        const [whole, frac = ""] = n.toString().split(".");
+        return BigInt(whole + (frac + "0".repeat(dec)).slice(0, dec));
+    };
+    const fromBig = (v: bigint, dec: number) => Number(v) / Math.pow(10, dec);
+
+    // ============================================================
+    // Decimal-safe input helpers
+    // ============================================================
+    // The deposit / mint inputs are plain text fields (`type="text"`) so we
+    // can show large numbers and accept "." or "," as decimal separators.
+    // That means we need to police what the user types ourselves.
+    //
+    //   isValidPartial(value, dec)  → does the in-progress text obey the rules?
+    //                                 used by `beforeinput` to block bad keys.
+    //   clampDecimals(raw, dec)     → sanitise + trim (last line of defence
+    //                                 for paste, autofill, browser quirks).
+    //   applyClamp(input, dec)      → run clamp, write back, restore caret.
+
+    /** True if `next` is a valid in-progress decimal with at most `dec` fractional digits. */
+    const isValidPartial = (next: string, dec: number): boolean => {
+        if (next === "") return true;
+        // digits, optional single dot, optional fractional digits
+        const re = dec === 0 ? /^\d*$/ : new RegExp(`^\\d*(\\.\\d{0,${dec}})?$`);
+        return re.test(next);
+    };
+
+    /** Strip junk and clamp a string to at most `dec` fractional digits. */
+    const clampDecimals = (raw: string, dec: number): string => {
+        let s = raw.replace(/,/g, ".").replace(/[^\d.]/g, "");
+        const firstDot = s.indexOf(".");
+        if (firstDot !== -1) {
+            s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, "");
+            const [whole, frac = ""] = s.split(".");
+            s = dec === 0 ? whole : whole + "." + frac.slice(0, dec);
+        }
+        return s;
+    };
+
+    /** Run clamp on an input element's value, write it back, restore caret. */
+    const applyClamp = (input: HTMLInputElement, dec: number): string => {
+        const trimmed = clampDecimals(input.value, dec);
+        if (trimmed !== input.value) {
+            const pos = input.selectionStart;
+            input.value = trimmed;
+            if (pos !== null) {
+                const caret = Math.min(pos, trimmed.length);
+                input.setSelectionRange(caret, caret);
+            }
+        }
+        return trimmed;
+    };
+
+    // ---- State ----
+    let lastEdited: "coll" | "mint" = "coll";
+    let linked = true;
+    let collAmount = BigInt(data.minimumCollateral);                    // bigint, collateral wei
+    let newPrice = toBig(STUB_PARENT_PRICE[data.collateralSymbol.toUpperCase()] ?? 1, PRICE_DIGIT); // bigint, price scale
+    let parentPrice = newPrice;                                         // bigint, parent's reference price
+    let mintAmount = (newPrice * collAmount) / 10n ** 18n;              // bigint, ZCHF wei
+
+    let userBalance = 0n;
+    let availableForClones = BigInt("1928456000000000000000000");
+    let annualInterestPPM = 18000;
+    let collateralPriceZchf = 0;                                        // ZCHF per 1 unit collateral
+
+    // ---- Element refs ----
+    const e = {
+        coll: $("input-coll") as HTMLInputElement,
+        mint: $("input-mint") as HTMLInputElement,
+        balanceColl: $("balance-coll"),
+        mintable: $("mintable-amount"),
+        maxColl: $("btn-max-coll") as HTMLButtonElement,
+        maxMint: $("btn-max-mint") as HTMLButtonElement,
+        link: $("btn-link") as HTMLButtonElement,
+        linkWrap: $("link-wrap"),
+        sliderSection: $("slider-section"),
+        sliderFallback: $("slider-fallback"),
+        slider: $("slider-price") as HTMLInputElement,
+        priceValue: $("price-value"),
+        priceValueStatic: $("price-value-static"),
+        ltv: $("ltv-value"),
+        cooldownWarn: $("cooldown-warning"),
+        date: $("input-date") as HTMLInputElement,
+        outMinted: $("out-minted"),
+        outReserve: $("out-reserve"),
+        outReservePct: $("out-reserve-pct"),
+        outFee: $("out-fee"),
+        outRate: $("out-rate"),
+        outNet: $("out-net"),
+        connect: $("btn-connect") as HTMLButtonElement,
+    };
+
+    // ---- Slider math (Frankencoin-style) ----
+    // sliderMin = collateralPriceZchf * 0.1
+    // sliderMax = collateralPriceZchf
+    // sourcePct = (parentPriceFloat - sliderMin) / (sliderMax - sliderMin) * 100
+    // valuePct  = (newPriceFloat    - sliderMin) / (sliderMax - sliderMin) * 100
+    function bounds() {
+        const m = collateralPriceZchf || 1;
+        return { min: m * 0.1, max: m };
+    }
+    function pct(priceBig: bigint): number {
+        const { min, max } = bounds();
+        const v = fromBig(priceBig, PRICE_DIGIT);
+        const scale = Math.max(max - min, 1e-10);
+        return Math.max(0, Math.min(100, ((v - min) / scale) * 100));
+    }
+    function sliderToPrice(slv: number): bigint {
+        const { min, max } = bounds();
+        const v = min + (slv / SLIDER_RES) * (max - min);
+        return toBig(v, PRICE_DIGIT);
+    }
+    function priceToSlider(priceBig: bigint): number {
+        const { min, max } = bounds();
+        const v = fromBig(priceBig, PRICE_DIGIT);
+        const scale = Math.max(max - min, 1e-10);
+        return Math.max(0, Math.min(SLIDER_RES, ((v - min) / scale) * SLIDER_RES));
+    }
+
+    // ---- Date tabs ----
+    const TAB_DAYS: Record<string, number> = { "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
+    function applyTab(tab: string) {
+        const max = new Date(data.expiration * 1000);
+        const target = tab === "MAX"
+            ? max
+            : new Date(Math.min(Date.now() + TAB_DAYS[tab] * 86400e3, max.getTime()));
+        e.date.value = target.toISOString().slice(0, 10);
+        document.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach(b =>
+            b.classList.toggle("active", b.dataset.tab === tab));
+        render();
+    }
+
+    // ---- Render: pure projection of state -> DOM ----
+    function render() {
+        const dec = data.collateralDecimals;
+
+        // Price text + slider visuals
+        const priceFloat = fromBig(newPrice, PRICE_DIGIT);
+        e.priceValue.textContent = fmt(priceFloat, 2, priceFloat < 1 ? 4 : 2);
+
+        if (collateralPriceZchf > 0) {
+            e.sliderSection.style.setProperty("--source", `${pct(parentPrice)}%`);
+            e.sliderSection.style.setProperty("--value", `${pct(newPrice)}%`);
+            e.slider.value = String(priceToSlider(newPrice));
+        }
+
+        // LTV
+        e.ltv.textContent = collateralPriceZchf > 0
+            ? `${fmt((priceFloat / collateralPriceZchf) * 100, 2, 2)}%`
+            : "—";
+
+        // Cooldown warning when above parent
+        e.cooldownWarn.classList.toggle("hidden", newPrice <= parentPrice);
+
+        // Mint price = clamped to parent (above-parent waits for cooldown)
+        const mintPrice = newPrice <= parentPrice ? newPrice : parentPrice;
+
+        // Inputs reflect state — but skip whichever field is focused, otherwise
+        // typing "0." gets eaten as the field is rewritten on every keystroke.
+        // Plain formatter (no thousand separators), token-correct decimal precision.
+        if (document.activeElement !== e.coll) {
+            e.coll.value = fmtPlain(fromBig(collAmount, dec), dec);
+        }
+        if (document.activeElement !== e.mint) {
+            e.mint.value = fmtPlain(fromBig(mintAmount, 18), 18);
+        }
+
+        // Outcome breakdown
+        const reservePct = data.reserveContribution / 10000;
+        const interestPct = annualInterestPPM / 10000;
+        const reserveAmt = (mintAmount * BigInt(data.reserveContribution)) / 1_000_000n;
+        const dateTs = e.date.value ? Math.floor(new Date(e.date.value).getTime() / 1000) : data.expiration;
+        const secs = Math.max(0, dateTs - Math.floor(Date.now() / 1000));
+        const fee = (mintAmount * BigInt(secs) * BigInt(annualInterestPPM)) / (BigInt(365 * 86400) * 1_000_000n);
+        const net = mintAmount > reserveAmt + fee ? mintAmount - reserveAmt - fee : 0n;
+
+        e.outMinted.textContent = `${fmt(fromBig(mintAmount, 18), 0, 2)} ZCHF`;
+        e.outReserve.textContent = `−${fmt(fromBig(reserveAmt, 18), 0, 2)} ZCHF`;
+        e.outReservePct.textContent = `(${fmt(reservePct, 0, 2)}%)`;
+        e.outFee.textContent = `−${fmt(fromBig(fee, 18), 0, 2)} ZCHF`;
+        e.outRate.textContent = `(${fmt(interestPct, 2, 2)}% per year)`;
+        e.outNet.textContent = `${fmt(fromBig(net, 18), 0, 2)} ZCHF`;
+    }
+
+    // ---- Input handlers ----
+    e.coll.addEventListener("input", () => {
+        lastEdited = "coll";
+        // Clamp the raw text to the token's decimal precision and write it back
+        // so the user visibly cannot type more decimals than allowed.
+        const trimmed = clampDecimals(e.coll.value, data.collateralDecimals);
+        if (trimmed !== e.coll.value) {
+            const pos = e.coll.selectionStart;
+            e.coll.value = trimmed;
+            // best-effort caret restore
+            if (pos !== null) e.coll.setSelectionRange(Math.min(pos, trimmed.length), Math.min(pos, trimmed.length));
+        }
+        collAmount = toBig(parseNum(trimmed), data.collateralDecimals);
+        if (linked) {
+            const mintPrice = newPrice <= parentPrice ? newPrice : parentPrice;
+            mintAmount = (collAmount * mintPrice) / 10n ** 18n;
+        }
+        render();
+    });
+    e.mint.addEventListener("input", () => {
+        lastEdited = "mint";
+        // ZCHF is always 18 decimals — clamp to that.
+        const trimmed = clampDecimals(e.mint.value, 18);
+        if (trimmed !== e.mint.value) {
+            const pos = e.mint.selectionStart;
+            e.mint.value = trimmed;
+            if (pos !== null) e.mint.setSelectionRange(Math.min(pos, trimmed.length), Math.min(pos, trimmed.length));
+        }
+        mintAmount = toBig(parseNum(trimmed), 18);
+        if (linked) {
+            const mintPrice = newPrice <= parentPrice ? newPrice : parentPrice;
+            if (mintPrice > 0n) collAmount = (mintAmount * 10n ** 18n + mintPrice - 1n) / mintPrice;
+        }
+        render();
+    });
+    e.maxColl.addEventListener("click", () => {
+        collAmount = userBalance;
+        if (linked) mintAmount = (collAmount * (newPrice <= parentPrice ? newPrice : parentPrice)) / 10n ** 18n;
+        render();
+    });
+    e.maxMint.addEventListener("click", () => {
+        mintAmount = availableForClones;
+        const mintPrice = newPrice <= parentPrice ? newPrice : parentPrice;
+        if (linked && mintPrice > 0n) collAmount = (mintAmount * 10n ** 18n + mintPrice - 1n) / mintPrice;
+        render();
+    });
+
+    e.link.addEventListener("click", () => {
+        linked = !linked;
+        e.linkWrap.classList.toggle("broken", !linked);
+        if (linked && newPrice > parentPrice) {
+            newPrice = parentPrice;
+            // recompute paired field
+            if (lastEdited === "coll") mintAmount = (collAmount * newPrice) / 10n ** 18n;
+            else if (newPrice > 0n) collAmount = (mintAmount * 10n ** 18n + newPrice - 1n) / newPrice;
+        }
+        render();
+    });
+
+    e.slider.addEventListener("input", () => {
+        const proposed = sliderToPrice(Number(e.slider.value));
+        newPrice = (linked && proposed > parentPrice) ? parentPrice : proposed;
+        if (linked) {
+            const mintPrice = newPrice;
+            if (lastEdited === "coll") mintAmount = (collAmount * mintPrice) / 10n ** 18n;
+            else if (mintPrice > 0n) collAmount = (mintAmount * 10n ** 18n + mintPrice - 1n) / mintPrice;
+        }
+        render();
+    });
+
+    e.date.addEventListener("change", () => {
+        document.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach(b => b.classList.remove("active"));
+        render();
+    });
+    document.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach(b =>
+        b.addEventListener("click", () => applyTab(b.dataset.tab!)));
+    e.connect.addEventListener("click", () => console.log("connect → onboard (not wired)"));
+
+    // ---- Init ----
+    e.date.max = new Date(data.expiration * 1000).toISOString().slice(0, 10);
+    e.date.min = new Date().toISOString().slice(0, 10);
+    e.balanceColl.textContent = fmt(fromBig(userBalance, data.collateralDecimals), 2, 4);
+    e.mintable.textContent = fmt(fromBig(availableForClones, 18), 0, 0);
+    applyTab("MAX");
+
+    // First render with stub data so layout is correct immediately
+    render();
+
+    // Async load of market price → re-renders slider section properly
+    (async () => {
+        const market = await getMarketPriceCHF(data.collateralSymbol);
+        if (market === null || market <= 0) {
+            e.sliderSection.classList.add("hidden");
+            e.sliderFallback.classList.remove("hidden");
+            e.priceValueStatic.textContent = fmt(fromBig(parentPrice, PRICE_DIGIT), 2, 4);
+            return;
+        }
+        collateralPriceZchf = market;
+        render();
+    })();
+</script>

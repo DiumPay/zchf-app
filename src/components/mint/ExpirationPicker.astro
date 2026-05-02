@@ -1,0 +1,55 @@
+---
+const TABS = ["1M", "3M", "6M", "1Y", "MAX"] as const;
+---
+
+<div class="rounded-md border border-foreground/15 p-5">
+    <label for="input-date" class="mb-2 block text-[14px] font-bold text-foreground/80">Repay by</label>
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <input
+            id="input-date"
+            type="date"
+            class="rounded-md border border-foreground/20 bg-background px-3 py-2 text-[16px] font-medium text-foreground focus:border-foreground/40 focus:outline-none"
+        />
+        <div class="flex gap-1">
+            {TABS.map(label => (
+                <button
+                    data-tab={label}
+                    type="button"
+                    class="tab-btn rounded-md border border-foreground/15 px-3 py-1.5 text-[12px] font-medium hover:border-foreground/30"
+                >
+                    {label === "MAX" ? "Max" : label}
+                </button>
+            ))}
+        </div>
+    </div>
+</div>
+
+<style is:global>
+    /* These rules need is:global because `.dark` lives on <html> — Astro's
+       scoped CSS would otherwise add a data-astro-cid attribute that the
+       html element does not have, breaking the selector match. */
+
+    /* Force the date control + native popup picker into dark colour scheme */
+    .dark #input-date {
+        color-scheme: dark;
+    }
+
+    /* WebKit/Chrome/Edge/Safari: turn the dark glyph white in dark mode */
+    .dark #input-date::-webkit-calendar-picker-indicator {
+        filter: brightness(0) invert(1);
+        cursor: pointer;
+    }
+
+    /* Firefox: same fix for its calendar button */
+    .dark #input-date::-moz-calendar-picker-indicator {
+        filter: brightness(0) invert(1);
+        cursor: pointer;
+    }
+
+    .tab-btn.active {
+        border-color: var(--color-primary);
+        background: rgb(167 22 34 / 0.1);
+        color: var(--color-primary);
+        font-weight: 700;
+    }
+</style>
