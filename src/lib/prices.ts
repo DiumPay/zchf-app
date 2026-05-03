@@ -39,15 +39,6 @@ function writeCache(key: string, value: number): void {
 /* Source adapters — each returns USD or throws.                       */
 /* ------------------------------------------------------------------ */
 
-async function fromBinance(symbol: string): Promise<number> {
-    const r = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`);
-    if (!r.ok) throw new Error(`binance ${r.status}`);
-    const j = await r.json();
-    const p = parseFloat(j.price);
-    if (!Number.isFinite(p) || p <= 0) throw new Error("binance bad price");
-    return p;
-}
-
 async function fromCoinbase(productId: string): Promise<number> {
     const r = await fetch(`https://api.coinbase.com/v2/prices/${productId}/spot`);
     if (!r.ok) throw new Error(`coinbase ${r.status}`);
@@ -126,21 +117,18 @@ async function ysyBoldSharesPerBold(): Promise<number> {
 
 const SOURCES: Record<string, Source[]> = {
     WBTC: [
-        () => fromBinance("BTCUSDT"),
         () => fromCoinbase("BTC-USD"),
         () => fromKraken("XBTUSD"),
         () => fromDefiLlama(eth("0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599")),
         () => fromCoincap("bitcoin"),
     ],
     CBBTC: [
-        () => fromBinance("BTCUSDT"),
         () => fromCoinbase("BTC-USD"),
         () => fromKraken("XBTUSD"),
         () => fromDefiLlama(eth("0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf")),
         () => fromCoincap("bitcoin"),
     ],
     WETH: [
-        () => fromBinance("ETHUSDT"),
         () => fromCoinbase("ETH-USD"),
         () => fromKraken("ETHUSD"),
         () => fromDefiLlama(eth("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2")),
@@ -148,7 +136,6 @@ const SOURCES: Record<string, Source[]> = {
     ],
 
     PAXG: [
-        () => fromBinance("PAXGUSDT"),
         () => fromDefiLlama(eth("0x45804880De22913dAFE09f4980848ECE6EcbAf78")),
     ],
     XAUT: [
@@ -156,14 +143,12 @@ const SOURCES: Record<string, Source[]> = {
     ],
 
     CRV: [
-        () => fromBinance("CRVUSDT"),
         () => fromCoinbase("CRV-USD"),
         () => fromKraken("CRVUSD"),
         () => fromDefiLlama(eth("0xD533a949740bb3306d119CC777fa900bA034cd52")),
         () => fromCoincap("curve-dao-token"),
     ],
     GNO: [
-        () => fromBinance("GNOUSDT"),
         () => fromCoinbase("GNO-USD"),
         () => fromKraken("GNOUSD"),
         () => fromDefiLlama(eth("0x6810e776880C02933D47DB1b9fc05908e5386b96")),
@@ -223,19 +208,19 @@ export async function getUsdChfRate(): Promise<number | null> {
 
     const rate = await tryFirst([
         async () => {
-            const r = await fetch("https://api.frankfurter.app/latest?from=USD&to=CHF");
-            if (!r.ok) throw new Error(`frankfurter ${r.status}`);
-            const j = await r.json();
-            const v = j?.rates?.CHF;
-            if (!Number.isFinite(v) || v <= 0) throw new Error("frankfurter no rate");
-            return v as number;
-        },
-        async () => {
             const r = await fetch("https://open.er-api.com/v6/latest/USD");
             if (!r.ok) throw new Error(`er-api ${r.status}`);
             const j = await r.json();
             const v = j?.rates?.CHF;
             if (!Number.isFinite(v) || v <= 0) throw new Error("er-api no rate");
+            return v as number;
+        },
+        async () => {
+            const r = await fetch("https://api.exchangerate.host/latest?base=USD&symbols=CHF");
+            if (!r.ok) throw new Error(`exchangerate.host ${r.status}`);
+            const j = await r.json();
+            const v = j?.rates?.CHF;
+            if (!Number.isFinite(v) || v <= 0) throw new Error("exchangerate.host no rate");
             return v as number;
         },
     ]);
