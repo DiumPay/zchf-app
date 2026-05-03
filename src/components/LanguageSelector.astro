@@ -1,10 +1,8 @@
 ---
 import Tulip from "@assets/icons/tulip.svg";
 import { SUPPORTED_LOCALES, getLocale, switchLocaleUrl } from "@i18n/t";
-
 const currentLocale = getLocale(Astro.url);
 ---
-
 <div class="relative">
     <button
         id="lang-toggle"
@@ -29,7 +27,6 @@ const currentLocale = getLocale(Astro.url);
             />
         </svg>
     </button>
-
     <ul
         id="lang-menu"
         class="absolute right-0 top-full z-10 mt-1 hidden min-w-20 overflow-hidden rounded-md border border-foreground/10 bg-background shadow-md"
@@ -43,6 +40,7 @@ const currentLocale = getLocale(Astro.url);
                     <li>
                         <a
                             href={href}
+                            data-lang={lang}
                             role="option"
                             aria-selected={isCurrent}
                             class:list={[
@@ -61,8 +59,43 @@ const currentLocale = getLocale(Astro.url);
 </div>
 
 <script>
+    import { switchLocaleUrl } from "@i18n/t";
+    import type { Locale } from "@i18n/messages";
+
     const toggle = document.getElementById("lang-toggle");
     const menu = document.getElementById("lang-menu");
+
+    /**
+     * Rewrites the href of each language link based on the CURRENT browser URL.
+     * This is needed because Astro renders the links at SSG/server time with the
+     * page's initial URL — so query strings added later via history.pushState
+     * (e.g. ?address=0x... in mypositions) wouldn't be preserved on language switch.
+     */
+    function updateLangLinks() {
+        const links = menu?.querySelectorAll<HTMLAnchorElement>("a[data-lang]");
+        links?.forEach((link) => {
+            const lang = link.dataset.lang as Locale;
+            link.href = switchLocaleUrl(new URL(window.location.href), lang);
+        });
+    }
+
+    // Run on initial load
+    updateLangLinks();
+
+    // Run on browser back/forward
+    window.addEventListener("popstate", updateLangLinks);
+
+    // Patch pushState/replaceState so SPA-style URL changes also trigger updates
+    const origPush = history.pushState;
+    history.pushState = function (...args) {
+        origPush.apply(this, args);
+        updateLangLinks();
+    };
+    const origReplace = history.replaceState;
+    history.replaceState = function (...args) {
+        origReplace.apply(this, args);
+        updateLangLinks();
+    };
 
     toggle?.addEventListener("click", (e) => {
         e.stopPropagation();

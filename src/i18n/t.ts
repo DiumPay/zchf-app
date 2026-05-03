@@ -68,9 +68,15 @@ export function localePath(locale: Locale, defaultPath: string): string {
  *   2. The homepage builds as `/index.html` → after `.html` strip we'd have
  *      `/index`, and switching to `de` produced `/de/index`. Strip the
  *      trailing `/index` so the homepage maps to `/` first.
+ *
+ * Also preserves the query string and hash so e.g. `?address=0x...` survives
+ * a language switch on routes like /mypositions.
  */
 export function switchLocaleUrl(currentUrl: URL | string, target: Locale): string {
-    const currentPath = typeof currentUrl === "string" ? currentUrl : currentUrl.pathname;
+    const url = typeof currentUrl === "string"
+        ? new URL(currentUrl, "http://_local")
+        : currentUrl;
+    const currentPath = url.pathname;
 
     // Normalize SSG file paths back to URL-shaped paths.
     let stripped = currentPath.replace(/\.html$/, "");
@@ -85,5 +91,7 @@ export function switchLocaleUrl(currentUrl: URL | string, target: Locale): strin
             break;
         }
     }
-    return localePath(target, stripped);
+
+    // Preserve query string (?address=0x...) and hash (#section)
+    return localePath(target, stripped) + url.search + url.hash;
 }
