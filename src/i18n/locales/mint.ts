@@ -46,6 +46,10 @@ export const mint = {
 
         mint_expiry_hint: "Loan expires {date} at {time}, your local time",
 
+        mint_cooldown_warning_full: "Liquidation prices above the reference become effective after a 3-day cooldown. Afterwards, up to {amount} more ZCHF can be minted.",
+        mint_outcome_cooldown_mintable: "Mintable after cooldown",
+        mint_outcome_cooldown_available: "Available after cooldown",
+
         mint_action_approving: "Approving {symbol}…",
         mint_action_minting: "Minting…",
         mint_action_approve_required: "Approve {symbol}",
@@ -103,6 +107,10 @@ export const mint = {
         mint_action_switching: "Netzwerk wird gewechselt…",
 
         mint_expiry_hint: "Kredit läuft ab am {date} um {time}, Ihre Ortszeit",
+
+        mint_cooldown_warning_full: "Liquidationspreise über dem Referenzwert werden nach einer 3-tägigen Wartezeit aktiv. Danach können bis zu {amount} ZCHF zusätzlich geprägt werden.",
+        mint_outcome_cooldown_mintable: "Nach Wartezeit prägbar",
+        mint_outcome_cooldown_available: "Nach Wartezeit verfügbar",
 
         mint_action_approving: "{symbol} wird freigegeben…",
         mint_action_minting: "Wird geprägt…",
@@ -162,6 +170,10 @@ export const mint = {
 
         mint_expiry_hint: "Le prêt expire le {date} à {time}, heure locale",
 
+        mint_cooldown_warning_full: "Les prix de liquidation supérieurs à la référence prennent effet après une période d'attente de 3 jours. Ensuite, jusqu'à {amount} ZCHF supplémentaires peuvent être émis.",
+        mint_outcome_cooldown_mintable: "Émettable après l'attente",
+        mint_outcome_cooldown_available: "Disponible après l'attente",
+
         mint_action_approving: "Autorisation de {symbol}…",
         mint_action_minting: "Émission en cours…",
         mint_action_approve_required: "Autoriser {symbol}",
@@ -220,6 +232,10 @@ export const mint = {
 
         mint_expiry_hint: "Il prestito scade il {date} alle {time}, ora locale",
 
+        mint_cooldown_warning_full: "I prezzi di liquidazione sopra il riferimento diventano effettivi dopo un periodo di attesa di 3 giorni. In seguito, è possibile coniare fino a {amount} ZCHF aggiuntivi.",
+        mint_outcome_cooldown_mintable: "Coniabile dopo l'attesa",
+        mint_outcome_cooldown_available: "Disponibile dopo l'attesa",
+
         mint_action_approving: "Approvazione di {symbol}…",
         mint_action_minting: "Coniazione in corso…",
         mint_action_approve_required: "Approva {symbol}",
@@ -277,6 +293,10 @@ export const mint = {
         mint_action_switching: "Cambiando de red…",
 
         mint_expiry_hint: "El préstamo expira el {date} a las {time}, hora local",
+
+        mint_cooldown_warning_full: "Los precios de liquidación por encima de la referencia entran en vigor tras un período de espera de 3 días. Después, se podrán acuñar hasta {amount} ZCHF adicionales.",
+        mint_outcome_cooldown_mintable: "Acuñable tras la espera",
+        mint_outcome_cooldown_available: "Disponible tras la espera",
 
         mint_action_approving: "Autorizando {symbol}…",
         mint_action_minting: "Emitiendo…",

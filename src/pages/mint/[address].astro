@@ -70,6 +70,8 @@ const i18n = {
     interestLabel: tt("mint_outcome_interest"),
     perYearTemplate: tt("mint_outcome_per_year"),
     sentLabel: tt("mint_outcome_sent"),
+    cooldownMintableLabel: tt("mint_outcome_cooldown_mintable"),
+    cooldownAvailableLabel: tt("mint_outcome_cooldown_available"),
     mintLabel: tt("mint_action_mint"),
     connectLabel: tt("wallet_connect"),
 };
@@ -77,6 +79,7 @@ const i18n = {
 const clientI18n = {
     perYearTemplate: tt("mint_outcome_per_year"),
     expiryHintTemplate: tt("mint_expiry_hint"),
+    cooldownWarningFullTemplate: tt("mint_cooldown_warning_full"),
     actionMint: tt("mint_action_mint"),
     actionApproveTemplate: tt("mint_action_approve_required"),
     actionApproving: tt("mint_action_approving").replace("{symbol}", sym),
@@ -124,9 +127,13 @@ const clientI18n = {
                 />
                 <ExpirationPicker label={i18n.expiryLabel} maxLabel={i18n.expiryMaxLabel} />
                 <OutcomeBreakdown
-                    mintedLabel={i18n.mintedLabel} reserveLabel={i18n.reserveLabel}
-                    repaidLabel={i18n.repaidLabel} interestLabel={i18n.interestLabel}
-                    sentLabel={i18n.sentLabel}
+                   mintedLabel={i18n.mintedLabel}
+                   reserveLabel={i18n.reserveLabel}
+                   repaidLabel={i18n.repaidLabel}
+                   interestLabel={i18n.interestLabel}
+                   sentLabel={i18n.sentLabel}
+                   cooldownMintableLabel={i18n.cooldownMintableLabel}
+                   cooldownAvailableLabel={i18n.cooldownAvailableLabel}
                 />
                 <MintActions mintLabel={i18n.mintLabel} connectLabel={i18n.connectLabel} />
             </div>
@@ -199,11 +206,16 @@ const clientI18n = {
         sliderSection: $("slider-section"), sliderFallback: $("slider-fallback"),
         slider: $("slider-price") as HTMLInputElement,
         priceValue: $("price-value"), priceValueStatic: $("price-value-static"),
-        ltv: $("ltv-value"), cooldownWarn: $("cooldown-warning"),
+        ltv: $("ltv-value"),
+        cooldownWarn: $("cooldown-warning-short"),
+        cooldownWarnFull: $("cooldown-warning-full"),
         date: $("input-date") as HTMLInputElement, expiryHint: $("expiry-hint"),
         outMinted: $("out-minted"), outReserve: $("out-reserve"), outReservePct: $("out-reserve-pct"),
         outRepaid: $("out-repaid"), outRepaidPct: $("out-repaid-pct"),
         outFee: $("out-fee"), outRate: $("out-rate"), outNet: $("out-net"),
+        outCooldownMintable: $("out-cooldown-mintable"),
+        outCooldownAdditional: $("out-cooldown-additional"),
+        cooldownBreakdown: $("cooldown-breakdown"),
         actionsConnected: $("actions-connected"), actionsDisconnected: $("actions-disconnected"),
         action: $("btn-action") as HTMLButtonElement,
         actionLabel: document.querySelector(".btn-action-label") as HTMLElement,
@@ -318,7 +330,16 @@ const clientI18n = {
             e.slider.value = String(priceToSlider(newPrice));
         }
         e.ltv.textContent = collateralPriceZchf > 0 ? `${fmt((priceFloat / collateralPriceZchf) * 100, 2, 2)}%` : "—";
+
+        // Cooldown warnings — short pill next to LTV + full sentence below slider
         e.cooldownWarn.classList.toggle("hidden", !preview.triggersCooldown);
+        if (preview.triggersCooldown) {
+            const additionalStr = fmt(fromBig(preview.additionalMintable, 18), 0, 2);
+            e.cooldownWarnFull.textContent = i18n.cooldownWarningFullTemplate.replace("{amount}", additionalStr);
+            e.cooldownWarnFull.classList.remove("hidden");
+        } else {
+            e.cooldownWarnFull.classList.add("hidden");
+        }
 
         // Capacities + inputs
         e.mintable.textContent = fmt(fromBig(preview.mintLimitNow, 18), 0, 0);
@@ -336,6 +357,15 @@ const clientI18n = {
         e.outFee.textContent = `−${fmt(fromBig(preview.upfrontInterest, 18), 0, 2)} ZCHF`;
         e.outRate.textContent = `(${i18n.perYearTemplate.replace("{rate}", fmt(preview.effectiveAnnualRate * 100, 2, 2))})`;
         e.outNet.textContent = `${fmt(fromBig(preview.netToWallet, 18), 0, 2)} ZCHF`;
+
+        // Post-cooldown breakdown — only shown when raising price triggers cooldown
+        if (preview.triggersCooldown) {
+            e.outCooldownMintable.textContent = `${fmt(fromBig(preview.mintLimitAfterCooldown, 18), 0, 2)} ZCHF`;
+            e.outCooldownAdditional.textContent = `−${fmt(fromBig(preview.additionalMintable, 18), 0, 2)} ZCHF`;
+            e.cooldownBreakdown.classList.remove("hidden");
+        } else {
+            e.cooldownBreakdown.classList.add("hidden");
+        }
 
         // Expiry hint
         if (e.date.value) {

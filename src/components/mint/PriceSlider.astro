@@ -1,5 +1,4 @@
 ---
-// 1:1 port of Frankencoin's LiquidationSlider.tsx structure.
 interface Props {
     label: string;
     referenceLabel: string;
@@ -13,7 +12,6 @@ const { label, referenceLabel, ltvLabel, cooldownWarning, fallbackTitle, fallbac
 ---
 <div id="slider-section" class="rounded-md border border-foreground/15 px-4 py-3" style="--source: 50%; --value: 50%;">
     <div class="my-1 flex items-center">
-        <!-- FIX: Changed span to <label> and linked to the input ID -->
         <label for="slider-price" class="flex-1 text-[14px] font-bold text-foreground/80 cursor-pointer">
             {label}
         </label>
@@ -24,31 +22,27 @@ const { label, referenceLabel, ltvLabel, cooldownWarning, fallbackTitle, fallbac
     </div>
 
     <div class="relative pt-3 pb-2">
-        <!-- Decorative label: aria-hidden because the primary label is above -->
         <div id="source-label" aria-hidden="true" class="absolute -top-1 -translate-x-1/2 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-400" style="left: var(--source);">
             {referenceLabel}
         </div>
 
         <div class="relative flex h-8 items-center">
-            <!-- Decorative Track -->
             <div class="absolute inset-x-0 h-3 overflow-hidden rounded-full" aria-hidden="true">
                 <div class="absolute inset-0 bg-[linear-gradient(to_right,#22c55e_0%,#eab308_50%,#f97316_100%)]"></div>
                 <div class="absolute right-0 top-0 bottom-0 bg-gray-300 dark:bg-gray-600" style="left: var(--source);"></div>
                 <div class="absolute top-0 bottom-0 w-0.5 bg-amber-700 dark:text-amber-400" style="left: var(--source);"></div>
             </div>
 
-            <!-- Visual Thumb -->
             <div aria-hidden="true" class="pointer-events-none absolute h-5 w-5 -translate-x-1/2 rounded-full border-2 border-foreground bg-background shadow-md" style="left: var(--value);"></div>
 
-            <!-- Invisible input drives events -->
-            <input 
-                id="slider-price" 
-                type="range" 
-                min="0" 
-                max="1000" 
-                step="1" 
+            <input
+                id="slider-price"
+                type="range"
+                min="0"
+                max="1000"
+                step="1"
                 value="500"
-                class="absolute inset-0 z-10 w-full cursor-pointer opacity-0" 
+                class="absolute inset-0 z-10 w-full cursor-pointer opacity-0"
             />
         </div>
     </div>
@@ -58,11 +52,12 @@ const { label, referenceLabel, ltvLabel, cooldownWarning, fallbackTitle, fallbac
             <span class="text-muted-foreground">{ltvLabel}</span>
             <span id="ltv-value" class="font-bold text-foreground" aria-live="polite">—</span>
         </div>
-        <span id="cooldown-warning" class="hidden text-amber-600 dark:text-amber-400" role="alert">{cooldownWarning}</span>
+        <span id="cooldown-warning-short" class="hidden text-amber-600 dark:text-amber-400" role="alert">{cooldownWarning}</span>
     </div>
+
+    <p id="cooldown-warning-full" class="hidden mt-2 text-[12px] leading-relaxed text-amber-600 dark:text-amber-400" role="alert"></p>
 </div>
 
-<!-- Hidden when there's no market price feed -->
 <div id="slider-fallback" class="hidden rounded-md border border-foreground/15 bg-muted/30 p-5">
     <h3 class="text-[14px] font-bold text-foreground/80">{fallbackTitle}</h3>
     <div class="mt-1 flex items-baseline gap-2">

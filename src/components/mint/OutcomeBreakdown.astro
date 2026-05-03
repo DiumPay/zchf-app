@@ -5,9 +5,14 @@ interface Props {
     repaidLabel: string;
     interestLabel: string;
     sentLabel: string;
+    cooldownMintableLabel: string;
+    cooldownAvailableLabel: string;
 }
 
-const { mintedLabel, reserveLabel, repaidLabel, interestLabel, sentLabel } = Astro.props;
+const {
+    mintedLabel, reserveLabel, repaidLabel, interestLabel, sentLabel,
+    cooldownMintableLabel, cooldownAvailableLabel,
+} = Astro.props;
 ---
 
 <div class="rounded-md bg-muted/40 p-5">
@@ -31,6 +36,19 @@ const { mintedLabel, reserveLabel, repaidLabel, interestLabel, sentLabel } = Ast
         <div class="flex items-center justify-between border-t border-foreground/10 pt-3 text-[16px] font-bold">
             <span>{sentLabel}</span>
             <span id="out-net" class="font-mono tabular-nums">0 ZCHF</span>
+        </div>
+    </div>
+</div>
+
+<div id="cooldown-breakdown" class="hidden rounded-md border border-amber-500/30 bg-amber-500/5 p-5 mt-3">
+    <div class="space-y-2.5 text-[14px] text-amber-700 dark:text-amber-400">
+        <div class="flex items-center justify-between">
+            <span>{cooldownMintableLabel}</span>
+            <span id="out-cooldown-mintable" class="font-mono font-medium tabular-nums">0 ZCHF</span>
+        </div>
+        <div class="flex items-center justify-between">
+            <span>{cooldownAvailableLabel}</span>
+            <span id="out-cooldown-additional" class="font-mono font-medium tabular-nums">0 ZCHF</span>
         </div>
     </div>
 </div>
