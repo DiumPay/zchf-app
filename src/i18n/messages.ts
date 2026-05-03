@@ -9,13 +9,14 @@ import { transfer } from "./locales/transfer";
 import { borrow } from "./locales/borrow";
 import { mint } from "./locales/mint";
 import { mypositions } from "./locales/mypositions";
+import { create } from "./locales/create";
 
 export const messages = {
-    en: { ...shared.en, ...earn.en, ...transfer.en, ...borrow.en, ...mint.en, ...mypositions.en },
-    de: { ...shared.de, ...earn.de, ...transfer.de, ...borrow.de, ...mint.de, ...mypositions.de },
-    fr: { ...shared.fr, ...earn.fr, ...transfer.fr, ...borrow.fr, ...mint.fr, ...mypositions.fr },
-    it: { ...shared.it, ...earn.it, ...transfer.it, ...borrow.it, ...mint.it, ...mypositions.it },
-    es: { ...shared.es, ...earn.es, ...transfer.es, ...borrow.es, ...mint.es, ...mypositions.es },
+    en: { ...shared.en, ...earn.en, ...transfer.en, ...borrow.en, ...mint.en, ...mypositions.en, ...create.en },
+    de: { ...shared.de, ...earn.de, ...transfer.de, ...borrow.de, ...mint.de, ...mypositions.de, ...create.de },
+    fr: { ...shared.fr, ...earn.fr, ...transfer.fr, ...borrow.fr, ...mint.fr, ...mypositions.fr, ...create.fr },
+    it: { ...shared.it, ...earn.it, ...transfer.it, ...borrow.it, ...mint.it, ...mypositions.it, ...create.it },
+    es: { ...shared.es, ...earn.es, ...transfer.es, ...borrow.es, ...mint.es, ...mypositions.es, ...create.es },
 } as const;
 
 export type Locale = keyof typeof messages;

@@ -1,0 +1,807 @@
+---
+import Layout from "@layouts/Layout.astro";
+import Card from "@components/Card.astro";
+import Button from "@components/Button.astro";
+import WalletConnect from "@components/WalletConnect.astro";
+import ExternalLinkIcon from "@assets/icons/square-arrow-out-up-right.svg";
+import { t, getLocale } from "@i18n/t";
+import zchfIcon from "@assets/tokens/zchf.svg?url";
+
+const tt = t(Astro.url);
+const locale = getLocale(Astro.url);
+
+const i18n = {
+    pageTitle: tt("create_page_title"),
+    pageSubtitle: tt("create_page_subtitle"),
+
+    cardProposal: tt("create_card_proposal"),
+    cardCollateral: tt("create_card_collateral"),
+    cardFinancial: tt("create_card_financial"),
+    cardLiquidation: tt("create_card_liquidation"),
+
+    labelProposalFee: tt("create_label_proposal_fee"),
+    labelInitPeriod: tt("create_label_init_period"),
+    labelContractAddress: tt("create_label_contract_address"),
+    labelMinCollateral: tt("create_label_min_collateral"),
+    labelInitialCollateral: tt("create_label_initial_collateral"),
+    labelLimit: tt("create_label_limit"),
+    labelInterest: tt("create_label_interest"),
+    labelMaturity: tt("create_label_maturity"),
+    labelLiqPrice: tt("create_label_liq_price"),
+    labelReserve: tt("create_label_reserve"),
+    labelAuction: tt("create_label_auction"),
+
+    unitDays: tt("create_unit_days"),
+    unitMonths: tt("create_unit_months"),
+    unitHours: tt("create_unit_hours"),
+    unitPercent: tt("create_unit_percent"),
+
+    discussLink: tt("create_discuss_link"),
+    discussText: tt("create_discuss_text"),
+
+    actionApprove: tt("create_action_approve"),
+    actionApproving: tt("create_action_approving"),
+    actionPropose: tt("create_action_propose"),
+    actionProposing: tt("create_action_proposing"),
+    actionSwitching: tt("create_action_switching"),
+    actionConnect: tt("wallet_connect"),
+
+    errInvalidAddress: tt("create_err_invalid_address"),
+    errTokenRead: tt("create_err_token_read"),
+    errTokenDecimals: tt("create_err_token_decimals"),
+    errMustMatchMin: tt("create_err_must_match_min"),
+    errInsufficientBalance: tt("create_err_insufficient_balance"),
+    errCollateralValueLow: tt("create_err_collateral_value_low"),
+    errLimitZero: tt("create_err_limit_zero"),
+    errInterestHigh: tt("create_err_interest_high"),
+    errInitPeriodLow: tt("create_err_init_period_low"),
+    errReserveHigh: tt("create_err_reserve_high"),
+    errReserveLow: tt("create_err_reserve_low"),
+    errAuctionLow: tt("create_err_auction_low"),
+    errZchfBalance: tt("create_err_zchf_balance"),
+
+    warnCollateralValue: tt("create_warn_collateral_value"),
+    warnLimitHigh: tt("create_warn_limit_high"),
+    warnReserveLow: tt("create_warn_reserve_low"),
+    warnAuctionLow: tt("create_warn_auction_low"),
+
+    toastApproved: tt("create_toast_approved"),
+    toastProposed: tt("create_toast_proposed"),
+    cancelled: tt("common_cancelled"),
+    notConnected: tt("wallet_not_connected"),
+
+    errRpcTitle: tt("mint_err_rpc_title"),
+    errRpcBody: tt("mint_err_rpc_body"),
+    errRpcHelp: tt("mint_err_rpc_help"),
+};
+---
+
+<Layout title={`${i18n.pageTitle} | Frankencoin dApp`} description={i18n.pageSubtitle}>
+    <main class="mx-auto max-w-5xl px-4 py-10 md:px-6 md:py-12">
+        <header class="mb-8">
+            <h1 class="text-[28px] font-bold tracking-tight">{i18n.pageTitle}</h1>
+            <p class="mt-2 text-[14px] opacity-90">{i18n.pageSubtitle}</p>
+        </header>
+
+        <section class="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <!-- Proposal -->
+            <Card title={i18n.cardProposal}>
+                <div class="space-y-4">
+                    <div class="rounded-md border border-foreground/10 p-4">
+                        <label for="i-fee" class="block text-[13px] font-medium opacity-90">{i18n.labelProposalFee}</label>
+                        <div class="mt-2 flex items-center gap-3">
+                            <input
+                                id="i-fee"
+                                type="text"
+                                value="1000"
+                                disabled
+                                aria-label={i18n.labelProposalFee}
+                                class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none disabled:opacity-70"
+                            />
+                            <div class="flex items-center gap-2 text-[14px] opacity-90">
+                                <img src={zchfIcon} alt="" class="h-5 w-5 rounded-full" />
+                                <span>ZCHF</span>
+                            </div>
+                        </div>
+                        <div id="err-fee" class="mt-2 hidden text-[12px] text-primary"></div>
+                    </div>
+
+                    <div class="rounded-md border border-foreground/10 p-4">
+                        <label for="i-init" class="block text-[13px] font-medium opacity-90">{i18n.labelInitPeriod}</label>
+                        <div class="mt-2 flex items-center gap-3">
+                            <input
+                                id="i-init"
+                                type="text"
+                                inputmode="numeric"
+                                autocomplete="off"
+                                value="5"
+                                aria-label={i18n.labelInitPeriod}
+                                class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none"
+                            />
+                            <div class="text-[14px] opacity-90">{i18n.unitDays}</div>
+                        </div>
+                        <div id="err-init" class="mt-2 hidden text-[12px] text-primary"></div>
+                    </div>
+
+                    <p class="text-[13px] opacity-90">
+                        {i18n.discussText}
+                        <a
+                            href="https://github.com/Frankencoin-ZCHF/FrankenCoin/discussions"
+                            target="_blank"
+                            rel="noopener"
+                            class="text-primary hover:underline inline-flex items-center gap-1"
+                        >
+                            <span>{i18n.discussLink}</span>
+                            <ExternalLinkIcon class="h-3 w-3" aria-hidden="true" />
+                        </a>
+                    </p>
+                </div>
+            </Card>
+
+            <!-- Collateral -->
+            <Card title={i18n.cardCollateral}>
+                <div class="space-y-4">
+                    <div class="rounded-md border border-foreground/10 p-4">
+                        <label for="i-collateral" class="block text-[13px] font-medium opacity-90">{i18n.labelContractAddress}</label>
+                        <input
+                            id="i-collateral"
+                            type="text"
+                            autocomplete="off"
+                            spellcheck="false"
+                            placeholder="0x..."
+                            aria-label={i18n.labelContractAddress}
+                            class="mt-2 w-full bg-transparent text-[16px] font-medium tracking-tight focus:outline-none"
+                        />
+                        <div id="err-collateral" class="mt-2 hidden text-[12px] text-primary"></div>
+                        <div id="info-collateral" class="mt-2 hidden text-[12px] opacity-90"></div>
+                    </div>
+
+                    <div id="approve-wrap" class="hidden">
+                        <Button id="btn-approve" variant="secondary" fullWidth>
+                            <span class="btn-action-label">{i18n.actionApprove}</span>
+                        </Button>
+                    </div>
+
+                    <div class="rounded-md border border-foreground/10 p-4">
+                        <label for="i-min-coll" class="block text-[13px] font-medium opacity-90">{i18n.labelMinCollateral}</label>
+                        <div class="mt-2 flex items-center gap-3">
+                            <input
+                                id="i-min-coll"
+                                type="text"
+                                inputmode="decimal"
+                                autocomplete="off"
+                                placeholder="0"
+                                aria-label={i18n.labelMinCollateral}
+                                class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none"
+                            />
+                            <div id="sym-min-coll" class="text-[14px] opacity-90">—</div>
+                        </div>
+                        <div id="err-min-coll" class="mt-2 hidden text-[12px] text-primary"></div>
+                        <div id="warn-min-coll" class="mt-2 hidden text-[12px] opacity-80"></div>
+                    </div>
+
+                    <div class="rounded-md border border-foreground/10 p-4">
+                        <label for="i-init-coll" class="block text-[13px] font-medium opacity-90">{i18n.labelInitialCollateral}</label>
+                        <div class="mt-2 flex items-center gap-3">
+                            <input
+                                id="i-init-coll"
+                                type="text"
+                                inputmode="decimal"
+                                autocomplete="off"
+                                placeholder="0"
+                                aria-label={i18n.labelInitialCollateral}
+                                class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none"
+                            />
+                            <div id="sym-init-coll" class="text-[14px] opacity-90">—</div>
+                        </div>
+                        <div class="mt-2 flex items-center justify-between text-[12px]">
+                            <div class="opacity-90">
+                                <span>Balance: </span><span id="balance-coll">—</span>
+                            </div>
+                        </div>
+                        <div id="err-init-coll" class="mt-2 hidden text-[12px] text-primary"></div>
+                    </div>
+                </div>
+            </Card>
+
+            <!-- Financial Terms -->
+            <Card title={i18n.cardFinancial}>
+                <div class="space-y-4">
+                    <div class="rounded-md border border-foreground/10 p-4">
+                        <label for="i-limit" class="block text-[13px] font-medium opacity-90">{i18n.labelLimit}</label>
+                        <div class="mt-2 flex items-center gap-3">
+                            <input
+                                id="i-limit"
+                                type="text"
+                                inputmode="decimal"
+                                autocomplete="off"
+                                value="1000000"
+                                aria-label={i18n.labelLimit}
+                                class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none"
+                            />
+                            <div class="flex items-center gap-2 text-[14px] opacity-90">
+                                <img src={zchfIcon} alt="" class="h-5 w-5 rounded-full" />
+                                <span>ZCHF</span>
+                            </div>
+                        </div>
+                        <div id="err-limit" class="mt-2 hidden text-[12px] text-primary"></div>
+                        <div id="warn-limit" class="mt-2 hidden text-[12px] opacity-80"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div class="rounded-md border border-foreground/10 p-4">
+                            <label for="i-interest" class="block text-[13px] font-medium opacity-90">{i18n.labelInterest}</label>
+                            <div class="mt-2 flex items-center gap-3">
+                                <input
+                                    id="i-interest"
+                                    type="text"
+                                    inputmode="decimal"
+                                    autocomplete="off"
+                                    value="3.0"
+                                    aria-label={i18n.labelInterest}
+                                    class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none"
+                                />
+                                <div class="text-[14px] opacity-90">{i18n.unitPercent}</div>
+                            </div>
+                            <div id="err-interest" class="mt-2 hidden text-[12px] text-primary"></div>
+                        </div>
+
+                        <div class="rounded-md border border-foreground/10 p-4">
+                            <label for="i-maturity" class="block text-[13px] font-medium opacity-90">{i18n.labelMaturity}</label>
+                            <div class="mt-2 flex items-center gap-3">
+                                <input
+                                    id="i-maturity"
+                                    type="text"
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                    value="12"
+                                    aria-label={i18n.labelMaturity}
+                                    class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none"
+                                />
+                                <div class="text-[14px] opacity-90">{i18n.unitMonths}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </Card>
+
+            <!-- Liquidation -->
+            <Card title={i18n.cardLiquidation}>
+                <div class="space-y-4">
+                    <div class="rounded-md border border-foreground/10 p-4">
+                        <label for="i-liq-price" class="block text-[13px] font-medium opacity-90">{i18n.labelLiqPrice}</label>
+                        <div class="mt-2 flex items-center gap-3">
+                            <input
+                                id="i-liq-price"
+                                type="text"
+                                inputmode="decimal"
+                                autocomplete="off"
+                                placeholder="0"
+                                aria-label={i18n.labelLiqPrice}
+                                class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none"
+                            />
+                            <div class="flex items-center gap-2 text-[14px] opacity-90">
+                                <img src={zchfIcon} alt="" class="h-5 w-5 rounded-full" />
+                                <span>ZCHF</span>
+                            </div>
+                        </div>
+                        <div id="err-liq-price" class="mt-2 hidden text-[12px] text-primary"></div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div class="rounded-md border border-foreground/10 p-4">
+                            <label for="i-reserve" class="block text-[13px] font-medium opacity-90">{i18n.labelReserve}</label>
+                            <div class="mt-2 flex items-center gap-3">
+                                <input
+                                    id="i-reserve"
+                                    type="text"
+                                    inputmode="decimal"
+                                    autocomplete="off"
+                                    value="20.0"
+                                    aria-label={i18n.labelReserve}
+                                    class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none"
+                                />
+                                <div class="text-[14px] opacity-90">{i18n.unitPercent}</div>
+                            </div>
+                            <div id="err-reserve" class="mt-2 hidden text-[12px] text-primary"></div>
+                            <div id="warn-reserve" class="mt-2 hidden text-[12px] opacity-80"></div>
+                        </div>
+
+                        <div class="rounded-md border border-foreground/10 p-4">
+                            <label for="i-auction" class="block text-[13px] font-medium opacity-90">{i18n.labelAuction}</label>
+                            <div class="mt-2 flex items-center gap-3">
+                                <input
+                                    id="i-auction"
+                                    type="text"
+                                    inputmode="numeric"
+                                    autocomplete="off"
+                                    value="48"
+                                    aria-label={i18n.labelAuction}
+                                    class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none"
+                                />
+                                <div class="text-[14px] opacity-90">{i18n.unitHours}</div>
+                            </div>
+                            <div id="err-auction" class="mt-2 hidden text-[12px] text-primary"></div>
+                            <div id="warn-auction" class="mt-2 hidden text-[12px] opacity-80"></div>
+                        </div>
+                    </div>
+                </div>
+            </Card>
+        </section>
+
+        <div class="mx-auto mt-8 max-w-md">
+            <div id="action-error" class="mb-4 hidden text-[13px] text-primary"></div>
+
+            <div id="actions-connected" class="hidden">
+                <Button id="btn-propose" fullWidth>
+                    <span class="btn-action-label">{i18n.actionPropose}</span>
+                </Button>
+            </div>
+
+            <div id="actions-disconnected">
+                <WalletConnect />
+            </div>
+        </div>
+    </main>
+
+    <script id="create-i18n" type="application/json" set:html={JSON.stringify(i18n)}></script>
+    <script id="create-locale" type="application/json" set:html={JSON.stringify(locale)}></script>
+</Layout>
+
+<script>
+    import { type Address, type Hex, parseUnits, formatUnits } from "viem";
+    import { getOnboard } from "@lib/onboard";
+    import { getPublicClient, makeWalletClient } from "@lib/client";
+    import { toast } from "@lib/toast";
+    import { friendlyError } from "@lib/errors";
+    import { ADDRESSES } from "@config/addresses";
+    import { erc20Abi } from "viem";
+    import { localePath } from "@i18n/t";
+    import type { Locale } from "@i18n/messages";
+    import {
+        emptyProposalForm,
+        readCollateralInfo,
+        validateForm,
+        needsApproval,
+        approveCollateral,
+        openPosition,
+        extractDeployedPosition,
+        PPM_DECIMALS,
+        type ProposalForm,
+        type CollTokenInfo,
+        type FormStatus,
+    } from "@lib/proposePosition";
+
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+    const i18n = JSON.parse($("create-i18n").textContent || "{}") as Record<string, string>;
+    const locale = JSON.parse($("create-locale").textContent || '"en"') as string;
+
+    const ETH_CHAIN_ID_HEX = "0x1";
+
+    const fmt = (n: number, max = 4) =>
+        n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: max });
+
+    function getRawProvider(): any {
+        const eth = (window as any).ethereum;
+        if (!eth) return null;
+        if (Array.isArray(eth.providers) && eth.providers.length) {
+            const mm = eth.providers.find((p: any) => p.isMetaMask && !p.isBraveWallet);
+            return mm ?? eth.providers[0];
+        }
+        return eth;
+    }
+    async function readChainId(): Promise<string | null> {
+        const p = getRawProvider();
+        if (!p?.request) return null;
+        try {
+            const id = await p.request({ method: "eth_chainId" });
+            return typeof id === "string" ? id.toLowerCase() : null;
+        } catch { return null; }
+    }
+    async function ensureMainnet(): Promise<boolean> {
+        const cur = await readChainId();
+        if (cur === ETH_CHAIN_ID_HEX) return true;
+        const p = getRawProvider();
+        if (!p?.request) { toast(i18n.notConnected, "error"); return false; }
+        try {
+            await p.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ETH_CHAIN_ID_HEX }] });
+            const after = await readChainId();
+            return after === ETH_CHAIN_ID_HEX;
+        } catch (err: any) {
+            if (err?.code === 4001 || /reject|denied/i.test(err?.message ?? "")) {
+                toast(i18n.cancelled, "info"); return false;
+            }
+            const { message } = friendlyError(err);
+            toast(message, "error");
+            return false;
+        }
+    }
+    function isUserCancelErr(err: any): boolean {
+        const code = err?.code ?? err?.cause?.code;
+        if (code === 4001) return true;
+        return /reject|denied|cancel/i.test(err?.message ?? "");
+    }
+    function isWalletRpcError(err: any): boolean {
+        const msg = (err?.message ?? err?.cause?.message ?? "").toString().toLowerCase();
+        const code = err?.code ?? err?.cause?.code;
+        if (msg.includes("json-rpc") || msg.includes("json rpc")) return true;
+        if (code === -32603 || code === -32000 || code === -32601 || code === -32006) return true;
+        return false;
+    }
+
+    let connected: Address | null = null;
+    let userZchfBalance = 0n;
+    let collInfo: CollTokenInfo | null = null;
+    let form: ProposalForm = emptyProposalForm();
+
+    const els = {
+        collateral: $<HTMLInputElement>("i-collateral"),
+        infoCollateral: $("info-collateral"),
+        approveWrap: $("approve-wrap"),
+        btnApprove: $<HTMLButtonElement>("btn-approve"),
+
+        minColl: $<HTMLInputElement>("i-min-coll"),
+        initColl: $<HTMLInputElement>("i-init-coll"),
+        symMinColl: $("sym-min-coll"),
+        symInitColl: $("sym-init-coll"),
+        balanceColl: $("balance-coll"),
+
+        limit: $<HTMLInputElement>("i-limit"),
+        interest: $<HTMLInputElement>("i-interest"),
+        maturity: $<HTMLInputElement>("i-maturity"),
+        init: $<HTMLInputElement>("i-init"),
+        liqPrice: $<HTMLInputElement>("i-liq-price"),
+        reserve: $<HTMLInputElement>("i-reserve"),
+        auction: $<HTMLInputElement>("i-auction"),
+
+        errCollateral: $("err-collateral"),
+        errMinColl: $("err-min-coll"),
+        warnMinColl: $("warn-min-coll"),
+        errInitColl: $("err-init-coll"),
+        errLimit: $("err-limit"),
+        warnLimit: $("warn-limit"),
+        errInterest: $("err-interest"),
+        errInit: $("err-init"),
+        errLiqPrice: $("err-liq-price"),
+        errReserve: $("err-reserve"),
+        warnReserve: $("warn-reserve"),
+        errAuction: $("err-auction"),
+        warnAuction: $("warn-auction"),
+        errFee: $("err-fee"),
+
+        actionsConnected: $("actions-connected"),
+        actionsDisconnected: $("actions-disconnected"),
+        btnPropose: $<HTMLButtonElement>("btn-propose"),
+        actionLabelPropose: document.querySelector("#btn-propose .btn-action-label") as HTMLElement,
+        actionLabelApprove: document.querySelector("#btn-approve .btn-action-label") as HTMLElement,
+        actionError: $("action-error"),
+    };
+
+    // Decimal-clamping input filter. Restricts typing to N decimal places.
+    // dec=0 means integer-only.
+    function isValidPartial(next: string, dec: number): boolean {
+        if (next === "") return true;
+        const re = dec === 0 ? /^\d*$/ : new RegExp(`^\\d*(\\.\\d{0,${dec}})?$`);
+        return re.test(next);
+    }
+    function clampDecimals(raw: string, dec: number): string {
+        let s = raw.replace(/,/g, ".").replace(/[^\d.]/g, "");
+        const firstDot = s.indexOf(".");
+        if (firstDot !== -1) {
+            s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, "");
+            const [whole, frac = ""] = s.split(".");
+            s = dec === 0 ? whole : whole + (frac.length > 0 ? "." + frac.slice(0, dec) : ".");
+        }
+        return s;
+    }
+    function applyClamp(input: HTMLInputElement, dec: number): string {
+        const trimmed = clampDecimals(input.value, dec);
+        if (trimmed !== input.value) {
+            const pos = input.selectionStart;
+            input.value = trimmed;
+            if (pos !== null) {
+                const caret = Math.min(pos, trimmed.length);
+                input.setSelectionRange(caret, caret);
+            }
+        }
+        return trimmed;
+    }
+    function guardKeystrokes(input: HTMLInputElement, getDec: () => number) {
+        input.addEventListener("beforeinput", (ev) => {
+            const ie = ev as InputEvent;
+            if (!ie.data) return;
+            const dec = getDec();
+            const start = input.selectionStart ?? input.value.length;
+            const end = input.selectionEnd ?? input.value.length;
+            const insert = ie.data.replace(/,/g, ".");
+            const next = input.value.slice(0, start) + insert + input.value.slice(end);
+            if (!isValidPartial(next, dec)) ie.preventDefault();
+        });
+    }
+
+    const safeParse = (s: string, dec: number): bigint => {
+        try {
+            const cleaned = (s.trim().replace(/,/g, ".") || "0").replace(/\.$/, "");
+            return parseUnits((cleaned || "0") as `${number}`, dec);
+        } catch { return 0n; }
+    };
+
+    function setMessage(el: HTMLElement, text: string | null, isError: boolean) {
+        if (!text) {
+            el.classList.add("hidden");
+            el.textContent = "";
+            return;
+        }
+        el.textContent = text;
+        el.classList.remove("hidden");
+        el.classList.toggle("text-primary", isError);
+    }
+
+    function showRpcError() {
+        els.actionError.classList.remove("hidden");
+        els.actionError.innerHTML = "";
+        const wrap = document.createElement("div");
+        wrap.className = "rpc-error";
+        for (const [cls, text] of [
+            ["rpc-error-title", i18n.errRpcTitle],
+            ["rpc-error-body", i18n.errRpcBody],
+            ["rpc-error-help", i18n.errRpcHelp],
+        ] as const) {
+            const div = document.createElement("div");
+            div.className = cls;
+            div.textContent = text;
+            wrap.append(div);
+        }
+        els.actionError.append(wrap);
+    }
+
+    function handleErr(err: any) {
+        if (isUserCancelErr(err)) {
+            toast(i18n.cancelled, "info");
+        } else if (isWalletRpcError(err)) {
+            showRpcError();
+        } else {
+            const { message } = friendlyError(err);
+            toast(message, "error");
+        }
+    }
+
+    function applyStatus(status: FormStatus) {
+        setMessage(els.errCollateral, status.collateral.error, true);
+        setMessage(els.errInitColl, status.initialCollateral.error, true);
+        setMessage(els.errMinColl, status.minCollateralValue.error, true);
+        setMessage(els.warnMinColl, status.minCollateralValue.warning, false);
+        setMessage(els.errLiqPrice, status.minCollateralValue.error, true);
+        setMessage(els.errLimit, status.limit.error, true);
+        setMessage(els.warnLimit, status.limit.warning, false);
+        setMessage(els.errInterest, status.interest.error, true);
+        setMessage(els.errInit, status.initPeriod.error, true);
+        setMessage(els.errReserve, status.reserve.error, true);
+        setMessage(els.warnReserve, status.reserve.warning, false);
+        setMessage(els.errAuction, status.auction.error, true);
+        setMessage(els.warnAuction, status.auction.warning, false);
+        setMessage(els.errFee, status.zchfBalance.error, true);
+
+        const noChange = !connected || form.initialCollateral === 0n || form.minCollateral === 0n || form.liqPrice === 0n;
+        const approvalNeeded = needsApproval(form, collInfo);
+
+        els.approveWrap.classList.toggle("hidden", !connected || !collInfo || !approvalNeeded);
+        els.btnPropose.disabled = status.hasBlockingError || noChange || approvalNeeded;
+    }
+
+    function refresh() {
+        const status = validateForm(form, collInfo, userZchfBalance);
+        applyStatus(status);
+    }
+
+    function syncSymbols() {
+        const sym = collInfo?.symbol ?? "—";
+        els.symMinColl.textContent = sym;
+        els.symInitColl.textContent = sym;
+        if (collInfo) {
+            els.balanceColl.textContent = `${fmt(Number(formatUnits(collInfo.userBalance, collInfo.decimals)))} ${sym}`;
+            els.infoCollateral.textContent = `${collInfo.name} (${collInfo.symbol}) · ${collInfo.decimals} decimals`;
+            els.infoCollateral.classList.remove("hidden");
+        } else {
+            els.balanceColl.textContent = "—";
+            els.infoCollateral.classList.add("hidden");
+            els.infoCollateral.textContent = "";
+        }
+    }
+
+    let collateralReadToken = 0;
+    async function loadCollateralInfo(addr: string) {
+        const myToken = ++collateralReadToken;
+        if (!/^0x[a-fA-F0-9]{40}$/.test(addr) || !connected) {
+            collInfo = null;
+            syncSymbols();
+            refresh();
+            return;
+        }
+        const client = getPublicClient("ethereum");
+        const info = await readCollateralInfo(client, addr as Address, connected);
+        if (myToken !== collateralReadToken) return;
+        collInfo = info;
+        syncSymbols();
+        refresh();
+    }
+
+    async function loadUserZchfBalance() {
+        if (!connected) { userZchfBalance = 0n; return; }
+        try {
+            const client = getPublicClient("ethereum");
+            const balance = await client.readContract({
+                address: ADDRESSES.ethereum.zchf as Address,
+                abi: erc20Abi,
+                functionName: "balanceOf",
+                args: [connected],
+            });
+            userZchfBalance = balance as bigint;
+        } catch {
+            userZchfBalance = 0n;
+        }
+    }
+
+    // Decimal rules per field
+    const decCollateral = () => collInfo?.decimals ?? 18;
+    const decLiqPrice = () => 36 - (collInfo?.decimals ?? 18);
+
+    guardKeystrokes(els.minColl, decCollateral);
+    guardKeystrokes(els.initColl, decCollateral);
+    guardKeystrokes(els.liqPrice, decLiqPrice);
+    guardKeystrokes(els.limit, () => 18);
+    guardKeystrokes(els.interest, () => PPM_DECIMALS);
+    guardKeystrokes(els.reserve, () => PPM_DECIMALS);
+    guardKeystrokes(els.maturity, () => 0);
+    guardKeystrokes(els.init, () => 0);
+    guardKeystrokes(els.auction, () => 0);
+
+    els.collateral.addEventListener("input", () => {
+        const addr = els.collateral.value.trim();
+        form.collateralAddress = addr;
+        loadCollateralInfo(addr);
+    });
+
+    els.minColl.addEventListener("input", () => {
+        const dec = decCollateral();
+        form.minCollateral = safeParse(applyClamp(els.minColl, dec), dec);
+        if (form.minCollateral > form.initialCollateral) {
+            form.initialCollateral = form.minCollateral;
+            els.initColl.value = formatUnits(form.initialCollateral, dec);
+        }
+        refresh();
+    });
+    els.initColl.addEventListener("input", () => {
+        const dec = decCollateral();
+        form.initialCollateral = safeParse(applyClamp(els.initColl, dec), dec);
+        refresh();
+    });
+    els.limit.addEventListener("input", () => {
+        form.limitZchf = safeParse(applyClamp(els.limit, 18), 18);
+        refresh();
+    });
+    els.interest.addEventListener("input", () => {
+        const cleaned = applyClamp(els.interest, PPM_DECIMALS);
+        const pct = parseFloat(cleaned.replace(/,/g, ".") || "0");
+        form.interestPPM = BigInt(Math.round(pct * 10_000));
+        refresh();
+    });
+    els.maturity.addEventListener("input", () => {
+        const cleaned = applyClamp(els.maturity, 0);
+        form.maturityMonths = BigInt(parseInt(cleaned || "0", 10) || 0);
+        refresh();
+    });
+    els.init.addEventListener("input", () => {
+        const cleaned = applyClamp(els.init, 0);
+        form.initPeriodDays = BigInt(parseInt(cleaned || "0", 10) || 0);
+        refresh();
+    });
+    els.liqPrice.addEventListener("input", () => {
+        const dec = decLiqPrice();
+        form.liqPrice = safeParse(applyClamp(els.liqPrice, dec), dec);
+        refresh();
+    });
+    els.reserve.addEventListener("input", () => {
+        const cleaned = applyClamp(els.reserve, PPM_DECIMALS);
+        const pct = parseFloat(cleaned.replace(/,/g, ".") || "0");
+        form.reservePPM = BigInt(Math.round(pct * 10_000));
+        refresh();
+    });
+    els.auction.addEventListener("input", () => {
+        const cleaned = applyClamp(els.auction, 0);
+        form.auctionHours = BigInt(parseInt(cleaned || "0", 10) || 0);
+        refresh();
+    });
+
+    els.btnApprove.addEventListener("click", async () => {
+        if (!connected || !collInfo) return;
+        if (!(await ensureMainnet())) return;
+
+        const rawProvider = getRawProvider();
+        if (!rawProvider) { toast(i18n.notConnected, "error"); return; }
+        const publicClient = getPublicClient("ethereum");
+        const walletClient = makeWalletClient(rawProvider, "ethereum");
+
+        els.btnApprove.dataset.loading = "1";
+        els.btnApprove.disabled = true;
+        const orig = els.actionLabelApprove.textContent ?? "";
+        els.actionLabelApprove.textContent = i18n.actionApproving;
+
+        try {
+            await approveCollateral(walletClient, publicClient, collInfo.address, connected);
+            toast(i18n.toastApproved, "success");
+            collInfo = await readCollateralInfo(publicClient, collInfo.address, connected);
+            syncSymbols();
+            refresh();
+        } catch (err) {
+            handleErr(err);
+        } finally {
+            delete els.btnApprove.dataset.loading;
+            els.btnApprove.disabled = false;
+            els.actionLabelApprove.textContent = orig;
+        }
+    });
+
+    els.btnPropose.addEventListener("click", async () => {
+        if (!connected || !collInfo) return;
+        els.actionError.classList.add("hidden");
+        els.actionError.innerHTML = "";
+
+        if (!(await ensureMainnet())) return;
+
+        const rawProvider = getRawProvider();
+        if (!rawProvider) { toast(i18n.notConnected, "error"); return; }
+        const publicClient = getPublicClient("ethereum");
+        const walletClient = makeWalletClient(rawProvider, "ethereum");
+
+        els.btnPropose.dataset.loading = "1";
+        els.btnPropose.disabled = true;
+        const orig = els.actionLabelPropose.textContent ?? "";
+        els.actionLabelPropose.textContent = i18n.actionProposing;
+
+        try {
+            const hash: Hex = await openPosition(walletClient, publicClient, form, collInfo.decimals, connected);
+            const receipt = await publicClient.waitForTransactionReceipt({ hash });
+            const deployed = extractDeployedPosition(receipt.logs as any);
+            toast(i18n.toastProposed, "success");
+            if (deployed) {
+                window.location.href = localePath(locale as Locale, `/mypositions?address=${deployed}`);
+            }
+        } catch (err) {
+            handleErr(err);
+        } finally {
+            delete els.btnPropose.dataset.loading;
+            els.actionLabelPropose.textContent = orig;
+            refresh();
+        }
+    });
+
+    function setConnectedUI(isConnected: boolean) {
+        els.actionsConnected.classList.toggle("hidden", !isConnected);
+        els.actionsDisconnected.classList.toggle("hidden", isConnected);
+    }
+
+    getOnboard().state.select("wallets").subscribe(async (wallets) => {
+        const w = wallets[0];
+        const newAddr = w?.accounts[0]?.address as Address | null;
+        if (newAddr !== connected) {
+            connected = newAddr;
+            setConnectedUI(!!connected);
+            await loadUserZchfBalance();
+            if (form.collateralAddress) {
+                await loadCollateralInfo(form.collateralAddress);
+            } else {
+                refresh();
+            }
+        }
+    });
+
+    // Seed defaults from the empty form into the inputs so PPM math matches displayed text
+    els.interest.value = "3.0";
+    els.reserve.value = "20.0";
+    form.interestPPM = 30_000n;
+    form.reservePPM = 200_000n;
+
+    setConnectedUI(false);
+    refresh();
+</script>

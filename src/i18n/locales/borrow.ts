@@ -28,6 +28,8 @@ export const borrow = {
         borrow_status_challenged: "Challenged",
         borrow_status_closed: "Closed",
         borrow_status_expired: "Expired",
+
+        borrow_propose_new: "Propose New Position or Collateral",
     },
 
     de: {
@@ -59,6 +61,8 @@ export const borrow = {
         borrow_status_challenged: "Angefochten",
         borrow_status_closed: "Geschlossen",
         borrow_status_expired: "Abgelaufen",
+
+        borrow_propose_new: "Neue Position oder Sicherheit vorschlagen",
     },
 
     fr: {
@@ -90,6 +94,8 @@ export const borrow = {
         borrow_status_challenged: "Contestée",
         borrow_status_closed: "Fermée",
         borrow_status_expired: "Expirée",
+
+        borrow_propose_new: "Proposer une nouvelle position ou garantie",
     },
 
     it: {
@@ -121,6 +127,8 @@ export const borrow = {
         borrow_status_challenged: "Contestata",
         borrow_status_closed: "Chiusa",
         borrow_status_expired: "Scaduta",
+
+        borrow_propose_new: "Proponi nuova posizione o collaterale",
     },
 
     es: {
@@ -152,5 +160,7 @@ export const borrow = {
         borrow_status_challenged: "Impugnada",
         borrow_status_closed: "Cerrada",
         borrow_status_expired: "Vencida",
+
+        borrow_propose_new: "Proponer nueva posición o colateral",
     },
 } as const;
