@@ -103,72 +103,43 @@ const clientI18n = {
 <Layout title={`${i18n.cardTitle} | ${sym}`} description={`${i18n.cardTitle}: ${position.collateralName}`}>
     <main class="mx-auto max-w-3xl px-4 py-10 md:px-6 md:py-12">
         <MintHeader
-            name={position.collateralName}
-            symbol={sym}
-            iconUrl={iconUrl}
-            address={position.address}
-            collateral={position.collateral}
+            name={position.collateralName} symbol={sym} iconUrl={iconUrl}
+            address={position.address} collateral={position.collateral}
             isClone={!position.isOriginal}
-            statusLabel={i18n.statusLabel}
-            cloneLabel={i18n.cloneLabel}
-            positionContractLabel={i18n.positionContractLabel}
-            tokenLabel={i18n.tokenLabel}
+            statusLabel={i18n.statusLabel} cloneLabel={i18n.cloneLabel}
+            positionContractLabel={i18n.positionContractLabel} tokenLabel={i18n.tokenLabel}
         />
-
         <Card title={i18n.cardTitle}>
             <div class="space-y-5">
                 <LinkedInputs
-                    collateralSymbol={sym}
-                    collateralIconUrl={iconUrl}
-                    zchfIconUrl={zchfIcon}
-                    depositLabel={i18n.depositLabel}
-                    mintNowLabel={i18n.mintNowLabel}
-                    maxLabel={i18n.maxLabel}
-                    balanceLabel={i18n.balanceLabel}
-                    mintableLabel={i18n.mintableLabel}
-                    poolCapacityLabel={i18n.poolCapacityLabel}
+                    collateralSymbol={sym} collateralIconUrl={iconUrl} zchfIconUrl={zchfIcon}
+                    depositLabel={i18n.depositLabel} mintNowLabel={i18n.mintNowLabel}
+                    maxLabel={i18n.maxLabel} balanceLabel={i18n.balanceLabel}
+                    mintableLabel={i18n.mintableLabel} poolCapacityLabel={i18n.poolCapacityLabel}
                 />
                 <PriceSlider
-                    label={i18n.sliderLabel}
-                    referenceLabel={i18n.referenceLabel}
-                    ltvLabel={i18n.ltvLabel}
-                    cooldownWarning={i18n.cooldownWarning}
-                    fallbackTitle={i18n.fallbackTitle}
-                    fallbackText={i18n.fallbackText}
+                    label={i18n.sliderLabel} referenceLabel={i18n.referenceLabel}
+                    ltvLabel={i18n.ltvLabel} cooldownWarning={i18n.cooldownWarning}
+                    fallbackTitle={i18n.fallbackTitle} fallbackText={i18n.fallbackText}
                 />
-                <ExpirationPicker
-                    label={i18n.expiryLabel}
-                    maxLabel={i18n.expiryMaxLabel}
-                />
+                <ExpirationPicker label={i18n.expiryLabel} maxLabel={i18n.expiryMaxLabel} />
                 <OutcomeBreakdown
-                    mintedLabel={i18n.mintedLabel}
-                    reserveLabel={i18n.reserveLabel}
-                    repaidLabel={i18n.repaidLabel}
-                    interestLabel={i18n.interestLabel}
+                    mintedLabel={i18n.mintedLabel} reserveLabel={i18n.reserveLabel}
+                    repaidLabel={i18n.repaidLabel} interestLabel={i18n.interestLabel}
                     sentLabel={i18n.sentLabel}
                 />
-                <MintActions
-                    mintLabel={i18n.mintLabel}
-                    connectLabel={i18n.connectLabel}
-                />
+                <MintActions mintLabel={i18n.mintLabel} connectLabel={i18n.connectLabel} />
             </div>
         </Card>
     </main>
 
     <script id="position-data" type="application/json" set:html={JSON.stringify({
-        address: position.address,
-        original: position.original,
-        isOriginal: position.isOriginal,
-        collateral: position.collateral,
-        collateralName: position.collateralName,
-        collateralSymbol: position.collateralSymbol,
-        collateralDecimals: position.collateralDecimals,
-        minimumCollateral: position.minimumCollateral,
-        limit: position.limit,
-        expiration: position.expiration,
-        start: position.start,
-        challengePeriod: position.challengePeriod,
-        riskPremiumPPM: position.riskPremiumPPM,
+        address: position.address, original: position.original, isOriginal: position.isOriginal,
+        collateral: position.collateral, collateralName: position.collateralName,
+        collateralSymbol: position.collateralSymbol, collateralDecimals: position.collateralDecimals,
+        minimumCollateral: position.minimumCollateral, limit: position.limit,
+        expiration: position.expiration, start: position.start,
+        challengePeriod: position.challengePeriod, riskPremiumPPM: position.riskPremiumPPM,
         reserveContribution: position.reserveContribution,
     })}></script>
     <script id="mint-i18n" type="application/json" set:html={JSON.stringify(clientI18n)}></script>
@@ -184,113 +155,24 @@ const clientI18n = {
     import { ADDRESSES } from "@config/addresses";
     import { getMarketPriceCHF } from "@lib/prices";
     import { findStaticPosition, loadPositionDetail, type PositionStaticDetail } from "@lib/positionDetail";
-    import {
-        getAllowance, approveCollateral, executeClone, executeCloneWithPrice,
-    } from "@lib/borrowActions";
+    import { getAllowance, approveCollateral, executeClone, executeCloneWithPrice } from "@lib/borrowActions";
     import { clearPositionsCache } from "@lib/positions";
+    import { previewCloneWithPrice, validateCloneInputs, type CloneParentInfo } from "@lib/cloneHelper";
+    import { getRawProvider, readChainId, forceMainnet, isUserCancelErr, isWalletRpcError, ETH_CHAIN_ID_HEX } from "@lib/walletProvider";
+    import { fmt, fmtPlain, parseNum, toBig, fromBig, applyClamp, guardKeystrokes } from "@lib/inputFormat";
     import { localePath } from "@i18n/t";
     import type { Locale } from "@i18n/messages";
 
-    // ==================== CONSTANTS & DATA ====================
     const $ = (id: string) => document.getElementById(id) as HTMLElement;
-    const data = JSON.parse($("position-data").textContent || "{}") as PositionStaticDetail & {
-        limit: any; minimumCollateral: any;
-    };
+    const data = JSON.parse($("position-data").textContent || "{}") as PositionStaticDetail & { limit: any; minimumCollateral: any };
     const i18n = JSON.parse($("mint-i18n").textContent || "{}") as Record<string, string>;
     const locale = JSON.parse($("mint-locale").textContent || '"en"') as string;
 
     const PRICE_DIGIT = 36 - data.collateralDecimals;
     const SLIDER_RES = 1000;
-    const ETH_CHAIN_ID_HEX = "0x1";
     const ONE_E18 = 10n ** 18n;
 
-    // ==================== FORMAT HELPERS ====================
-    const fmt = (n: number, min = 2, max = 2) =>
-        n.toLocaleString("en-US", { minimumFractionDigits: min, maximumFractionDigits: max });
-    const fmtPlain = (n: number, max = 8) =>
-        n.toLocaleString("en-US", { useGrouping: false, maximumFractionDigits: max });
-    const parseNum = (s: string) => {
-        const n = parseFloat(s.trim().replace(/,/g, ""));
-        return Number.isFinite(n) && n >= 0 ? n : 0;
-    };
-    const toBig = (n: number, dec: number): bigint => {
-        if (n <= 0) return 0n;
-        const [whole, frac = ""] = n.toString().split(".");
-        return BigInt(whole + (frac + "0".repeat(dec)).slice(0, dec));
-    };
-    const fromBig = (v: bigint, dec: number) => Number(v) / Math.pow(10, dec);
-
-    const isValidPartial = (next: string, dec: number): boolean => {
-        if (next === "") return true;
-        const re = dec === 0 ? /^\d*$/ : new RegExp(`^\\d*(\\.\\d{0,${dec}})?$`);
-        return re.test(next);
-    };
-    const clampDecimals = (raw: string, dec: number): string => {
-        let s = raw.replace(/,/g, ".").replace(/[^\d.]/g, "");
-        const firstDot = s.indexOf(".");
-        if (firstDot !== -1) {
-            s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, "");
-            const [whole, frac = ""] = s.split(".");
-            s = dec === 0 ? whole : whole + "." + frac.slice(0, dec);
-        }
-        return s;
-    };
-    const applyClamp = (input: HTMLInputElement, dec: number): string => {
-        const trimmed = clampDecimals(input.value, dec);
-        if (trimmed !== input.value) {
-            const pos = input.selectionStart;
-            input.value = trimmed;
-            if (pos !== null) {
-                const caret = Math.min(pos, trimmed.length);
-                input.setSelectionRange(caret, caret);
-            }
-        }
-        return trimmed;
-    };
-
-    // ==================== RAW PROVIDER ACCESS ====================
-    // Web3-onboard wraps window.ethereum with middleware that desyncs from
-    // the wallet's actual chain and throws "JSON-RPC version not supported".
-    // We talk to window.ethereum directly for chain ops and tx signing.
-    function getRawProvider(): any {
-        const eth = (window as any).ethereum;
-        if (!eth) return null;
-        if (Array.isArray(eth.providers) && eth.providers.length) {
-            const mm = eth.providers.find((p: any) => p.isMetaMask && !p.isBraveWallet);
-            return mm ?? eth.providers[0];
-        }
-        return eth;
-    }
-    async function readChainId(): Promise<string | null> {
-        const p = getRawProvider();
-        if (!p?.request) return null;
-        try {
-            const id = await p.request({ method: "eth_chainId" });
-            return typeof id === "string" ? id.toLowerCase() : null;
-        } catch { return null; }
-    }
-    async function forceMainnet(): Promise<void> {
-        const p = getRawProvider();
-        if (!p?.request) throw new Error("No wallet provider available");
-        await p.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: ETH_CHAIN_ID_HEX }],
-        });
-    }
-    function isUserCancelErr(err: any): boolean {
-        const code = err?.code ?? err?.cause?.code;
-        if (code === 4001) return true;
-        return /reject|denied|cancel/i.test(err?.message ?? "");
-    }
-    function isWalletRpcError(err: any): boolean {
-        const msg = (err?.message ?? err?.cause?.message ?? "").toString().toLowerCase();
-        const code = err?.code ?? err?.cause?.code;
-        if (msg.includes("json-rpc") || msg.includes("json rpc")) return true;
-        if (code === -32603 || code === -32000 || code === -32601 || code === -32006) return true;
-        return false;
-    }
-
-    // ==================== STATE ====================
+    // ─── State ──────────────────────────────────────────────────────────
     let lastEdited: "coll" | "mint" = "coll";
     let linked = true;
     let maxSelected = true;
@@ -307,47 +189,29 @@ const clientI18n = {
     let allowanceHelper = 0n;
     let isClosed = false;
     let cooldown = 0;
-    let challengedAmount = 0n;
     let collateralPriceZchf = 0;
 
-    // ==================== ELEMENT REFS ====================
     const e = {
-        coll: $("input-coll") as HTMLInputElement,
-        mint: $("input-mint") as HTMLInputElement,
-        balanceColl: $("balance-coll"),
-        mintable: $("mintable-amount"),
-        poolCapacity: $("pool-capacity"),
-        maxColl: $("btn-max-coll") as HTMLButtonElement,
-        maxMint: $("btn-max-mint") as HTMLButtonElement,
-        link: $("btn-link") as HTMLButtonElement,
-        linkWrap: $("link-wrap"),
-        sliderSection: $("slider-section"),
-        sliderFallback: $("slider-fallback"),
+        coll: $("input-coll") as HTMLInputElement, mint: $("input-mint") as HTMLInputElement,
+        balanceColl: $("balance-coll"), mintable: $("mintable-amount"), poolCapacity: $("pool-capacity"),
+        maxColl: $("btn-max-coll") as HTMLButtonElement, maxMint: $("btn-max-mint") as HTMLButtonElement,
+        link: $("btn-link") as HTMLButtonElement, linkWrap: $("link-wrap"),
+        sliderSection: $("slider-section"), sliderFallback: $("slider-fallback"),
         slider: $("slider-price") as HTMLInputElement,
-        priceValue: $("price-value"),
-        priceValueStatic: $("price-value-static"),
-        ltv: $("ltv-value"),
-        cooldownWarn: $("cooldown-warning"),
-        date: $("input-date") as HTMLInputElement,
-        expiryHint: $("expiry-hint"),
-        outMinted: $("out-minted"),
-        outReserve: $("out-reserve"),
-        outReservePct: $("out-reserve-pct"),
-        outRepaid: $("out-repaid"),
-        outRepaidPct: $("out-repaid-pct"),
-        outFee: $("out-fee"),
-        outRate: $("out-rate"),
-        outNet: $("out-net"),
-        actionsConnected: $("actions-connected"),
-        actionsDisconnected: $("actions-disconnected"),
+        priceValue: $("price-value"), priceValueStatic: $("price-value-static"),
+        ltv: $("ltv-value"), cooldownWarn: $("cooldown-warning"),
+        date: $("input-date") as HTMLInputElement, expiryHint: $("expiry-hint"),
+        outMinted: $("out-minted"), outReserve: $("out-reserve"), outReservePct: $("out-reserve-pct"),
+        outRepaid: $("out-repaid"), outRepaidPct: $("out-repaid-pct"),
+        outFee: $("out-fee"), outRate: $("out-rate"), outNet: $("out-net"),
+        actionsConnected: $("actions-connected"), actionsDisconnected: $("actions-disconnected"),
         action: $("btn-action") as HTMLButtonElement,
         actionLabel: document.querySelector(".btn-action-label") as HTMLElement,
         actionError: $("action-error"),
-        connect: $("btn-connect") as HTMLButtonElement,
-        banner: $("banner"),
+        connect: $("btn-connect") as HTMLButtonElement, banner: $("banner"),
     };
 
-    // ==================== ERROR HANDLING ====================
+    // ─── Errors ─────────────────────────────────────────────────────────
     function showError(msg: string | null) {
         e.actionError.classList.toggle("hidden", !msg);
         e.actionError.textContent = msg ?? "";
@@ -357,11 +221,7 @@ const clientI18n = {
         e.actionError.innerHTML = "";
         const wrap = document.createElement("div");
         wrap.className = "rpc-error";
-        for (const [cls, text] of [
-            ["rpc-error-title", i18n.errRpcTitle],
-            ["rpc-error-body", i18n.errRpcBody],
-            ["rpc-error-help", i18n.errRpcHelp],
-        ] as const) {
+        for (const [cls, text] of [["rpc-error-title", i18n.errRpcTitle], ["rpc-error-body", i18n.errRpcBody], ["rpc-error-help", i18n.errRpcHelp]] as const) {
             const div = document.createElement("div");
             div.className = cls;
             div.textContent = text;
@@ -369,19 +229,13 @@ const clientI18n = {
         }
         e.actionError.append(wrap);
     }
-    /** Centralized handler for tx click failures: cancel → toast, RPC → inline panel, else → toast */
     function handleErr(err: any) {
-        if (isUserCancelErr(err)) {
-            toast(i18n.cancelled, "info");
-        } else if (isWalletRpcError(err)) {
-            showRpcError();
-        } else {
-            const { message } = friendlyError(err);
-            toast(message, "error");
-        }
+        if (isUserCancelErr(err)) toast(i18n.cancelled, "info");
+        else if (isWalletRpcError(err)) showRpcError();
+        else toast(friendlyError(err).message, "error");
     }
 
-    // ==================== SLIDER & PRICE MATH ====================
+    // ─── Slider math (price <-> %, only thing not in lib because it's UI-specific) ─
     function bounds() {
         const m = collateralPriceZchf || 1;
         return { min: m * 0.1, max: m };
@@ -402,94 +256,128 @@ const clientI18n = {
         const scale = Math.max(max - min, 1e-10);
         return Math.max(0, Math.min(SLIDER_RES, ((v - min) / scale) * SLIDER_RES));
     }
-    function effectiveMintPrice(): bigint {
-        return newPrice <= parentPrice ? newPrice : parentPrice;
-    }
-    function borrowingLimit(): bigint {
-        const p = effectiveMintPrice();
-        if (p === 0n) return 0n;
-        const byCollateral = (collAmount * p) / ONE_E18;
-        return availableForClones < byCollateral ? availableForClones : byCollateral;
+
+    // ─── Adapters: page state -> cloneHelper lib shapes ─────────────────
+    function asParent(): CloneParentInfo {
+        return {
+            address: data.address as Address,
+            price: parentPrice,
+            minimumCollateral: BigInt(data.minimumCollateral),
+            collateralDecimals: data.collateralDecimals,
+            reserveContribution: data.reserveContribution,
+            annualInterestPPM,
+            expiration: data.expiration,
+            availableForClones,
+        };
     }
     function activeAllowance(): bigint {
         return newPrice === parentPrice ? allowanceHub : allowanceHelper;
     }
     function activeSpender(): Address {
-        return (newPrice === parentPrice
-            ? ADDRESSES.ethereum.mintingHubV2!
-            : ADDRESSES.ethereum.cloneHelper!) as Address;
+        return (newPrice === parentPrice ? ADDRESSES.ethereum.mintingHubV2! : ADDRESSES.ethereum.cloneHelper!) as Address;
     }
-
-    // ==================== LINKED INPUT SYNC ====================
-    function syncMintFromColl() {
-        if (!linked) return;
-        mintAmount = (collAmount * effectiveMintPrice()) / ONE_E18;
-    }
-    function syncCollFromMint() {
-        if (!linked) return;
-        const p = effectiveMintPrice();
-        if (p > 0n) collAmount = (mintAmount * ONE_E18 + p - 1n) / p;
-    }
-    function syncFromLastEdited() {
-        if (lastEdited === "coll") syncMintFromColl();
-        else syncCollFromMint();
-    }
-
-    // ==================== DATE TABS ====================
     const TAB_DAYS: Record<string, number> = { "1M": 30, "3M": 90, "6M": 180, "1Y": 365 };
+    function pickedDateTs(): number {
+        if (!e.date.value || maxSelected) return data.expiration;
+        const localEod = Math.floor(new Date(`${e.date.value}T23:59:59`).getTime() / 1000);
+        return Math.min(localEod, data.expiration);
+    }
     function applyTab(tab: string) {
         maxSelected = tab === "MAX";
         const max = new Date(data.expiration * 1000);
-        const target = tab === "MAX"
-            ? max
-            : new Date(Math.min(Date.now() + TAB_DAYS[tab] * 86400e3, max.getTime()));
+        const target = tab === "MAX" ? max : new Date(Math.min(Date.now() + TAB_DAYS[tab] * 86400e3, max.getTime()));
         e.date.value = target.toISOString().slice(0, 10);
-        document.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach(b =>
-            b.classList.toggle("active", b.dataset.tab === tab));
+        document.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
         render();
     }
-    function pickedDateTs(dateStr: string): number {
-        if (!dateStr || maxSelected) return data.expiration;
-        const localEod = Math.floor(new Date(`${dateStr}T23:59:59`).getTime() / 1000);
-        return Math.min(localEod, data.expiration);
+
+    // ─── Linked input sync ──────────────────────────────────────────────
+    function effectivePrice(): bigint {
+        return newPrice <= parentPrice ? newPrice : parentPrice;
+    }
+    function syncFromLastEdited() {
+        if (!linked) return;
+        const p = effectivePrice();
+        if (lastEdited === "coll") mintAmount = (collAmount * p) / ONE_E18;
+        else if (p > 0n) collAmount = (mintAmount * ONE_E18 + p - 1n) / p;
     }
 
-    // ==================== VALIDATION ====================
-    function validate(): { ok: boolean; reason: string | null } {
-        if (mintAmount <= 0n) return { ok: false, reason: i18n.errAmountRequired };
-        const minColl = BigInt(data.minimumCollateral);
-        if (collAmount < minColl) {
-            const niceMin = fmt(fromBig(minColl, data.collateralDecimals), 0, data.collateralDecimals);
-            return {
-                ok: false,
-                reason: i18n.errMinCollateralTemplate
-                    .replace("{amount}", niceMin)
-                    .replace("{symbol}", i18n.symbol),
-            };
+    // ─── Render: pull preview from lib, paint DOM ──────────────────────
+    function render() {
+        const dec = data.collateralDecimals;
+        const preview = previewCloneWithPrice(asParent(), {
+            collateralAmount: collAmount, mintAmount, expiration: pickedDateTs(), newPrice,
+        });
+
+        // Slider visuals
+        const priceFloat = fromBig(newPrice, PRICE_DIGIT);
+        e.priceValue.textContent = fmt(priceFloat, 2, priceFloat < 1 ? 4 : 2);
+        if (collateralPriceZchf > 0) {
+            e.sliderSection.style.setProperty("--source", `${pct(parentPrice)}%`);
+            e.sliderSection.style.setProperty("--value", `${pct(newPrice)}%`);
+            e.slider.value = String(priceToSlider(newPrice));
         }
-        if (connected && collAmount > userBalance) return { ok: false, reason: i18n.errBalanceLow };
-        if (mintAmount > availableForClones) return { ok: false, reason: i18n.errExceedsPool };
-        if (mintAmount > borrowingLimit()) return { ok: false, reason: i18n.errExceedsCollateral };
-        return { ok: true, reason: null };
-    }
-    function isPositionBlocked(): boolean {
-        if (isClosed) return true;
-        const now = Date.now();
-        return data.start * 1000 > now || cooldown * 1000 > now;
-    }
+        e.ltv.textContent = collateralPriceZchf > 0 ? `${fmt((priceFloat / collateralPriceZchf) * 100, 2, 2)}%` : "—";
+        e.cooldownWarn.classList.toggle("hidden", !preview.triggersCooldown);
 
-    // ==================== RENDER ====================
-    function syncActionButton() {
-        if (!connected) return;
-        const v = validate();
-        const needsApproval = activeAllowance() < collAmount;
-        const label = needsApproval
-            ? i18n.actionApproveTemplate.replace("{symbol}", i18n.symbol)
-            : i18n.actionMint;
-        e.actionLabel.textContent = label;
-        e.action.disabled = !v.ok || isPositionBlocked();
-    }
-    function syncBanner() {
+        // Capacities + inputs
+        e.mintable.textContent = fmt(fromBig(preview.mintLimitNow, 18), 0, 0);
+        e.poolCapacity.textContent = `${fmt(fromBig(availableForClones, 18), 0, 0)} ZCHF`;
+        if (document.activeElement !== e.coll) e.coll.value = fmtPlain(fromBig(collAmount, dec), dec);
+        if (document.activeElement !== e.mint) e.mint.value = fmtPlain(fromBig(mintAmount, 18), 18);
+
+        // Outcome breakdown — all numbers from preview
+        const reservePct = data.reserveContribution / 10000;
+        e.outMinted.textContent = `${fmt(fromBig(mintAmount, 18), 0, 2)} ZCHF`;
+        e.outReserve.textContent = `−${fmt(fromBig(preview.reserveAmount, 18), 0, 2)} ZCHF`;
+        e.outReservePct.textContent = `(${fmt(reservePct, 0, 2)}%)`;
+        e.outRepaid.textContent = `${fmt(fromBig(mintAmount - preview.reserveAmount, 18), 0, 2)} ZCHF`;
+        e.outRepaidPct.textContent = `(${fmt(100 - reservePct, 0, 2)}%)`;
+        e.outFee.textContent = `−${fmt(fromBig(preview.upfrontInterest, 18), 0, 2)} ZCHF`;
+        e.outRate.textContent = `(${i18n.perYearTemplate.replace("{rate}", fmt(preview.effectiveAnnualRate * 100, 2, 2))})`;
+        e.outNet.textContent = `${fmt(fromBig(preview.netToWallet, 18), 0, 2)} ZCHF`;
+
+        // Expiry hint
+        if (e.date.value) {
+            const d = new Date(pickedDateTs() * 1000);
+            e.expiryHint.textContent = i18n.expiryHintTemplate
+                .replace("{date}", d.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }))
+                .replace("{time}", d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }));
+        } else e.expiryHint.innerHTML = "&nbsp;";
+
+        // Validation -> error panel + button state
+        const issues = validateCloneInputs(asParent(), {
+            collateralAmount: collAmount, mintAmount, expiration: pickedDateTs(), newPrice,
+        });
+        const i18nForIssue = (code: string): string => {
+            switch (code) {
+                case "below_minimum": return i18n.errMinCollateralTemplate
+                    .replace("{amount}", fmt(fromBig(BigInt(data.minimumCollateral), dec), 0, dec))
+                    .replace("{symbol}", i18n.symbol);
+                case "exceeds_capacity": return mintAmount > availableForClones ? i18n.errExceedsPool : i18n.errExceedsCollateral;
+                case "expiration_past": case "expiration_after_parent": return i18n.errAmountRequired;
+                default: return i18n.errAmountRequired;
+            }
+        };
+        const balanceLow = !!connected && collAmount > userBalance;
+        const reason = mintAmount <= 0n ? i18n.errAmountRequired
+            : balanceLow ? i18n.errBalanceLow
+            : issues[0] ? i18nForIssue(issues[0].code) : null;
+
+        if (!e.actionError.querySelector(".rpc-error")) {
+            showError(connected && mintAmount > 0n ? reason : null);
+        }
+
+        // Action button
+        if (connected) {
+            const needsApproval = activeAllowance() < collAmount;
+            e.actionLabel.textContent = needsApproval
+                ? i18n.actionApproveTemplate.replace("{symbol}", i18n.symbol)
+                : i18n.actionMint;
+            e.action.disabled = !!reason || balanceLow || isPositionBlocked();
+        }
+
+        // Banner
         const now = Date.now();
         if (data.start * 1000 > now) {
             e.banner.textContent = i18n.statusPending;
@@ -497,105 +385,36 @@ const clientI18n = {
         } else if (cooldown * 1000 > now) {
             e.banner.textContent = i18n.statusCooldown;
             e.banner.classList.remove("hidden");
-        } else {
-            e.banner.classList.add("hidden");
-        }
+        } else e.banner.classList.add("hidden");
     }
-    function render() {
-        const dec = data.collateralDecimals;
-        const priceFloat = fromBig(newPrice, PRICE_DIGIT);
-        e.priceValue.textContent = fmt(priceFloat, 2, priceFloat < 1 ? 4 : 2);
-
-        if (collateralPriceZchf > 0) {
-            e.sliderSection.style.setProperty("--source", `${pct(parentPrice)}%`);
-            e.sliderSection.style.setProperty("--value", `${pct(newPrice)}%`);
-            e.slider.value = String(priceToSlider(newPrice));
-        }
-
-        e.ltv.textContent = collateralPriceZchf > 0
-            ? `${fmt((priceFloat / collateralPriceZchf) * 100, 2, 2)}%` : "—";
-        e.cooldownWarn.classList.toggle("hidden", newPrice <= parentPrice);
-        e.mintable.textContent = fmt(fromBig(borrowingLimit(), 18), 0, 0);
-        e.poolCapacity.textContent = `${fmt(fromBig(availableForClones, 18), 0, 0)} ZCHF`;
-
-        if (document.activeElement !== e.coll) e.coll.value = fmtPlain(fromBig(collAmount, dec), dec);
-        if (document.activeElement !== e.mint) e.mint.value = fmtPlain(fromBig(mintAmount, 18), 18);
-
-        const reservePct = data.reserveContribution / 10000;
-        const repaidPct = 100 - reservePct;
-        const reserveRatio = data.reserveContribution / 1_000_000;
-        const nominalRate = annualInterestPPM / 1_000_000;
-        const effectiveRate = reserveRatio < 1 ? nominalRate / (1 - reserveRatio) : nominalRate;
-        const reserveAmt = (mintAmount * BigInt(data.reserveContribution)) / 1_000_000n;
-        const repaidAmt = mintAmount - reserveAmt;
-        const dateTs = pickedDateTs(e.date.value);
-        const secs = Math.max(0, dateTs - Math.floor(Date.now() / 1000));
-        const fee = (mintAmount * BigInt(secs) * BigInt(annualInterestPPM)) / (BigInt(365 * 86400) * 1_000_000n);
-        const net = mintAmount > reserveAmt + fee ? mintAmount - reserveAmt - fee : 0n;
-
-        if (e.date.value) {
-            const expiryDate = new Date(dateTs * 1000);
-            const dateStr = expiryDate.toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" });
-            const timeStr = expiryDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-            e.expiryHint.textContent = i18n.expiryHintTemplate
-                .replace("{date}", dateStr).replace("{time}", timeStr);
-        } else {
-            e.expiryHint.innerHTML = "&nbsp;";
-        }
-
-        e.outMinted.textContent = `${fmt(fromBig(mintAmount, 18), 0, 2)} ZCHF`;
-        e.outReserve.textContent = `−${fmt(fromBig(reserveAmt, 18), 0, 2)} ZCHF`;
-        e.outReservePct.textContent = `(${fmt(reservePct, 0, 2)}%)`;
-        e.outRepaid.textContent = `${fmt(fromBig(repaidAmt, 18), 0, 2)} ZCHF`;
-        e.outRepaidPct.textContent = `(${fmt(repaidPct, 0, 2)}%)`;
-        e.outFee.textContent = `−${fmt(fromBig(fee, 18), 0, 2)} ZCHF`;
-        e.outRate.textContent = `(${i18n.perYearTemplate.replace("{rate}", fmt(effectiveRate * 100, 2, 2))})`;
-        e.outNet.textContent = `${fmt(fromBig(net, 18), 0, 2)} ZCHF`;
-
-        // Don't overwrite RPC error panel with a validation message
-        const v = validate();
-        if (!e.actionError.querySelector(".rpc-error")) {
-            showError(connected && mintAmount > 0n ? v.reason : null);
-        }
-        syncActionButton();
-        syncBanner();
+    function isPositionBlocked(): boolean {
+        if (isClosed) return true;
+        const now = Date.now();
+        return data.start * 1000 > now || cooldown * 1000 > now;
     }
 
-    // ==================== INPUT HANDLERS ====================
-    const guardKeystrokes = (input: HTMLInputElement, dec: number) => {
-        input.addEventListener("beforeinput", (ev) => {
-            const ie = ev as InputEvent;
-            if (!ie.data) return;
-            const start = input.selectionStart ?? input.value.length;
-            const end = input.selectionEnd ?? input.value.length;
-            const insert = ie.data.replace(/,/g, ".");
-            const next = input.value.slice(0, start) + insert + input.value.slice(end);
-            if (!isValidPartial(next, dec)) ie.preventDefault();
-        });
-    };
+    // ─── Input handlers ────────────────────────────────────────────────
     guardKeystrokes(e.coll, data.collateralDecimals);
     guardKeystrokes(e.mint, 18);
 
     e.coll.addEventListener("input", () => {
         lastEdited = "coll";
         collAmount = toBig(parseNum(applyClamp(e.coll, data.collateralDecimals)), data.collateralDecimals);
-        syncMintFromColl();
+        syncFromLastEdited();
         render();
     });
     e.mint.addEventListener("input", () => {
         lastEdited = "mint";
         mintAmount = toBig(parseNum(applyClamp(e.mint, 18)), 18);
-        syncCollFromMint();
+        syncFromLastEdited();
         render();
     });
-    e.maxColl.addEventListener("click", () => {
-        collAmount = userBalance;
-        syncMintFromColl();
-        render();
-    });
+    e.maxColl.addEventListener("click", () => { collAmount = userBalance; lastEdited = "coll"; syncFromLastEdited(); render(); });
     e.maxMint.addEventListener("click", () => {
-        mintAmount = borrowingLimit();
-        syncCollFromMint();
+        const preview = previewCloneWithPrice(asParent(), { collateralAmount: collAmount, mintAmount: 0n, expiration: pickedDateTs(), newPrice });
+        mintAmount = preview.mintLimitNow;
+        lastEdited = "mint";
+        syncFromLastEdited();
         render();
     });
     e.link.addEventListener("click", () => {
@@ -618,54 +437,38 @@ const clientI18n = {
     });
     document.querySelectorAll<HTMLButtonElement>(".tab-btn").forEach(b =>
         b.addEventListener("click", () => applyTab(b.dataset.tab!)));
-
     e.connect.addEventListener("click", () => getOnboard().connectWallet());
 
-    // ==================== TX FLOW ====================
-    const lockBtn = (label: string) => {
+    // ─── Tx flow ───────────────────────────────────────────────────────
+    function lockBtn(label: string) {
         const original = e.actionLabel.textContent ?? "";
         e.action.dataset.loading = "1";
         e.action.disabled = true;
         e.actionLabel.textContent = label;
-        return () => {
-            delete e.action.dataset.loading;
-            e.actionLabel.textContent = original;
-            syncActionButton();
-        };
-    };
+        return () => { delete e.action.dataset.loading; e.actionLabel.textContent = original; render(); };
+    }
 
-    /** Returns true if we end up on mainnet, false otherwise (and surfaces the error). */
     async function ensureMainnet(): Promise<boolean> {
-        const before = await readChainId();
-        if (before === ETH_CHAIN_ID_HEX) return true;
+        if (await readChainId() === ETH_CHAIN_ID_HEX) return true;
         const unlock = lockBtn(i18n.actionSwitching);
         try {
             await forceMainnet();
-            const after = await readChainId();
-            if (after !== ETH_CHAIN_ID_HEX) {
-                toast(i18n.cancelled, "info");
-                return false;
-            }
+            if (await readChainId() !== ETH_CHAIN_ID_HEX) { toast(i18n.cancelled, "info"); return false; }
             return true;
-        } catch (err) {
-            handleErr(err);
-            return false;
-        } finally {
-            unlock();
-        }
+        } catch (err) { handleErr(err); return false; }
+        finally { unlock(); }
     }
 
     e.action.addEventListener("click", async () => {
         if (!connected) return;
-
-        // Clear any prior RPC error panel before starting
         e.actionError.classList.add("hidden");
         e.actionError.innerHTML = "";
-
         if (!(await ensureMainnet())) return;
 
-        const v = validate();
-        if (!v.ok) { showError(v.reason); return; }
+        const issues = validateCloneInputs(asParent(), {
+            collateralAmount: collAmount, mintAmount, expiration: pickedDateTs(), newPrice,
+        });
+        if (issues.length > 0 || mintAmount <= 0n) { render(); return; }
 
         const publicClient = getPublicClient("ethereum");
         const rawProvider = getRawProvider();
@@ -676,48 +479,32 @@ const clientI18n = {
         if (needsApproval) {
             const unlock = lockBtn(i18n.actionApproving);
             try {
-                await approveCollateral(walletClient, publicClient,
-                    data.collateral as Address, activeSpender(), connected);
+                await approveCollateral(walletClient, publicClient, data.collateral as Address, activeSpender(), connected);
                 if (newPrice === parentPrice) {
-                    allowanceHub = await getAllowance(publicClient, data.collateral as Address,
-                        connected, ADDRESSES.ethereum.mintingHubV2! as Address);
+                    allowanceHub = await getAllowance(publicClient, data.collateral as Address, connected, ADDRESSES.ethereum.mintingHubV2! as Address);
                 } else {
-                    allowanceHelper = await getAllowance(publicClient, data.collateral as Address,
-                        connected, ADDRESSES.ethereum.cloneHelper! as Address);
+                    allowanceHelper = await getAllowance(publicClient, data.collateral as Address, connected, ADDRESSES.ethereum.cloneHelper! as Address);
                 }
                 toast(i18n.toastApproved, "success");
-            } catch (err) {
-                handleErr(err);
-            } finally {
-                unlock();
-            }
+            } catch (err) { handleErr(err); }
+            finally { unlock(); }
             return;
         }
 
         const unlock = lockBtn(i18n.actionMinting);
         try {
-            const expirationTs = pickedDateTs(e.date.value);
-            const args = {
-                parent: data.address as Address,
-                collateral: collAmount,
-                mint: mintAmount,
-                expiration: expirationTs,
-                account: connected,
-            };
+            const args = { parent: data.address as Address, collateral: collAmount, mint: mintAmount, expiration: pickedDateTs(), account: connected };
             const result = newPrice === parentPrice
                 ? await executeClone(walletClient, publicClient, args)
                 : await executeCloneWithPrice(walletClient, publicClient, { ...args, newPrice });
             toast(i18n.toastMinted, "success");
             clearPositionsCache();
             window.location.href = localePath(locale as Locale, `/mypositions/${result.position}`);
-        } catch (err) {
-            handleErr(err);
-        } finally {
-            unlock();
-        }
+        } catch (err) { handleErr(err); }
+        finally { unlock(); }
     });
 
-    // ==================== INIT ====================
+    // ─── Init ──────────────────────────────────────────────────────────
     function setConnectedUI(isConnected: boolean) {
         e.actionsConnected.classList.toggle("hidden", !isConnected);
         e.actionsDisconnected.classList.toggle("hidden", isConnected);
@@ -740,7 +527,6 @@ const clientI18n = {
             annualInterestPPM = detail.annualInterestPPM;
             isClosed = detail.isClosed;
             cooldown = detail.cooldown;
-            challengedAmount = detail.challengedAmount;
             if (userAtFetchStart) {
                 userBalance = detail.userBalance;
                 allowanceHub = detail.allowanceHub;
@@ -760,13 +546,8 @@ const clientI18n = {
 
     getOnboard().state.select("wallets").subscribe((wallets) => {
         const w = wallets[0];
-        if (w?.accounts[0]) {
-            connected = w.accounts[0].address as Address;
-            setConnectedUI(true);
-        } else {
-            connected = null;
-            setConnectedUI(false);
-        }
+        if (w?.accounts[0]) { connected = w.accounts[0].address as Address; setConnectedUI(true); }
+        else { connected = null; setConnectedUI(false); }
         refreshPositionDetail();
     });
 
