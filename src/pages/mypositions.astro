@@ -2,7 +2,7 @@
 import Layout from "@layouts/Layout.astro";
 import WalletConnect from "@components/WalletConnect.astro";
 import Card from "@components/Card.astro";
-import { t, getLocale } from "@i18n/t";
+import { t, getLocale, safeJsonForScript } from "@i18n/t";
 
 import bossIcon from "@assets/tokens/boss.svg?url";
 import cbbtcIcon from "@assets/tokens/cbbtc.svg?url";
@@ -137,8 +137,8 @@ const i18n = {
         </section>
     </main>
 
-    <script id="mypos-i18n" type="application/json" set:html={JSON.stringify(i18n)}></script>
-    <script id="mypos-locale" type="application/json" set:html={JSON.stringify(locale)}></script>
+    <script id="mypos-i18n" type="application/json" set:html={safeJsonForScript(i18n)}></script>
+    <script id="mypos-locale" type="application/json" set:html={safeJsonForScript(locale)}></script>
 </Layout>
 
 <script>

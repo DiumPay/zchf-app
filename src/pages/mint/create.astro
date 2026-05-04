@@ -4,7 +4,7 @@ import Card from "@components/Card.astro";
 import Button from "@components/Button.astro";
 import WalletConnect from "@components/WalletConnect.astro";
 import ExternalLinkIcon from "@assets/icons/square-arrow-out-up-right.svg";
-import { t, getLocale } from "@i18n/t";
+import { t, getLocale, safeJsonForScript } from "@i18n/t";
 import zchfIcon from "@assets/tokens/zchf.svg?url";
 
 const tt = t(Astro.url);
@@ -344,8 +344,8 @@ const i18n = {
         </div>
     </main>
 
-    <script id="create-i18n" type="application/json" set:html={JSON.stringify(i18n)}></script>
-    <script id="create-locale" type="application/json" set:html={JSON.stringify(locale)}></script>
+    <script id="create-i18n" type="application/json" set:html={safeJsonForScript(i18n)}></script>
+    <script id="create-locale" type="application/json" set:html={safeJsonForScript(locale)}></script>
 </Layout>
 
 <script>

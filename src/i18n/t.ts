@@ -95,3 +95,7 @@ export function switchLocaleUrl(currentUrl: URL | string, target: Locale): strin
     // Preserve query string (?address=0x...) and hash (#section)
     return localePath(target, stripped) + url.search + url.hash;
 }
+
+export function safeJsonForScript(value: unknown): string {
+    return JSON.stringify(value).replace(/</g, "\\u003c");
+}

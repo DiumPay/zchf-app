@@ -7,7 +7,7 @@ import PiggyBank from "@assets/icons/piggy-bank.svg";
 import Deposit from "@assets/icons/deposit.svg";
 import Withdraw from "@assets/icons/withdraw.svg";
 import Compound from "@assets/icons/compound.svg";
-import { t, getLocale } from "@i18n/t";
+import { t, getLocale, safeJsonForScript } from "@i18n/t";
 
 const tt = t(Astro.url);
 const locale = getLocale(Astro.url);
@@ -152,8 +152,8 @@ const clientStrings = {
     </main>
 </Layout>
 
-<script id="earn-i18n" type="application/json" set:html={JSON.stringify(clientStrings)}></script>
-<script id="earn-locale" type="application/json" set:html={JSON.stringify(locale)}></script>
+<script id="earn-i18n" type="application/json" set:html={safeJsonForScript(clientStrings)}></script>
+<script id="earn-locale" type="application/json" set:html={safeJsonForScript(locale)}></script>
 
 <script>
     import { formatUnits, parseUnits, maxUint256, isAddress, type Address, erc20Abi } from "viem";

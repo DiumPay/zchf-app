@@ -8,7 +8,7 @@ import ExpirationPicker from "@components/mint/ExpirationPicker.astro";
 import OutcomeBreakdown from "@components/mint/OutcomeBreakdown.astro";
 import MintActions from "@components/mint/MintActions.astro";
 import snapshot from "@data/positions-snapshot.json";
-import { t, getLocale } from "@i18n/t";
+import { t, getLocale, safeJsonForScript } from "@i18n/t";
 
 import zchfIcon from "@assets/tokens/zchf.svg?url";
 import bossIcon from "@assets/tokens/boss.svg?url";
@@ -140,17 +140,17 @@ const clientI18n = {
         </Card>
     </main>
 
-    <script id="position-data" type="application/json" set:html={JSON.stringify({
-        address: position.address, original: position.original, isOriginal: position.isOriginal,
-        collateral: position.collateral, collateralName: position.collateralName,
-        collateralSymbol: position.collateralSymbol, collateralDecimals: position.collateralDecimals,
-        minimumCollateral: position.minimumCollateral, limit: position.limit,
-        expiration: position.expiration, start: position.start,
-        challengePeriod: position.challengePeriod, riskPremiumPPM: position.riskPremiumPPM,
-        reserveContribution: position.reserveContribution,
+    <script id="position-data" type="application/json" set:html={safeJsonForScript({
+    address: position.address, original: position.original, isOriginal: position.isOriginal,
+    collateral: position.collateral, collateralName: position.collateralName,
+    collateralSymbol: position.collateralSymbol, collateralDecimals: position.collateralDecimals,
+    minimumCollateral: position.minimumCollateral, limit: position.limit,
+    expiration: position.expiration, start: position.start,
+    challengePeriod: position.challengePeriod, riskPremiumPPM: position.riskPremiumPPM,
+    reserveContribution: position.reserveContribution,
     })}></script>
-    <script id="mint-i18n" type="application/json" set:html={JSON.stringify(clientI18n)}></script>
-    <script id="mint-locale" type="application/json" set:html={JSON.stringify(getLocale(Astro.url))}></script>
+    <script id="mint-i18n" type="application/json" set:html={safeJsonForScript(clientI18n)}></script>
+    <script id="mint-locale" type="application/json" set:html={safeJsonForScript(getLocale(Astro.url))}></script>
 </Layout>
 
 <script>

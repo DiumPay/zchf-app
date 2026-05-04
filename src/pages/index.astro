@@ -3,7 +3,7 @@ import Layout from "@layouts/Layout.astro";
 import Card from "@components/Card.astro";
 import Button from "@components/Button.astro";
 import SortIcon from "@assets/icons/arrow-down-narrow-wide.svg";
-import { t, getLocale, localePath } from "@i18n/t";
+import { t, getLocale, localePath, safeJsonForScript } from "@i18n/t";
 
 import bossIcon from "@assets/tokens/boss.svg?url";
 import cbbtcIcon from "@assets/tokens/cbbtc.svg?url";
@@ -146,8 +146,8 @@ const locale = getLocale(Astro.url);
     }
 </style>
 
-<script id="borrow-locale" type="application/json" set:html={JSON.stringify(getLocale(Astro.url))}></script>
-<script id="borrow-i18n" type="application/json" set:html={JSON.stringify({
+<script id="borrow-locale" type="application/json" set:html={safeJsonForScript(getLocale(Astro.url))}></script>
+<script id="borrow-i18n" type="application/json" set:html={safeJsonForScript({
     btn_borrow: tt("borrow_btn_borrow"),
     status_active: tt("borrow_status_active"),
     status_cooldown: tt("borrow_status_cooldown"),
