@@ -172,6 +172,16 @@ const locale = getLocale(Astro.url);
     const iconHost = document.querySelector<HTMLElement>("[data-token-icons]")!;
     const tokenIcons = JSON.parse(iconHost.dataset.tokenIcons || "{}") as Record<string, string>;
 
+    // escape — collateral name/symbol come from snapshot today but flow
+    // through localStorage cache, so treat them as untrusted on render.
+    const esc = (s: unknown): string =>
+        String(s).replace(/[&<>"']/g, c =>
+            ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+
+    // Address validator — defense in depth against tampered cache.
+    const isAddrLike = (s: unknown): s is string =>
+        typeof s === "string" && /^0x[0-9a-fA-F]{40}$/.test(s);
+
     const numberLocale = ({ en: "en-US", de: "de-CH", fr: "fr-CH", it: "it-CH", es: "es-ES" } as Record<string, string>)[locale] ?? "en-US";
 
     const list = $<HTMLUListElement>("positions-list");
@@ -276,6 +286,10 @@ const locale = getLocale(Astro.url);
         empty.classList.add("hidden");
 
         list.innerHTML = positions.map(p => {
+            // Defense in depth: skip rows with malformed addresses that would
+            // otherwise break out of the data-position attribute.
+            if (!isAddrLike(p.address)) return "";
+
             const status = positionStatus(p);
             const liqPrice = liquidationPriceUnits(p);
             const isActive = status === "active";
@@ -283,16 +297,16 @@ const locale = getLocale(Astro.url);
 
             const iconHtml = icon
                 ? `<img src="${icon}" alt="" class="h-9 w-9 shrink-0 rounded-full" />`
-                : `<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[12px] font-bold">${p.collateralSymbol.slice(0, 3)}</div>`;
+                : `<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[12px] font-bold">${esc(p.collateralSymbol.slice(0, 3))}</div>`;
 
             return `<li class="grid grid-cols-1 gap-3 py-4 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] md:items-center md:gap-4">
                 <div class="flex items-center gap-3">
                     ${iconHtml}
                     <div>
-                        <div class="font-bold text-[15px]">${p.collateralName}</div>
+                        <div class="font-bold text-[15px]">${esc(p.collateralName)}</div>
                         <div class="text-[12px] opacity-70">
                             <span class="inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${STATUS_CLASS[status]}">${STATUS_LABEL[status]}</span>
-                            <span class="ml-2">${p.collateralSymbol}</span>
+                            <span class="ml-2">${esc(p.collateralSymbol)}</span>
                         </div>
                     </div>
                 </div>
@@ -333,6 +347,7 @@ const locale = getLocale(Astro.url);
         list.querySelectorAll<HTMLButtonElement>("[data-position]").forEach(btn => {
             btn.addEventListener("click", () => {
                 const addr = btn.dataset.position;
+                if (!isAddrLike(addr)) return; // belt and suspenders
                 window.location.href = localePath(locale as Locale, `/mint/${addr}`);
             });
         });

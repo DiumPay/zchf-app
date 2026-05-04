@@ -159,6 +159,17 @@ const i18n = {
     const tokenIcons = JSON.parse(iconHost.dataset.tokenIcons || "{}") as Record<string, string>;
     const iconFor = (sym: string): string | null => tokenIcons[sym.toLowerCase()] ?? null;
 
+    // XSS escape for any string from the API or chain that lands in innerHTML.
+    // Collateral name/symbol come from arbitrary ERC20 contracts — must escape.
+    const esc = (s: unknown): string =>
+    String(s).replace(/[&<>"']/g, c =>
+        ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+
+    // Address validator. The Frankencoin API is trusted but we defend in depth —
+    // a malformed address must not break out of an href attribute.
+    const isAddrLike = (s: unknown): s is Address =>
+    typeof s === "string" && /^0x[0-9a-fA-F]{40}$/.test(s);
+
     const numberLocale = ({ en: "en-US", de: "de-CH", fr: "fr-CH", it: "it-CH", es: "es-ES" } as Record<string, string>)[locale] ?? "en-US";
 
     const ETH_CHAIN_ID_HEX = "0x1";
@@ -294,44 +305,48 @@ const i18n = {
     }
 
     function renderList() {
-        if (!connected) { setListState("disconnected"); return; }
-        if (positions.length === 0) { setListState("empty"); return; }
+    if (!connected) { setListState("disconnected"); return; }
+    if (positions.length === 0) { setListState("empty"); return; }
 
-        const grid = $("list-grid");
-        grid.innerHTML = "";
-        for (const p of positions) {
-            const status = statusOf(p);
-            const icon = iconFor(p.collateralSymbol);
-            const iconHtml = icon
-                ? `<img src="${icon}" alt="" class="h-9 w-9 shrink-0 rounded-full" />`
-                : `<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[12px] font-bold">${p.collateralSymbol.slice(0, 3)}</div>`;
+    const grid = $("list-grid");
+    grid.innerHTML = "";
+    for (const p of positions) {
+        // Defense in depth: skip rows with malformed addresses that would
+        // otherwise break out of href attributes.
+        if (!isAddrLike(p.address)) continue;
 
-            const card = document.createElement("a");
-            card.href = `?address=${p.address}`;
-            card.className = "block rounded-md border border-foreground/10 bg-background p-5 transition-colors hover:border-foreground/30";
-            card.onclick = (ev) => { ev.preventDefault(); navigate(p.address); };
-            card.innerHTML = `
-                <div class="mb-4 flex items-center gap-3">
-                    ${iconHtml}
-                    <div class="min-w-0 flex-1">
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <div class="text-[15px] font-bold">${p.collateralName}</div>
-                            <span class="inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${status.cls}">${status.label}</span>
-                            ${p.isClone ? `<span class="inline-block rounded bg-foreground/10 px-1.5 py-0.5 text-[11px] font-medium opacity-90">${i18n.badgeClone}</span>` : ""}
-                        </div>
-                        <div class="text-[12px] opacity-90">${p.collateralSymbol}</div>
+        const status = statusOf(p);
+        const icon = iconFor(p.collateralSymbol);
+        const iconHtml = icon
+            ? `<img src="${icon}" alt="" class="h-9 w-9 shrink-0 rounded-full" />`
+            : `<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[12px] font-bold">${esc(p.collateralSymbol.slice(0, 3))}</div>`;
+
+        const card = document.createElement("a");
+        card.href = `?address=${p.address}`;
+        card.className = "block rounded-md border border-foreground/10 bg-background p-5 transition-colors hover:border-foreground/30";
+        card.onclick = (ev) => { ev.preventDefault(); navigate(p.address); };
+        card.innerHTML = `
+            <div class="mb-4 flex items-center gap-3">
+                ${iconHtml}
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <div class="text-[15px] font-bold">${esc(p.collateralName)}</div>
+                        <span class="inline-block rounded px-1.5 py-0.5 text-[11px] font-medium ${status.cls}">${status.label}</span>
+                        ${p.isClone ? `<span class="inline-block rounded bg-foreground/10 px-1.5 py-0.5 text-[11px] font-medium opacity-90">${i18n.badgeClone}</span>` : ""}
                     </div>
+                    <div class="text-[12px] opacity-90">${esc(p.collateralSymbol)}</div>
                 </div>
-                <div class="space-y-2 text-[14px]">
-                    <div class="flex justify-between"><span class="opacity-90">${i18n.cardMinted}</span><span class="font-medium">${fmtZCHF(fromBig(p.minted, 18))} ZCHF</span></div>
-                    <div class="flex justify-between"><span class="opacity-90">${i18n.cardCollateral}</span><span class="font-medium">${fmt(fromBig(p.collateralBalance, p.collateralDecimals), 4)} ${p.collateralSymbol}</span></div>
-                    <div class="flex justify-between"><span class="opacity-90">${i18n.cardLiqPrice}</span><span class="font-medium">${fmtZCHF(fromBig(p.price, 36 - p.collateralDecimals))} ZCHF</span></div>
-                    <div class="flex justify-between"><span class="opacity-90">${i18n.cardExpires}</span><span class="font-medium">${fmtDate(p.expiration)} <span class="opacity-90">(${fmtRelative(p.expiration)})</span></span></div>
-                </div>
-            `;
-            grid.appendChild(card);
-        }
-        setListState("grid");
+            </div>
+            <div class="space-y-2 text-[14px]">
+                <div class="flex justify-between"><span class="opacity-90">${i18n.cardMinted}</span><span class="font-medium">${fmtZCHF(fromBig(p.minted, 18))} ZCHF</span></div>
+                <div class="flex justify-between"><span class="opacity-90">${i18n.cardCollateral}</span><span class="font-medium">${fmt(fromBig(p.collateralBalance, p.collateralDecimals), 4)} ${esc(p.collateralSymbol)}</span></div>
+                <div class="flex justify-between"><span class="opacity-90">${i18n.cardLiqPrice}</span><span class="font-medium">${fmtZCHF(fromBig(p.price, 36 - p.collateralDecimals))} ZCHF</span></div>
+                <div class="flex justify-between"><span class="opacity-90">${i18n.cardExpires}</span><span class="font-medium">${fmtDate(p.expiration)} <span class="opacity-90">(${fmtRelative(p.expiration)})</span></span></div>
+            </div>
+        `;
+        grid.appendChild(card);
+    }
+    setListState("grid");
     }
 
     // ==================== MANAGE VIEW ====================
@@ -362,115 +377,121 @@ const i18n = {
     }
 
     function buildManage(p: MyPositionDetail) {
-        const status = statusOf(p);
-        const icon = iconFor(p.collateralSymbol);
-        const iconHtml = icon
-            ? `<img src="${icon}" alt="" class="h-10 w-10 shrink-0 rounded-full" />`
-            : `<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[13px] font-bold">${p.collateralSymbol.slice(0, 3)}</div>`;
-        const zchfIconUrl = tokenIcons["zchf"] ?? "";
-        const collIconUrl = iconFor(p.collateralSymbol) ?? "";
+    // Defense in depth: bail out if address is malformed before it reaches href.
+    if (!isAddrLike(p.address)) {
+        $("manage-content").textContent = "Invalid position address";
+        return;
+    }
 
-        const root = $("manage-content");
-        root.innerHTML = `
-            <!-- Header -->
-            <div class="mb-8 flex items-start justify-between gap-4 flex-wrap">
-                <div class="flex items-center gap-3">
-                    ${iconHtml}
-                    <div>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <h2 class="text-[24px] font-bold tracking-tight">${p.collateralName} (${p.collateralSymbol})</h2>
-                            <span class="inline-block rounded px-2 py-0.5 text-[11px] font-medium ${status.cls}">${status.label}</span>
-                            <span class="inline-block rounded bg-foreground/10 px-2 py-0.5 text-[11px] font-medium opacity-90">${i18n.badgeV2}</span>
-                            ${p.isClone ? `<span class="inline-block rounded bg-foreground/10 px-2 py-0.5 text-[11px] font-medium opacity-90">${i18n.badgeClone}</span>` : ""}
-                        </div>
-                        <p class="mt-1 text-[14px] opacity-90">${i18n.manageSubtitle}</p>
+    const status = statusOf(p);
+    const icon = iconFor(p.collateralSymbol);
+    const iconHtml = icon
+        ? `<img src="${icon}" alt="" class="h-10 w-10 shrink-0 rounded-full" />`
+        : `<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[13px] font-bold">${esc(p.collateralSymbol.slice(0, 3))}</div>`;
+    const zchfIconUrl = tokenIcons["zchf"] ?? "";
+    const collIconUrl = iconFor(p.collateralSymbol) ?? "";
+
+    const root = $("manage-content");
+    root.innerHTML = `
+        <!-- Header -->
+        <div class="mb-8 flex items-start justify-between gap-4 flex-wrap">
+            <div class="flex items-center gap-3">
+                ${iconHtml}
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h2 class="text-[24px] font-bold tracking-tight">${esc(p.collateralName)} (${esc(p.collateralSymbol)})</h2>
+                        <span class="inline-block rounded px-2 py-0.5 text-[11px] font-medium ${status.cls}">${status.label}</span>
+                        <span class="inline-block rounded bg-foreground/10 px-2 py-0.5 text-[11px] font-medium opacity-90">${i18n.badgeV2}</span>
+                        ${p.isClone ? `<span class="inline-block rounded bg-foreground/10 px-2 py-0.5 text-[11px] font-medium opacity-90">${i18n.badgeClone}</span>` : ""}
                     </div>
-                </div>
-                <div class="flex gap-4 text-[14px]">
-                    <a href="https://app.frankencoin.com/monitoring/${p.address}" target="_blank" rel="noopener" class="text-primary hover:underline">${i18n.linkDetails}</a>
-                    <a href="https://etherscan.io/address/${p.address}" target="_blank" rel="noopener" class="text-primary hover:underline inline-flex items-center gap-1">
-                        ${i18n.linkContract}
-                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                    </a>
+                    <p class="mt-1 text-[14px] opacity-90">${i18n.manageSubtitle}</p>
                 </div>
             </div>
+            <div class="flex gap-4 text-[14px]">
+                <a href="https://app.frankencoin.com/monitoring/${p.address}" target="_blank" rel="noopener" class="text-primary hover:underline">${i18n.linkDetails}</a>
+                <a href="https://etherscan.io/address/${p.address}" target="_blank" rel="noopener" class="text-primary hover:underline inline-flex items-center gap-1">
+                    ${i18n.linkContract}
+                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                </a>
+            </div>
+        </div>
 
-            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <!-- Left: Adjustment -->
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <!-- Left: Adjustment -->
+            <div class="rounded-md border border-foreground/10 bg-background p-6">
+                <h3 class="mb-5 text-center text-[18px] font-bold tracking-tight">${i18n.sectionAdjustment}</h3>
+                <div class="space-y-4">
+                    ${inputBlock("i-mint", i18n.labelAmount, "ZCHF", zchfIconUrl, "balance-mint", "btn-min-mint", i18n.labelMin)}
+                    ${inputBlock("i-coll", i18n.labelCollateral, p.collateralSymbol, collIconUrl, "balance-coll", "btn-min-coll", i18n.labelMin)}
+                    ${inputBlock("i-price", i18n.labelLiqPrice, "ZCHF", zchfIconUrl, null, "btn-max-price", i18n.labelMax)}
+                </div>
+                <div class="mt-6 space-y-2 border-t border-foreground/10 pt-5 text-[14px]">
+                    <div class="flex justify-between"><span class="opacity-90">${i18n.labelInterest}</span><span id="m-interest">—</span></div>
+                    <div class="flex justify-between"><span class="opacity-90">${i18n.labelMaturity}</span><span id="m-maturity">—</span></div>
+                    <div class="flex justify-between"><span class="opacity-90">${i18n.labelExpiration}</span><span id="m-expiration">—</span></div>
+                </div>
+                <div id="adjust-error" class="mt-4 hidden text-[13px] text-primary"></div>
+                <button id="btn-adjust"
+                    class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md border border-transparent bg-primary px-5 py-2.5 text-[15px] font-semibold text-[#FAF7F2] transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 dark:text-[#030303]">
+                    <span class="btn-action-label">${i18n.actionAdjust}</span>
+                </button>
+            </div>
+
+            <!-- Right: Wallet + Outcome -->
+            <div class="space-y-6">
                 <div class="rounded-md border border-foreground/10 bg-background p-6">
-                    <h3 class="mb-5 text-center text-[18px] font-bold tracking-tight">${i18n.sectionAdjustment}</h3>
-                    <div class="space-y-4">
-                        ${inputBlock("i-mint", i18n.labelAmount, "ZCHF", zchfIconUrl, "balance-mint", "btn-min-mint", i18n.labelMin)}
-                        ${inputBlock("i-coll", i18n.labelCollateral, p.collateralSymbol, collIconUrl, "balance-coll", "btn-min-coll", i18n.labelMin)}
-                        ${inputBlock("i-price", i18n.labelLiqPrice, "ZCHF", zchfIconUrl, null, "btn-max-price", i18n.labelMax)}
+                    <h3 class="mb-5 text-center text-[18px] font-bold tracking-tight">${i18n.sectionWallet}</h3>
+                    <div class="space-y-3 text-[14px]">
+                        <div class="flex justify-between"><span class="opacity-90">${i18n.walletZchf}</span><span id="w-zchf">—</span></div>
+                        <div class="flex justify-between"><span class="opacity-90">${i18n.walletColl}</span><span id="w-coll">—</span></div>
                     </div>
-                    <div class="mt-6 space-y-2 border-t border-foreground/10 pt-5 text-[14px]">
-                        <div class="flex justify-between"><span class="opacity-90">${i18n.labelInterest}</span><span id="m-interest">—</span></div>
-                        <div class="flex justify-between"><span class="opacity-90">${i18n.labelMaturity}</span><span id="m-maturity">—</span></div>
-                        <div class="flex justify-between"><span class="opacity-90">${i18n.labelExpiration}</span><span id="m-expiration">—</span></div>
-                    </div>
-                    <div id="adjust-error" class="mt-4 hidden text-[13px] text-primary"></div>
-                    <button id="btn-adjust"
-                        class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md border border-transparent bg-primary px-5 py-2.5 text-[15px] font-semibold text-[#FAF7F2] transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 dark:text-[#030303]">
-                        <span class="btn-action-label">${i18n.actionAdjust}</span>
-                    </button>
                 </div>
 
-                <!-- Right: Wallet + Outcome -->
-                <div class="space-y-6">
-                    <div class="rounded-md border border-foreground/10 bg-background p-6">
-                        <h3 class="mb-5 text-center text-[18px] font-bold tracking-tight">${i18n.sectionWallet}</h3>
-                        <div class="space-y-3 text-[14px]">
-                            <div class="flex justify-between"><span class="opacity-90">${i18n.walletZchf}</span><span id="w-zchf">—</span></div>
-                            <div class="flex justify-between"><span class="opacity-90">${i18n.walletColl}</span><span id="w-coll">—</span></div>
-                        </div>
-                    </div>
-
-                    <div class="rounded-md border border-foreground/10 bg-background p-6">
-                        <h3 class="mb-5 text-center text-[18px] font-bold tracking-tight">${i18n.sectionOutcome}</h3>
-                        <div class="space-y-3 text-[14px]">
-                            <div class="flex justify-between"><span class="opacity-90">${i18n.outcomeCurrent}</span><span id="o-current">—</span></div>
-                            <div class="flex justify-between"><span><span id="o-wallet-label" class="opacity-90">${i18n.outcomeWalletInc}</span> <span id="o-wallet-pct" class="text-[12px] opacity-80">(0.00%)</span></span><span id="o-wallet">—</span></div>
-                            <div class="flex justify-between"><span><span id="o-reserve-label" class="opacity-90">${i18n.outcomeReserveAdd}</span> <span id="o-reserve-pct" class="text-[12px] opacity-80">(0.00%)</span></span><span id="o-reserve">—</span></div>
-                            <div class="flex justify-between"><span><span class="opacity-90">${i18n.outcomeFee}</span> <span id="o-fee-pct" class="text-[12px] opacity-80">(0.00%)</span></span><span id="o-fee">—</span></div>
-                            <div class="flex justify-between border-t border-foreground/10 pt-3 font-bold"><span>${i18n.outcomeFuture}</span><span id="o-future">—</span></div>
-                        </div>
+                <div class="rounded-md border border-foreground/10 bg-background p-6">
+                    <h3 class="mb-5 text-center text-[18px] font-bold tracking-tight">${i18n.sectionOutcome}</h3>
+                    <div class="space-y-3 text-[14px]">
+                        <div class="flex justify-between"><span class="opacity-90">${i18n.outcomeCurrent}</span><span id="o-current">—</span></div>
+                        <div class="flex justify-between"><span><span id="o-wallet-label" class="opacity-90">${i18n.outcomeWalletInc}</span> <span id="o-wallet-pct" class="text-[12px] opacity-80">(0.00%)</span></span><span id="o-wallet">—</span></div>
+                        <div class="flex justify-between"><span><span id="o-reserve-label" class="opacity-90">${i18n.outcomeReserveAdd}</span> <span id="o-reserve-pct" class="text-[12px] opacity-80">(0.00%)</span></span><span id="o-reserve">—</span></div>
+                        <div class="flex justify-between"><span><span class="opacity-90">${i18n.outcomeFee}</span> <span id="o-fee-pct" class="text-[12px] opacity-80">(0.00%)</span></span><span id="o-fee">—</span></div>
+                        <div class="flex justify-between border-t border-foreground/10 pt-3 font-bold"><span>${i18n.outcomeFuture}</span><span id="o-future">—</span></div>
                     </div>
                 </div>
             </div>
-        `;
-        hydrateStaticFields(p);
-        // Initialize input values
-        const dec = p.collateralDecimals;
-        const priceDigits = 36 - dec;
-        $<HTMLInputElement>("i-mint").value = formatUnits(p.minted, 18);
-        $<HTMLInputElement>("i-coll").value = formatUnits(p.collateralBalance, dec);
-        $<HTMLInputElement>("i-price").value = formatUnits(p.price, priceDigits);
+        </div>
+    `;
+    hydrateStaticFields(p);
+    // Initialize input values
+    const dec = p.collateralDecimals;
+    const priceDigits = 36 - dec;
+    $<HTMLInputElement>("i-mint").value = formatUnits(p.minted, 18);
+    $<HTMLInputElement>("i-coll").value = formatUnits(p.collateralBalance, dec);
+    $<HTMLInputElement>("i-price").value = formatUnits(p.price, priceDigits);
     }
 
     /** Inline input-block template (label + big input + balance/min-max footer) */
     function inputBlock(id: string, label: string, symbol: string, iconUrl: string, balanceId: string | null, btnId: string, btnText: string): string {
-        const iconHtml = iconUrl
-            ? `<img src="${iconUrl}" alt="" class="h-5 w-5 rounded-full" />`
-            : "";
-        return `
-            <div class="rounded-md border border-foreground/10 p-4">
-                <label for="${id}" class="block text-[13px] font-medium opacity-90">${label}</label>
-                <div class="mt-2 flex items-center gap-3">
-                    <input id="${id}" type="text" inputmode="decimal" autocomplete="off"
-                        class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none" />
-                    <div class="flex items-center gap-2 text-[14px] opacity-90">
-                        ${iconHtml}<span>${symbol}</span>
-                    </div>
-                </div>
-                <div class="mt-2 flex items-center justify-between text-[12px]">
-                    <div class="opacity-90">
-                        ${balanceId ? `${i18n.labelBalance} <span id="${balanceId}">—</span>` : "<span>&nbsp;</span>"}
-                    </div>
-                    <button type="button" id="${btnId}" class="text-primary font-semibold hover:underline">${btnText}</button>
+    const iconHtml = iconUrl
+        ? `<img src="${iconUrl}" alt="" class="h-5 w-5 rounded-full" />`
+        : "";
+    return `
+        <div class="rounded-md border border-foreground/10 p-4">
+            <label for="${id}" class="block text-[13px] font-medium opacity-90">${label}</label>
+            <div class="mt-2 flex items-center gap-3">
+                <input id="${id}" type="text" inputmode="decimal" autocomplete="off"
+                    class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none" />
+                <div class="flex items-center gap-2 text-[14px] opacity-90">
+                    ${iconHtml}<span>${esc(symbol)}</span>
                 </div>
             </div>
-        `;
+            <div class="mt-2 flex items-center justify-between text-[12px]">
+                <div class="opacity-90">
+                    ${balanceId ? `${i18n.labelBalance} <span id="${balanceId}">—</span>` : "<span>&nbsp;</span>"}
+                </div>
+                <button type="button" id="${btnId}" class="text-primary font-semibold hover:underline">${btnText}</button>
+            </div>
+        </div>
+    `;
     }
 
     function hydrateStaticFields(p: MyPositionDetail) {
