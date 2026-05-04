@@ -10,8 +10,7 @@ const { fullWidth = false } = Astro.props;
 const tt = t(Astro.url);
 
 const baseClasses =
-    "items-center gap-2 rounded-md border border-transparent bg-primary px-5 py-2.5 text-[15px] font-semibold text-[#FAF7F2] dark:text-[#030303] hover:bg-primary-hover";
-
+    "items-center gap-2 rounded-md border border-transparent bg-primary px-5 py-2.5 text-[15px] font-semibold text-[#FAF7F2] dark:text-[#030303] hover:bg-primary-hover disabled:opacity-60 disabled:cursor-not-allowed";
 const layoutClasses = fullWidth ? "inline-flex w-full justify-center" : "inline-flex";
 ---
 
@@ -21,15 +20,14 @@ const layoutClasses = fullWidth ? "inline-flex w-full justify-center" : "inline-
 </button>
 
 <script>
-    import { getOnboard } from "@lib/onboard";
     import { t } from "@i18n/t";
 
-    // Re-detect locale client-side from current URL
     const tt = t(window.location.pathname);
-
     const SHORT = (addr: string) => `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
     let connectedLabel: string | null = null;
+    let onboardModule: typeof import("@lib/onboard") | null = null;
+    let loading = false;
 
     function setAllLabels(text: string) {
         document
@@ -37,43 +35,87 @@ const layoutClasses = fullWidth ? "inline-flex w-full justify-center" : "inline-
             .forEach((span) => (span.textContent = text));
     }
 
-    function applyState(
-        wallets: ReturnType<typeof getOnboard>["state"] extends { get: () => infer S }
-            ? S extends { wallets: infer W }
-                ? W
-                : never
-            : never
-    ) {
+    async function loadOnboard() {
+        if (!onboardModule) {
+            onboardModule = await import("@lib/onboard");
+        }
+        return onboardModule.getOnboard();
+    }
+
+    function applyState(wallets: any[]) {
         if (wallets.length > 0) {
             const w = wallets[0];
             connectedLabel = w.label;
             const address = w.accounts[0]?.address ?? "";
-            setAllLabels(address ? SHORT(address) : connectedLabel);
+            setAllLabels(address ? SHORT(address) : connectedLabel ?? tt("wallet_connect"));
         } else {
             connectedLabel = null;
             setAllLabels(tt("wallet_connect"));
         }
     }
 
-    async function handleClick() {
-        const onboard = getOnboard();
-
-        if (connectedLabel) {
-            const confirmed = window.confirm(tt("wallet_disconnect_confirm"));
-            if (!confirmed) return;
-            await onboard.disconnectWallet({ label: connectedLabel });
-            return;
-        }
-
-        await onboard.connectWallet();
+    let subscribedToState = false;
+    async function ensureStateSubscription() {
+        if (subscribedToState) return;
+        const onboard = await loadOnboard();
+        onboard.state.select("wallets").subscribe(applyState);
+        applyState(onboard.state.get().wallets);
+        subscribedToState = true;
     }
 
+    async function handleClick() {
+        if (loading) return;
+        loading = true;
+
+        const buttons = document.querySelectorAll<HTMLButtonElement>(".wallet-connect-btn");
+        buttons.forEach((b) => (b.disabled = true));
+
+        try {
+            const onboard = await loadOnboard();
+            await ensureStateSubscription();
+
+            if (connectedLabel) {
+                const confirmed = window.confirm(tt("wallet_disconnect_confirm"));
+                if (!confirmed) return;
+                await onboard.disconnectWallet({ label: connectedLabel });
+                return;
+            }
+
+            await onboard.connectWallet();
+        } catch (e) {
+            console.error("Wallet connect failed:", e);
+        } finally {
+            buttons.forEach((b) => (b.disabled = false));
+            loading = false;
+        }
+    }
+
+    // Wire up click handlers immediately (lightweight — no onboard import)
     document
         .querySelectorAll<HTMLButtonElement>(".wallet-connect-btn")
         .forEach((btn) => btn.addEventListener("click", handleClick));
 
-    const onboard = getOnboard();
-    const wallets$ = onboard.state.select("wallets");
-    wallets$.subscribe((wallets) => applyState(wallets));
-    applyState(onboard.state.get().wallets);
+    // For returning users: load onboard during browser idle so autoConnect fires.
+    // First-time visitors (Lighthouse cold loads): onboard.js never downloads
+    // until they actually click Connect.
+    function hasPreviousConnection(): boolean {
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (k && k.startsWith("onboard.js:")) return true;
+            }
+        } catch {}
+        return false;
+    }
+
+    if (hasPreviousConnection()) {
+        const idle = (cb: () => void) =>
+            "requestIdleCallback" in window
+                ? (window as any).requestIdleCallback(cb, { timeout: 2000 })
+                : setTimeout(cb, 200);
+
+        idle(() => {
+            ensureStateSubscription().catch(console.error);
+        });
+    }
 </script>

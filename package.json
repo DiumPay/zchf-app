@@ -18,9 +18,9 @@
     "@web3-onboard/core": "^2.24.1",
     "@web3-onboard/injected-wallets": "^2.11.3",
     "@web3-onboard/metamask": "^2.2.1",
-    "astro": "^6.2.1",
+    "astro": "^6.2.2",
     "astro-i18n-aut": "^0.7.3",
     "tailwindcss": "^4.2.4",
-    "viem": "^2.48.4"
+    "viem": "^2.48.8"
   }
 }
