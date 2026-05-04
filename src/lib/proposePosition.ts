@@ -8,6 +8,7 @@ import {
     type WalletClient,
     type PublicClient,
 } from "viem";
+import { mainnet } from "viem/chains";
 import { ADDRESSES } from "@config/addresses";
 import { MINTING_HUB_V2_ABI } from "@abi/mintingHub";
 
@@ -228,7 +229,7 @@ export async function approveCollateral(
         functionName: "approve",
         args: [mintingHub, maxUint256],
         account,
-        chain: walletClient.chain!,
+        chain: mainnet,
     });
     await publicClient.waitForTransactionReceipt({ hash });
     return hash;
@@ -264,7 +265,7 @@ export async function openPosition(
             Number(form.reservePPM),
         ],
         account,
-        chain: walletClient.chain!,
+        chain: mainnet,
         gas: 3_000_000n,
     });
     return hash;
