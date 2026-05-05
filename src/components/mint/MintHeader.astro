@@ -22,24 +22,34 @@ const {
 
 <header class="mb-8 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
     <div class="flex items-center gap-4">
-        {iconUrl
-            ? <img src={iconUrl} alt={`${symbol} icon`} class="h-14 w-14 rounded-full" />
-            : <div class="flex h-14 w-14 items-center justify-center rounded-full bg-foreground/10 text-[14px] font-bold">{symbol.slice(0, 3)}</div>
-        }
+        <div id="hdr-icon-wrap">
+            {iconUrl
+                ? <img id="hdr-icon-img" src={iconUrl} alt={`${symbol} icon`} class="h-14 w-14 rounded-full" />
+                : <div id="hdr-icon-fallback" class="flex h-14 w-14 items-center justify-center rounded-full bg-foreground/10 text-[14px] font-bold">{symbol.slice(0, 3)}</div>
+            }
+        </div>
         <div>
             <h1 class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[26px] font-bold leading-tight tracking-tight">
-                <span>{name}</span>
-                <span class="text-[16px] font-medium text-muted-foreground">{symbol}</span>
+                <span id="hdr-name">{name}</span>
+                <span id="hdr-symbol" class="text-[16px] font-medium text-muted-foreground">{symbol}</span>
             </h1>
             <div class="mt-1.5 flex flex-wrap gap-1.5">
                 <span id="badge-status" class="inline-block rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide bg-foreground/10">{statusLabel}</span>
                 <span class="inline-block rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide bg-foreground/10">V2</span>
-                {isClone && <span class="inline-block rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide bg-primary/15 text-primary">{cloneLabel}</span>}
+                <span id="badge-clone" class:list={["inline-block rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide bg-primary/15 text-primary", !isClone && "hidden"]}>{cloneLabel}</span>
             </div>
         </div>
     </div>
     <div class="flex gap-4 text-[13px]">
-        <ExternalLink href={`https://etherscan.io/address/${address}`} title={positionContractLabel}>{positionContractLabel}</ExternalLink>
-        <ExternalLink href={`https://etherscan.io/address/${collateral}`} title={tokenLabel}>{tokenLabel}</ExternalLink>
+        <span id="hdr-pos-link-wrap">
+            <ExternalLink href={`https://etherscan.io/address/${address}`} title={positionContractLabel}>
+                <span id="hdr-pos-text">{positionContractLabel}</span>
+            </ExternalLink>
+        </span>
+        <span id="hdr-token-link-wrap">
+            <ExternalLink href={`https://etherscan.io/address/${collateral}`} title={tokenLabel}>
+                <span id="hdr-token-text">{tokenLabel}</span>
+            </ExternalLink>
+        </span>
     </div>
 </header>

@@ -348,7 +348,7 @@ const locale = getLocale(Astro.url);
             btn.addEventListener("click", () => {
                 const addr = btn.dataset.position;
                 if (!isAddrLike(addr)) return; // belt and suspenders
-                window.location.href = localePath(locale as Locale, `/mint/${addr}`);
+                window.location.href = localePath(locale as Locale, `/mint?address=${addr}`);
             });
         });
     }
