@@ -31,13 +31,20 @@ const clientStrings = {
 
 <Layout title={`${tt("transfer_title")} | Frankencoin dApp`} description="Transfer ZCHF.">
     <main class="mx-auto max-w-5xl px-4 py-10 md:px-6 md:py-12">
-        <header class="mb-8">
-            <h1 class="flex items-center gap-3 text-[28px] font-bold tracking-tight">
-                <TransferIcon class="h-7 w-7" aria-hidden="true" />
-                {tt("transfer_title")}
-            </h1>
-            <p class="mt-2 text-[14px] opacity-80">{tt("transfer_subtitle")}</p>
-        </header>
+    <header class="mb-8">
+    <h1 class="flex items-center gap-3 text-[28px] font-bold tracking-tight">
+        <TransferIcon class="h-7 w-7" aria-hidden="true" />
+        {tt("transfer_title")}
+    </h1>
+    <p class="mt-2 text-[14px] opacity-80">
+        {tt("transfer_subtitle_prefix")}<a
+            href="https://app.transporter.io/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-primary hover:underline"
+        >{tt("transfer_subtitle_link")}</a>{tt("transfer_subtitle_suffix")}
+    </p>
+    </header>
 
         <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 

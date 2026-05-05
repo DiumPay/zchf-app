@@ -1,7 +1,9 @@
 export const transfer = {
     en: {
         transfer_title: "Transfer",
-        transfer_subtitle: 'Transfer Frankencoins with a reference, or across chains using the <a href="https://app.transporter.io/" target="_blank" rel="noopener" class="text-primary hover:underline">CCIP bridge</a>.',
+        transfer_subtitle_prefix: "Transfer Frankencoins with a reference, or across chains using the ",
+        transfer_subtitle_link: "CCIP bridge",
+        transfer_subtitle_suffix: ".",
 
         transfer_params_title: "Transfer parameters",
         transfer_outcome_title: "Outcome",
@@ -48,7 +50,9 @@ export const transfer = {
 
     de: {
         transfer_title: "Transferieren",
-        transfer_subtitle: 'Frankencoins mit Referenz oder über die <a href="https://app.transporter.io/" target="_blank" rel="noopener" class="text-primary hover:underline">CCIP-Brücke</a> chainübergreifend transferieren.',
+        transfer_subtitle_prefix: "Frankencoins mit Referenz oder über die ",
+        transfer_subtitle_link: "CCIP-Brücke",
+        transfer_subtitle_suffix: " chainübergreifend transferieren.",
 
         transfer_params_title: "Transfer-Parameter",
         transfer_outcome_title: "Ergebnis",
@@ -95,7 +99,9 @@ export const transfer = {
 
     fr: {
         transfer_title: "Transférer",
-        transfer_subtitle: 'Transférez des Frankencoins avec une référence ou entre chaînes via le <a href="https://app.transporter.io/" target="_blank" rel="noopener" class="text-primary hover:underline">pont CCIP</a>.',
+        transfer_subtitle_prefix: "Transférez des Frankencoins avec une référence ou entre chaînes via le ",
+        transfer_subtitle_link: "pont CCIP",
+        transfer_subtitle_suffix: ".",
 
         transfer_params_title: "Paramètres du transfert",
         transfer_outcome_title: "Résultat",
@@ -142,7 +148,9 @@ export const transfer = {
 
     it: {
         transfer_title: "Trasferimento",
-        transfer_subtitle: 'Trasferisci Frankencoin con una causale, o tra chain tramite il <a href="https://app.transporter.io/" target="_blank" rel="noopener" class="text-primary hover:underline">ponte CCIP</a>.',
+        transfer_subtitle_prefix: "Trasferisci Frankencoin con una causale, o tra chain tramite il ",
+        transfer_subtitle_link: "ponte CCIP",
+        transfer_subtitle_suffix: ".",
 
         transfer_params_title: "Parametri del trasferimento",
         transfer_outcome_title: "Risultato",
@@ -189,7 +197,9 @@ export const transfer = {
 
     es: {
         transfer_title: "Transferir",
-        transfer_subtitle: 'Transfiere Frankencoins con una referencia, o entre redes mediante el <a href="https://app.transporter.io/" target="_blank" rel="noopener" class="text-primary hover:underline">puente CCIP</a>.',
+        transfer_subtitle_prefix: "Transfiere Frankencoins con una referencia, o entre redes mediante el ",
+        transfer_subtitle_link: "puente CCIP",
+        transfer_subtitle_suffix: ".",
 
         transfer_params_title: "Parámetros de la transferencia",
         transfer_outcome_title: "Resultado",
