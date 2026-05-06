@@ -3,6 +3,45 @@ import { getPublicClient } from "@lib/client";
 import { POSITION_V2_ABI } from "@abi/position";
 import { ADDRESSES } from "@config/addresses";
 
+const API_BASE = "https://api.frankencoin.com";
+const POSITIONS_URL = `${API_BASE}/positions/open`;
+
+interface ApiPosition {
+    version: number;
+    position: Address;
+    owner: Address;
+    collateral: Address;
+    price: string;
+    isOriginal: boolean;
+    isClone: boolean;
+    denied: boolean;
+    closed: boolean;
+    original: Address;
+    parent: Address;
+    minimumCollateral: string;
+    annualInterestPPM: number;
+    riskPremiumPPM: number;
+    reserveContribution: number;
+    start: number;
+    cooldown: number;
+    expiration: number;
+    challengePeriod: number;
+    collateralName: string;
+    collateralSymbol: string;
+    collateralDecimals: number;
+    collateralBalance: string;
+    limitForPosition: string;
+    availableForClones: string;
+    availableForMinting: string;
+    minted: string;
+}
+
+interface ApiResponse {
+    num: number;
+    addresses: Address[];
+    map: Record<string, ApiPosition>;
+}
+
 export interface PositionStaticDetail {
     address: Address;
     original: Address;
@@ -35,11 +74,66 @@ export interface PositionLiveDetail {
 
 export type PositionDetail = PositionStaticDetail & PositionLiveDetail;
 
+// Tiny per-session cache of the bulk API response so the detail page doesn't
+// refetch the whole map on every nav. We still re-pull live state from chain.
+let apiCache: { map: Record<string, ApiPosition>; at: number } | null = null;
+const API_TTL_MS = 30_000;
+
+async function fetchApiMap(): Promise<Record<string, ApiPosition>> {
+    if (apiCache && Date.now() - apiCache.at < API_TTL_MS) return apiCache.map;
+    const res = await fetch(POSITIONS_URL, { headers: { accept: "application/json" } });
+    if (!res.ok) throw new Error(`positions API ${res.status}`);
+    const json = (await res.json()) as ApiResponse;
+    // Normalize keys to lowercase so address-casing variations resolve.
+    const map: Record<string, ApiPosition> = {};
+    for (const k of Object.keys(json.map)) map[k.toLowerCase()] = json.map[k];
+    apiCache = { map, at: Date.now() };
+    return map;
+}
+
+function staticFromApi(p: ApiPosition): PositionStaticDetail {
+    return {
+        address: p.position,
+        original: p.original,
+        isOriginal: p.isOriginal,
+        collateral: p.collateral,
+        collateralName: p.collateralName,
+        collateralSymbol: p.collateralSymbol,
+        collateralDecimals: Number(p.collateralDecimals),
+        limit: BigInt(p.limitForPosition),
+        minimumCollateral: BigInt(p.minimumCollateral),
+        expiration: Number(p.expiration),
+        start: Number(p.start),
+        challengePeriod: Number(p.challengePeriod),
+        riskPremiumPPM: Number(p.riskPremiumPPM),
+        reserveContribution: Number(p.reserveContribution),
+    };
+}
+
+/**
+ * Resolve a position's static metadata.
+ *
+ * Strategy:
+ *  1. Try the public API first — covers every open position and avoids the
+ *     two multicalls the previous on-chain-only path required.
+ *  2. Fall back to multicall if the position isn't in the API response (e.g.
+ *     fully repaid / closed positions the API may have dropped).
+ */
 export async function findStaticPosition(address: string): Promise<PositionStaticDetail | null> {
     if (!isAddress(address)) return null;
     const addr = address as Address;
-    const client = getPublicClient("ethereum");
 
+    // Fast path: API lookup.
+    try {
+        const map = await fetchApiMap();
+        const hit = map[addr.toLowerCase()];
+        if (hit) return staticFromApi(hit);
+    } catch {
+        // fall through to RPC
+    }
+
+    // Fallback: on-chain multicall (handles closed/non-listed positions).
+    const client = getPublicClient("ethereum");
     let r: any[];
     try {
         r = await client.multicall({

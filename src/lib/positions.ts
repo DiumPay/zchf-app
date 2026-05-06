@@ -1,30 +1,49 @@
-import { erc20Abi, type Address } from "viem";
-import { getPublicClient } from "@lib/client";
-import { POSITION_V2_ABI } from "@abi/position";
+import { type Address, getAddress } from "viem";
 
-const INDEXER_BASE = "https://api.enni.ch";
+const API_BASE = "https://api.frankencoin.com";
+const POSITIONS_URL = `${API_BASE}/positions/open`;
 
-interface IndexerLatest {
-    borrow: string;
-    borrowBlock: number;
-    updatedAt: number;
-}
-
-interface IndexerBorrowRow {
+/**
+ * Raw shape returned by https://api.frankencoin.com/positions/open
+ */
+interface ApiPosition {
+    version: number;
+    position: Address;
+    owner: Address;
     collateral: Address;
-    totalPositions: number;
-    activePositions: number;
-    bestPrice: { positionAddress: Address; value: string } | null;
-    bestInterest: { positionAddress: Address; valuePPM: number } | null;
-    bestExpiration: { positionAddress: Address; value: number } | null;
-    bestAvailability: { positionAddress: Address; value: string } | null;
-    alternatives: Address[];
+    price: string;
+    created: number;
+    isOriginal: boolean;
+    isClone: boolean;
+    denied: boolean;
+    denyDate: number;
+    closed: boolean;
+    original: Address;
+    parent: Address;
+    minimumCollateral: string;
+    annualInterestPPM: number;
+    riskPremiumPPM: number;
+    reserveContribution: number;
+    start: number;
+    cooldown: number;
+    expiration: number;
+    challengePeriod: number;
+    collateralName: string;
+    collateralSymbol: string;
+    collateralDecimals: number;
+    collateralBalance: string;
+    limitForPosition: string;
+    limitForClones: string;
+    availableForClones: string;
+    availableForMinting: string;
+    availableForPosition: string;
+    minted: string;
 }
 
-interface IndexerBorrowFile {
-    block: number;
-    rows: IndexerBorrowRow[];
-    updatedAt: number;
+interface ApiResponse {
+    num: number;
+    addresses: Address[];
+    map: Record<string, ApiPosition>;
 }
 
 export interface Position {
@@ -43,58 +62,86 @@ export interface Position {
     challengedAmount: bigint;
 }
 
-/**
- * Borrow-table data: indexer gives us the curated "best of each axis" per
- * collateral. We only need to enrich each row's bestPrice position with
- * collateral metadata + a bit of fresh state for the UI.
- */
-export async function loadPositionsCached(): Promise<Position[]> {
-    // 1. Fetch curated list from indexer (2 edge-cached HTTP calls)
-    const latest = await fetch(`${INDEXER_BASE}/latest.json`).then(r => r.json()) as IndexerLatest;
-    const borrow = await fetch(`${INDEXER_BASE}/${latest.borrow}`).then(r => r.json()) as IndexerBorrowFile;
+// Tiny in-memory cache so repeated navigations within the same session don't refetch.
+// The endpoint itself is edge-cached, so this is just a UX nicety.
+let cache: { data: Position[]; at: number } | null = null;
+const CACHE_TTL_MS = 30_000;
 
-    // 2. For each row, the position to display is bestPrice's positionAddress.
-    //    (Highest liquidation price = most generous mint-to-collateral ratio.)
-    const rows = borrow.rows.filter(r => r.bestPrice !== null);
+async function fetchAllPositions(): Promise<ApiPosition[]> {
+    const res = await fetch(POSITIONS_URL, { headers: { accept: "application/json" } });
+    if (!res.ok) throw new Error(`positions API ${res.status}`);
+    const json = (await res.json()) as ApiResponse;
+    return json.addresses.map(a => json.map[a]).filter(Boolean);
+}
 
-    // 3. One multicall: fetch collateral metadata + per-position fresh state
-    const client = getPublicClient("ethereum");
+function curateBorrowRows(all: ApiPosition[]): Position[] {
+    const now = Math.floor(Date.now() / 1000);
 
-    const calls = rows.flatMap(r => [
-        { address: r.collateral, abi: erc20Abi, functionName: "name" as const },
-        { address: r.collateral, abi: erc20Abi, functionName: "symbol" as const },
-        { address: r.collateral, abi: erc20Abi, functionName: "decimals" as const },
-        { address: r.bestPrice!.positionAddress, abi: POSITION_V2_ABI, functionName: "expiration" as const },
-        { address: r.bestPrice!.positionAddress, abi: POSITION_V2_ABI, functionName: "annualInterestPPM" as const },
-        { address: r.bestPrice!.positionAddress, abi: POSITION_V2_ABI, functionName: "reserveContribution" as const },
-    ]);
+    const isActive = (p: ApiPosition): boolean =>
+        !p.closed
+        && !p.denied
+        && p.start <= now
+        && p.cooldown <= now
+        && p.expiration > now
+        && BigInt(p.availableForClones) > 0n;
 
-    const results = await client.multicall({ contracts: calls, allowFailure: true, batchSize: 1024 });
-    const FIELDS = 6;
+    // Group by collateral address (lowercased so checksum casing doesn't matter)
+    const groups = new Map<string, ApiPosition[]>();
+    for (const p of all) {
+        const key = p.collateral.toLowerCase();
+        const arr = groups.get(key) ?? [];
+        arr.push(p);
+        groups.set(key, arr);
+    }
 
-    return rows.map((r, i) => {
-        const base = i * FIELDS;
-        const get = <T>(idx: number, fb: T): T => {
-            const x = results[base + idx];
-            return x && x.status === "success" ? (x.result as T) : fb;
-        };
+    const rows: Position[] = [];
 
-        return {
-            address: r.bestPrice!.positionAddress,
-            collateral: r.collateral,
-            collateralName: get<string>(0, "Unknown"),
-            collateralSymbol: get<string>(1, "?"),
-            collateralDecimals: Number(get<number>(2, 18)),
-            price: BigInt(r.bestPrice!.value),
-            expiration: r.bestExpiration?.value ?? 0,
-            annualInterestPPM: Number(get<number>(4, 0)),
-            reserveContribution: Number(get<number>(5, 0)),
-            availableForClones: BigInt(r.bestAvailability?.value ?? "0"),
+    for (const group of groups.values()) {
+        const active = group.filter(isActive);
+        if (active.length === 0) continue;
+
+        // Best price = highest liquidation price (most generous mint ratio).
+        const best = active.reduce((acc, cur) =>
+            BigInt(cur.price) > BigInt(acc.price) ? cur : acc
+        );
+
+        // Best expiration across the *active* set — used so the row shows the
+        // longest-lived option for that collateral, not necessarily the bestPrice's.
+        const bestExpiration = active.reduce((acc, cur) =>
+            cur.expiration > acc.expiration ? cur : acc
+        );
+
+        // Best availability across the active set — sum-ish proxy for "pool capacity".
+        const bestAvailability = active.reduce((acc, cur) =>
+            BigInt(cur.availableForClones) > BigInt(acc.availableForClones) ? cur : acc
+        );
+
+        rows.push({
+            address: best.position,
+            collateral: getAddress(best.collateral),
+            collateralName: best.collateralName,
+            collateralSymbol: best.collateralSymbol,
+            collateralDecimals: Number(best.collateralDecimals),
+            price: BigInt(best.price),
+            expiration: bestExpiration.expiration,
+            annualInterestPPM: Number(best.annualInterestPPM),
+            reserveContribution: Number(best.reserveContribution),
+            availableForClones: BigInt(bestAvailability.availableForClones),
             isClosed: false,
             cooldown: 0,
             challengedAmount: 0n,
-        };
-    });
+        });
+    }
+
+    return rows;
+}
+
+export async function loadPositionsCached(): Promise<Position[]> {
+    if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.data;
+    const all = await fetchAllPositions();
+    const rows = curateBorrowRows(all);
+    cache = { data: rows, at: Date.now() };
+    return rows;
 }
 
 export function liquidationPriceUnits(p: Position): number {
@@ -116,5 +163,5 @@ export function positionStatus(p: Position): "active" | "cooldown" | "challenged
 }
 
 export function clearPositionsCache(): void {
-    /* no-op — indexer + edge cache handle this */
+    cache = null;
 }
