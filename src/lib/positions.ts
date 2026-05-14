@@ -1,10 +1,15 @@
 import { type Address, getAddress } from "viem";
 
-const API_BASE = "https://api.frankencoin.com";
-const POSITIONS_URL = `${API_BASE}/positions/open`;
+// dev → local grenadier. prod build → deployed grenadier behind cf.
+const API_BASE = import.meta.env.DEV
+    ? "http://localhost:8080"
+    : "https://api.diumpay.com";
+
+const POSITIONS_URL = `${API_BASE}/positions/curated`;
 
 /**
- * Raw shape returned by https://api.frankencoin.com/positions/open
+ * Raw shape returned by grenadier's /positions/curated endpoint.
+ * Same field names as frankencoin's API, server-side curation already applied.
  */
 interface ApiPosition {
     version: number;
@@ -42,8 +47,7 @@ interface ApiPosition {
 
 interface ApiResponse {
     num: number;
-    addresses: Address[];
-    map: Record<string, ApiPosition>;
+    list: ApiPosition[];
 }
 
 export interface Position {
@@ -63,7 +67,7 @@ export interface Position {
 }
 
 // Tiny in-memory cache so repeated navigations within the same session don't refetch.
-// The endpoint itself is edge-cached, so this is just a UX nicety.
+// Grenadier itself caches for 5s and cf in front caches too — this is just UX.
 let cache: { data: Position[]; at: number } | null = null;
 const CACHE_TTL_MS = 30_000;
 
@@ -71,75 +75,36 @@ async function fetchAllPositions(): Promise<ApiPosition[]> {
     const res = await fetch(POSITIONS_URL, { headers: { accept: "application/json" } });
     if (!res.ok) throw new Error(`positions API ${res.status}`);
     const json = (await res.json()) as ApiResponse;
-    return json.addresses.map(a => json.map[a]).filter(Boolean);
+    return json.list ?? [];
 }
 
-function curateBorrowRows(all: ApiPosition[]): Position[] {
-    const now = Math.floor(Date.now() / 1000);
-
-    const isActive = (p: ApiPosition): boolean =>
-        !p.closed
-        && !p.denied
-        && p.start <= now
-        && p.cooldown <= now
-        && p.expiration > now
-        && BigInt(p.availableForClones) > 0n;
-
-    // Group by collateral address (lowercased so checksum casing doesn't matter)
-    const groups = new Map<string, ApiPosition[]>();
-    for (const p of all) {
-        const key = p.collateral.toLowerCase();
-        const arr = groups.get(key) ?? [];
-        arr.push(p);
-        groups.set(key, arr);
-    }
-
-    const rows: Position[] = [];
-
-    for (const group of groups.values()) {
-        const active = group.filter(isActive);
-        if (active.length === 0) continue;
-
-        // Best price = highest liquidation price (most generous mint ratio).
-        const best = active.reduce((acc, cur) =>
-            BigInt(cur.price) > BigInt(acc.price) ? cur : acc
-        );
-
-        // Best expiration across the *active* set — used so the row shows the
-        // longest-lived option for that collateral, not necessarily the bestPrice's.
-        const bestExpiration = active.reduce((acc, cur) =>
-            cur.expiration > acc.expiration ? cur : acc
-        );
-
-        // Best availability across the active set — sum-ish proxy for "pool capacity".
-        const bestAvailability = active.reduce((acc, cur) =>
-            BigInt(cur.availableForClones) > BigInt(acc.availableForClones) ? cur : acc
-        );
-
-        rows.push({
-            address: best.position,
-            collateral: getAddress(best.collateral),
-            collateralName: best.collateralName,
-            collateralSymbol: best.collateralSymbol,
-            collateralDecimals: Number(best.collateralDecimals),
-            price: BigInt(best.price),
-            expiration: bestExpiration.expiration,
-            annualInterestPPM: Number(best.annualInterestPPM),
-            reserveContribution: Number(best.reserveContribution),
-            availableForClones: BigInt(bestAvailability.availableForClones),
-            isClosed: false,
-            cooldown: 0,
-            challengedAmount: 0n,
-        });
-    }
-
-    return rows;
+/**
+ * Map raw API positions to our internal Position type.
+ * Grenadier's /positions/curated already returns one position per collateral
+ * (best effective interest, longest expiration), so we just shape the fields.
+ */
+function shapePositions(all: ApiPosition[]): Position[] {
+    return all.map(p => ({
+        address: p.position,
+        collateral: getAddress(p.collateral),
+        collateralName: p.collateralName,
+        collateralSymbol: p.collateralSymbol,
+        collateralDecimals: Number(p.collateralDecimals),
+        price: BigInt(p.price),
+        expiration: p.expiration,
+        annualInterestPPM: Number(p.annualInterestPPM),
+        reserveContribution: Number(p.reserveContribution),
+        availableForClones: BigInt(p.availableForClones),
+        isClosed: p.closed,
+        cooldown: p.cooldown,
+        challengedAmount: 0n, // grenadier doesn't track challenges yet; safe default.
+    }));
 }
 
 export async function loadPositionsCached(): Promise<Position[]> {
     if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.data;
     const all = await fetchAllPositions();
-    const rows = curateBorrowRows(all);
+    const rows = shapePositions(all);
     cache = { data: rows, at: Date.now() };
     return rows;
 }

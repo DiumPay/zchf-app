@@ -89,6 +89,11 @@ export const mypositions = {
 
     // Status
     mypos_expired: "expired",
+
+    mypos_section_details: "Position Details",
+    mypos_label_reset: "Reset",
+    mypos_note_coll_sent_back: "{amount} {symbol} sent back to your wallet",
+    mypos_note_coll_taken: "{amount} {symbol} taken from your wallet",
   },
 
   de: {
@@ -181,6 +186,11 @@ export const mypositions = {
 
     // Status
     mypos_expired: "abgelaufen",
+
+    mypos_section_details: "Positionsdetails",
+    mypos_label_reset: "Zurücksetzen",
+    mypos_note_coll_sent_back: "{amount} {symbol} an Ihre Wallet zurückgesendet",
+    mypos_note_coll_taken: "{amount} {symbol} aus Ihrer Wallet entnommen",
   },
 
   fr: {
@@ -273,6 +283,11 @@ export const mypositions = {
 
     // Status
     mypos_expired: "expiré",
+
+    mypos_section_details: "Détails de la position",
+    mypos_label_reset: "Réinitialiser",
+    mypos_note_coll_sent_back: "{amount} {symbol} renvoyé vers votre portefeuille",
+    mypos_note_coll_taken: "{amount} {symbol} prélevé de votre portefeuille",
   },
 
   it: {
@@ -365,6 +380,11 @@ export const mypositions = {
 
     // Status
     mypos_expired: "scaduto",
+
+    mypos_section_details: "Dettagli posizione",
+    mypos_label_reset: "Reimposta",
+    mypos_note_coll_sent_back: "{amount} {symbol} restituito al tuo wallet",
+    mypos_note_coll_taken: "{amount} {symbol} prelevato dal tuo wallet",
   },
 
   es: {
@@ -457,5 +477,10 @@ export const mypositions = {
 
     // Status
     mypos_expired: "expirado",
+
+    mypos_section_details: "Detalles de la posición",
+    mypos_label_reset: "Restablecer",
+    mypos_note_coll_sent_back: "{amount} {symbol} devuelto a tu wallet",
+    mypos_note_coll_taken: "{amount} {symbol} tomado de tu wallet",
   },
 } as const;

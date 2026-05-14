@@ -7,7 +7,9 @@
   },
   "scripts": {
     "dev": "astro dev",
+    "dev:prod": "astro dev --mode production",
     "build": "astro build",
+    "build:prod": "astro build --mode production",
     "preview": "astro preview",
     "astro": "astro"
   },

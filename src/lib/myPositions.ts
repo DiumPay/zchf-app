@@ -1,14 +1,15 @@
 import { type Address, erc20Abi } from "viem";
 import { ADDRESSES } from "@config/addresses";
 import { getPublicClient } from "@lib/client";
-import snapshot from "@data/positions-snapshot.json";
 import { POSITION_V2_ABI as PositionV2ABI } from "@abi/position";
 
-const FRANKENCOIN_API = "https://api.frankencoin.com";
-const OWNERS_TTL_MS = 30_000;
+// dev → local grenadier. prod → deployed grenadier behind cf.
+const API_BASE = import.meta.env.DEV
+    ? "http://localhost:8080"
+    : "https://api.diumpay.com";
 
 // ============================================================================
-// API TYPES
+// API TYPES — shape of one position from grenadier
 // ============================================================================
 
 interface ApiPosition {
@@ -16,6 +17,7 @@ interface ApiPosition {
     position: Address;
     owner: Address;
     original: Address;
+    parent: Address;
     collateral: Address;
     collateralName: string;
     collateralSymbol: string;
@@ -31,56 +33,32 @@ interface ApiPosition {
     isClone: boolean;
     isOriginal: boolean;
     annualInterestPPM: number;
+    riskPremiumPPM: number;
     reserveContribution: number;
     challengePeriod: number;
     minimumCollateral: string;
     availableForPosition: string;
     availableForClones: string;
+    availableForMinting: string;
     limitForPosition: string;
     limitForClones: string;
 }
 
-interface OwnersResponse {
+interface OwnerResponse {
     num: number;
-    owners: Address[];
-    map: Record<string, ApiPosition[]>;
-}
-
-// ============================================================================
-// IN-MEMORY CACHE for the full owners map. Short TTL — only used when we
-// genuinely need to hit the API (cache miss / forced refresh).
-// ============================================================================
-
-let ownersCache: { at: number; data: Record<string, ApiPosition[]> } | null = null;
-
-async function fetchOwnersMap(): Promise<Record<string, ApiPosition[]>> {
-    const now = Date.now();
-    if (ownersCache && now - ownersCache.at < OWNERS_TTL_MS) return ownersCache.data;
-
-    const res = await fetch(`${FRANKENCOIN_API}/positions/owners`, {
-        headers: { accept: "application/json" },
-    });
-    if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
-    const json = (await res.json()) as OwnersResponse;
-
-    const data: Record<string, ApiPosition[]> = {};
-    for (const [owner, list] of Object.entries(json.map ?? {})) {
-        data[owner.toLowerCase()] = list;
-    }
-    ownersCache = { at: now, data };
-    return data;
+    list: ApiPosition[];
 }
 
 // ============================================================================
 // PERSISTENT PER-USER CACHE
-// Position addresses + their static metadata are basically immutable once a
-// position exists. We cache the full API rows in localStorage per user so
-// future page loads skip the API entirely. The on-chain multicall in
-// loadMyPositionDetails always provides fresh volatile state regardless.
+// Static position metadata barely changes; cache the API rows per user so
+// repeat page loads skip the network. The on-chain multicall always pulls
+// fresh volatile state (minted, price, balances, allowance).
 // ============================================================================
 
-const USER_KEY_PREFIX = "frnk:userPositions:v1:";
+const USER_KEY_PREFIX = "frnk:userPositions:v2:";
 const USER_POSITIONS_KEY = (user: Address) => `${USER_KEY_PREFIX}${user.toLowerCase()}`;
+const CACHE_TTL_MS = 60_000;
 
 interface UserPositionsCache {
     rows: ApiPosition[];
@@ -90,23 +68,22 @@ interface UserPositionsCache {
 function loadUserCache(user: Address): UserPositionsCache | null {
     try {
         const raw = localStorage.getItem(USER_POSITIONS_KEY(user));
-        if (raw) {
-            const parsed = JSON.parse(raw) as UserPositionsCache;
-            if (parsed.rows && Array.isArray(parsed.rows)) return parsed;
-        }
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as UserPositionsCache;
+        if (parsed.rows && Array.isArray(parsed.rows)) return parsed;
     } catch {}
     return null;
 }
+
 function saveUserCache(user: Address, rows: ApiPosition[]) {
     try {
         localStorage.setItem(USER_POSITIONS_KEY(user), JSON.stringify({ rows, at: Date.now() }));
     } catch {}
 }
 
-/** Wipe in-memory cache + every per-user localStorage entry. Call after a
- *  mint (where a new position was created) or as a manual escape hatch. */
+/** Wipe every per-user localStorage entry. Call after a mint (new position
+ *  created) or as a manual escape hatch. */
 export function clearAllPositionsCache() {
-    ownersCache = null;
     try {
         const keys: string[] = [];
         for (let i = 0; i < localStorage.length; i++) {
@@ -115,11 +92,13 @@ export function clearAllPositionsCache() {
         }
         for (const k of keys) localStorage.removeItem(k);
     } catch {}
+    lastOwnerLookup = null;
 }
 
-/** Wipe just one user's cache. Useful for a per-user "refresh" button. */
+/** Wipe just one user's cache. */
 export function clearUserPositionsCache(user: Address) {
     try { localStorage.removeItem(USER_POSITIONS_KEY(user)); } catch {}
+    if (lastOwnerLookup?.user === user.toLowerCase()) lastOwnerLookup = null;
 }
 
 // ============================================================================
@@ -153,18 +132,32 @@ export interface MyPositionDetail {
     userCollateralAllowance: bigint;
 }
 
-// Holds the most recent owner→rows lookup so loadMyPositionDetails can map
-// back to its API row metadata without re-fetching.
+// Holds the most recent owner lookup so loadMyPositionDetails can map back
+// to its API row metadata without re-fetching.
 let lastOwnerLookup: { user: string; rows: ApiPosition[] } | null = null;
 
 // ============================================================================
 // PUBLIC API
 // ============================================================================
 
+async function fetchOwnerRows(user: Address): Promise<ApiPosition[]> {
+    const url = `${API_BASE}/positions/owner/${user.toLowerCase()}`;
+    const res = await fetch(url, { headers: { accept: "application/json" } });
+    if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
+    const json = (await res.json()) as OwnerResponse;
+    return (json.list ?? []).filter(r =>
+    r.version === 2 &&
+    !r.denied &&
+    !r.closed &&
+    // hide empty shells: no debt AND no collateral
+    !(BigInt(r.minted ?? "0") === 0n && BigInt(r.collateralBalance ?? "0") === 0n)
+);
+}
+
 /**
  * Get position addresses owned by user.
- * - Cache hit: returns instantly from localStorage, no network call.
- * - Cache miss or forceRefresh: hits the API, populates cache.
+ * - Cache hit (< 60s old) → instant, no network.
+ * - Cache miss / forceRefresh → hit grenadier, populate cache.
  * Either way, lastOwnerLookup is set so loadMyPositionDetails has metadata.
  */
 export async function findUserPositions(
@@ -173,15 +166,13 @@ export async function findUserPositions(
 ): Promise<Address[]> {
     if (!opts?.forceRefresh) {
         const cached = loadUserCache(user);
-        if (cached && cached.rows.length > 0) {
+        if (cached && Date.now() - cached.at < CACHE_TTL_MS) {
             lastOwnerLookup = { user: user.toLowerCase(), rows: cached.rows };
             return cached.rows.map(r => r.position);
         }
     }
 
-    const owners = await fetchOwnersMap();
-    const rows = (owners[user.toLowerCase()] ?? [])
-        .filter(r => r.version === 2 && !r.denied);
+    const rows = await fetchOwnerRows(user);
     lastOwnerLookup = { user: user.toLowerCase(), rows };
     saveUserCache(user, rows);
     return rows.map(r => r.position);
@@ -205,39 +196,27 @@ export async function loadMyPositionDetails(
         apiRows = lastOwnerLookup.rows.filter(r => wanted.has(r.position.toLowerCase()));
     } else if (user) {
         // Fallback: lookup wasn't primed, fetch fresh
-        const owners = await fetchOwnersMap();
-        const all = owners[user.toLowerCase()] ?? [];
+        const fresh = await fetchOwnerRows(user);
+        lastOwnerLookup = { user: user.toLowerCase(), rows: fresh };
         const wanted = new Set(addresses.map(a => a.toLowerCase()));
-        apiRows = all.filter(r => wanted.has(r.position.toLowerCase()) && r.version === 2);
+        apiRows = fresh.filter(r => wanted.has(r.position.toLowerCase()));
     } else {
         return [];
     }
 
     if (apiRows.length === 0) return [];
 
-    const metaFromSnapshot = (original: Address) => {
-        const orig = (snapshot as any).positions.find(
-            (p: any) => p.address.toLowerCase() === original.toLowerCase()
-        );
-        return orig ? {
-            collateralName: orig.collateralName as string,
-            collateralSymbol: orig.collateralSymbol as string,
-            collateralDecimals: orig.collateralDecimals as number,
-            collateral: orig.collateral as Address,
-        } : null;
-    };
-
     const partials = apiRows.map((r): MyPositionDetail => {
-        const fallback = metaFromSnapshot(r.original);
-        const available = BigInt(r.availableForPosition ?? "0") + BigInt(r.availableForClones ?? "0");
+        const available =
+            BigInt(r.availableForPosition ?? "0") + BigInt(r.availableForClones ?? "0");
         return {
             address: r.position,
             original: r.original,
             isClone: r.isClone,
-            collateralName: r.collateralName ?? fallback?.collateralName ?? "Unknown",
-            collateralSymbol: r.collateralSymbol ?? fallback?.collateralSymbol ?? "?",
-            collateralDecimals: r.collateralDecimals ?? fallback?.collateralDecimals ?? 18,
-            collateral: r.collateral ?? fallback?.collateral ?? ("0x0000000000000000000000000000000000000000" as Address),
+            collateralName: r.collateralName ?? "Unknown",
+            collateralSymbol: r.collateralSymbol ?? "?",
+            collateralDecimals: r.collateralDecimals ?? 18,
+            collateral: r.collateral,
             minted: BigInt(r.minted ?? "0"),
             price: BigInt(r.price ?? "0"),
             collateralBalance: BigInt(r.collateralBalance ?? "0"),
@@ -246,9 +225,10 @@ export async function loadMyPositionDetails(
             start: r.start ?? 0,
             challengedAmount: 0n,
             isClosed: r.closed ?? false,
-            limit: BigInt(r.limitForPosition ?? "0") + BigInt(r.limitForClones ?? "0"),
+            limit:
+                BigInt(r.limitForPosition ?? "0") + BigInt(r.limitForClones ?? "0"),
             minimumCollateral: BigInt(r.minimumCollateral ?? "0"),
-            riskPremiumPPM: 0,
+            riskPremiumPPM: r.riskPremiumPPM ?? 0,
             reserveContribution: r.reserveContribution ?? 0,
             annualInterestPPM: r.annualInterestPPM ?? 0,
             availableForMinting: available,
