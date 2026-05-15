@@ -1,0 +1,1312 @@
+---
+import Layout from "@layouts/Layout.astro";
+import Card from "@components/Card.astro";
+import { t, getLocale, safeJsonForScript } from "@i18n/t";
+import { CHAINS, type ChainKey } from "@config/network";
+
+const tt = t(Astro.url);
+const locale = getLocale(Astro.url);
+
+// All chains with CCIP pools — used for the bridge filter dropdowns + iteration.
+const CCIP_CHAIN_KEYS: ChainKey[] = [
+    "ethereum", "arbitrum", "avalanche", "base",
+    "gnosis", "optimism", "polygon", "sonic",
+];
+
+// Pre-resolved chain labels + explorers for the client.
+const chainMeta = Object.fromEntries(
+    CCIP_CHAIN_KEYS.map(k => [k, { label: CHAINS[k].label, explorer: CHAINS[k].explorer }])
+);
+
+const i18n = {
+    pageTitle:              tt("gov_page_title"),
+    // section titles + subtitles
+    positionsTitle:         tt("gov_positions_title"),
+    positionsSubtitle:      tt("gov_positions_subtitle"),
+    positionsEmpty:         tt("gov_positions_empty"),
+    ratesTitle:             tt("gov_rates_title"),
+    ratesSubtitle:          tt("gov_rates_subtitle"),
+    mintersTitle:           tt("gov_minters_title"),
+    ccipTitle:              tt("gov_ccip_title"),
+    ccipSubtitle:           tt("gov_ccip_subtitle"),
+    holdersTitle:           tt("gov_holders_title"),
+    holdersSubtitle:        tt("gov_holders_subtitle"),
+    // rates
+    ratesHistory:           tt("gov_rates_history"),
+    ratesPropose:           tt("gov_rates_propose"),
+    ratesMint:              tt("gov_rates_mint"),
+    ratesSave:              tt("gov_rates_save"),
+    ratesProposeBtn:        tt("gov_rates_propose_btn"),
+    ratesProposeBtnPending: tt("gov_rates_propose_btn_pending"),
+    ratesProposedOn:        tt("gov_rates_proposed_on"),
+    ratesProposer:          tt("gov_rates_proposer"),
+    ratesModule:            tt("gov_rates_module"),
+    ratesProposedRate:      tt("gov_rates_proposed_rate"),
+    ratesState:             tt("gov_rates_state"),
+    ratesNoOpen:            tt("gov_rates_no_open"),
+    ratesTakesEffect:       tt("gov_rates_takes_effect"),
+    ratesReady:             tt("gov_rates_ready"),
+    ratesPendingPropose:    tt("gov_rates_pending_propose"),
+    // minters
+    mintersProposalProcess: tt("gov_minters_proposal_process"),
+    mintersFee:             tt("gov_minters_fee"),
+    mintersPeriod:          tt("gov_minters_period"),
+    mintersProposeTitle:    tt("gov_minters_propose_title"),
+    mintersAddr:            tt("gov_minters_addr"),
+    mintersComment:         tt("gov_minters_comment"),
+    mintersBtn:             tt("gov_minters_btn"),
+    mintersBtnPending:      tt("gov_minters_btn_pending"),
+    mintersDate:            tt("gov_minters_date"),
+    mintersMinter:          tt("gov_minters_minter"),
+    mintersChain:           tt("gov_minters_chain"),
+    mintersMessage:         tt("gov_minters_message"),
+    mintersStateCol:        tt("gov_minters_state"),
+    mintersEmpty:           tt("gov_minters_empty"),
+    seeAllModules:          tt("gov_minters_see_all"),
+    stateActive:            tt("gov_state_active"),
+    statePassed:            tt("gov_state_passed"),
+    stateVetoed:            tt("gov_state_vetoed"),
+    statePending:           tt("gov_state_pending"),
+    // ccip
+    ccipFrom:               tt("gov_ccip_from"),
+    ccipTo:                 tt("gov_ccip_to"),
+    ccipRemoteToken:        tt("gov_ccip_remote_token"),
+    ccipOutbound:           tt("gov_ccip_outbound"),
+    ccipInbound:            tt("gov_ccip_inbound"),
+    ccipDisabled:           tt("gov_ccip_disabled"),
+    ccipLoading:            tt("gov_ccip_loading"),
+    ccipAllChains:          tt("gov_ccip_all_chains"),
+    // holders + delegation
+    delegationSupport:      tt("gov_delegation_support"),
+    delegationFrom:         tt("gov_delegation_from"),
+    delegationVoting:       tt("gov_delegation_voting"),
+    delegationConnect:      tt("gov_delegation_connect"),
+    delegationYou:          tt("gov_delegation_you"),
+    delegationTo:           tt("gov_delegation_to"),
+    delegationSupporters:   tt("gov_delegation_supporters"),
+    delegationSupporter:    tt("gov_delegation_supporter"),
+    delegationNoSupporters: tt("gov_delegation_no_supporters"),
+    delegationTotal:        tt("gov_delegation_total"),
+    delegationNote:         tt("gov_delegation_note"),
+    delegationAction:       tt("gov_delegation_action"),
+    delegationAddress:      tt("gov_delegation_address"),
+    delegationBtn:          tt("gov_delegation_btn"),
+    delegationBtnSelf:      tt("gov_delegation_btn_self"),
+    delegationBtnPending:   tt("gov_delegation_btn_pending"),
+    delegationDone:         tt("gov_delegation_done"),
+    holdersAddress:         tt("gov_holders_address"),
+    holdersVotingPower:     tt("gov_holders_voting_power"),
+    holdersWrapped:         tt("gov_holders_wrapped"),
+    holdersSubtitleDynamic: tt("gov_holders_subtitle_dynamic"),
+    holdersConnected:       tt("gov_holders_connected"),
+    syncTitle:              tt("gov_sync_title"),
+    syncTarget:             tt("gov_sync_target"),
+    syncVotesOnTarget:      tt("gov_sync_votes_on_target"),
+    syncBtn:                tt("gov_sync_btn"),
+    syncBtnPending:         tt("gov_sync_btn_pending"),
+    syncFee:                tt("gov_sync_fee"),
+    syncDone:               tt("gov_sync_done"),
+    syncVotersSynced:       tt("gov_sync_voters_synced"),
+    syncAlreadySynced:      tt("gov_sync_already_synced"),
+    syncChainMatch:         tt("gov_sync_chain_match"),
+    // errors + common
+    cancelled:              tt("common_cancelled"),
+    errInvalidAddr:         tt("gov_err_invalid_addr"),
+    errSameRate:            tt("gov_err_same_rate"),
+    errPeriod:              tt("gov_err_period"),
+    errMsg:                 tt("gov_err_msg"),
+    errFee:                 tt("gov_err_fee"),
+    loading:                tt("gov_loading"),
+    error:                  tt("gov_error"),
+};
+
+// Format chain labels server-side for the select.
+const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[k].label }));
+---
+
+<Layout title={`${i18n.pageTitle} | Frankencoin dApp`} description={i18n.positionsSubtitle}>
+    <main class="mx-auto max-w-6xl px-4 py-10 md:px-6 md:py-12 space-y-10">
+
+        <!-- ====== New Positions ====== -->
+        <section class="space-y-3">
+            <h2 class="text-[22px] font-bold tracking-tight">{i18n.positionsTitle}</h2>
+            <p class="text-[14px] opacity-80 max-w-3xl">{i18n.positionsSubtitle}</p>
+            <div id="positions-new" class="text-[14px] opacity-60 py-4">
+                {i18n.loading}
+            </div>
+        </section>
+
+        <!-- ====== Interest Rates ====== -->
+        <section class="space-y-3">
+            <h2 class="text-[22px] font-bold tracking-tight">{i18n.ratesTitle}</h2>
+            <p class="text-[14px] opacity-80 max-w-3xl">{i18n.ratesSubtitle}</p>
+
+            <!-- Two-card row: Historical Rates + Propose -->
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Card title={i18n.ratesHistory}>
+                    <div id="rates-history" class="mt-2 space-y-2">
+                        <!-- Mint and Save rows, populated client-side. -->
+                        <div class="flex items-baseline justify-between border-b border-foreground/10 pb-2">
+                            <span class="text-[13px] font-medium opacity-70">{i18n.ratesMint}</span>
+                            <span id="rate-mint-current" class="text-[20px] font-bold tracking-tight">—</span>
+                        </div>
+                        <div class="flex items-baseline justify-between">
+                            <span class="text-[13px] font-medium opacity-70">{i18n.ratesSave}</span>
+                            <span id="rate-save-current" class="text-[20px] font-bold tracking-tight">—</span>
+                        </div>
+                        <div id="rate-mint-pending" class="hidden text-[12px] opacity-75 pt-1"></div>
+                        <div id="rate-save-pending" class="hidden text-[12px] opacity-75"></div>
+                    </div>
+                </Card>
+
+                <Card title={i18n.ratesPropose}>
+                    <div id="propose-rates-disconnected" class="text-[13px] opacity-70 py-2">
+                        {i18n.delegationConnect}
+                    </div>
+                    <div id="propose-rates-connected" class="space-y-3 hidden">
+                        <div>
+                            <label class="block text-[12px] font-medium opacity-70 mb-1" for="propose-mint-input">{i18n.ratesMint}</label>
+                            <div class="flex gap-2">
+                                <div class="relative flex-1">
+                                    <input
+                                        id="propose-mint-input"
+                                        type="number" step="0.01" min="0" max="100"
+                                        class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 pr-8 text-[14px] font-mono focus:border-foreground/40 focus:outline-none"
+                                    />
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] opacity-60">%</span>
+                                </div>
+                                <button
+                                    id="propose-mint-btn" type="button" disabled
+                                    class="rounded-md bg-foreground text-background px-4 py-2 text-[13px] font-medium hover:opacity-90 disabled:opacity-50"
+                                >{i18n.ratesProposeBtn}</button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[12px] font-medium opacity-70 mb-1" for="propose-save-input">{i18n.ratesSave}</label>
+                            <div class="flex gap-2">
+                                <div class="relative flex-1">
+                                    <input
+                                        id="propose-save-input"
+                                        type="number" step="0.01" min="0" max="100"
+                                        class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 pr-8 text-[14px] font-mono focus:border-foreground/40 focus:outline-none"
+                                    />
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] opacity-60">%</span>
+                                </div>
+                                <button
+                                    id="propose-save-btn" type="button" disabled
+                                    class="rounded-md bg-foreground text-background px-4 py-2 text-[13px] font-medium hover:opacity-90 disabled:opacity-50"
+                                >{i18n.ratesProposeBtn}</button>
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+            </div>
+
+            <!-- Open proposals table (only currently-open, not history) -->
+            <div class="overflow-x-auto pt-2">
+                <table class="w-full text-[13px]">
+                    <thead class="text-left opacity-70">
+                        <tr class="border-b border-foreground/10">
+                            <th class="py-2 pr-4 font-medium">{i18n.ratesProposedOn}</th>
+                            <th class="py-2 pr-4 font-medium">{i18n.ratesProposer}</th>
+                            <th class="py-2 pr-4 font-medium">{i18n.ratesModule}</th>
+                            <th class="py-2 pr-4 font-medium">{i18n.ratesProposedRate}</th>
+                            <th class="py-2 font-medium">{i18n.ratesState}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="rates-open-tbody">
+                        <tr><td class="py-3 opacity-60" colspan="5">{i18n.loading}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ====== Minting Modules ====== -->
+        <section class="space-y-3">
+            <h2 class="text-[22px] font-bold tracking-tight">{i18n.mintersTitle}</h2>
+
+            <!-- Two-card row: Proposal Process info + Propose Module form -->
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Card title={i18n.mintersProposalProcess}>
+                    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <div>
+                            <div class="text-[12px] opacity-70 mb-1">{i18n.mintersFee}</div>
+                            <div class="rounded-md border border-foreground/15 bg-foreground/3 px-3 py-2.5 text-[14px] font-mono">
+                                1,000 ZCHF
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-[12px] opacity-70 mb-1">{i18n.mintersPeriod}</div>
+                            <div class="rounded-md border border-foreground/15 bg-foreground/3 px-3 py-2.5 text-[14px] font-mono">
+                                14 days
+                            </div>
+                        </div>
+                    </div>
+                </Card>
+
+                <Card title={i18n.mintersProposeTitle}>
+                    <div id="propose-minter-disconnected" class="text-[13px] opacity-70 py-2">
+                        {i18n.delegationConnect}
+                    </div>
+                    <div id="propose-minter-connected" class="space-y-3 hidden">
+                        <div>
+                            <label class="block text-[12px] font-medium opacity-70 mb-1" for="propose-minter-addr">{i18n.mintersAddr}</label>
+                            <input
+                                id="propose-minter-addr" type="text" placeholder="0x…"
+                                class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 text-[14px] font-mono focus:border-foreground/40 focus:outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-[12px] font-medium opacity-70 mb-1" for="propose-minter-msg">{i18n.mintersComment}</label>
+                            <input
+                                id="propose-minter-msg" type="text"
+                                class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 text-[14px] focus:border-foreground/40 focus:outline-none"
+                            />
+                        </div>
+                        <button
+                            id="propose-minter-btn" type="button"
+                            class="w-full rounded-md bg-foreground text-background px-4 py-2.5 text-[13px] font-medium hover:opacity-90 disabled:opacity-50"
+                        >{i18n.mintersBtn}</button>
+                    </div>
+                </Card>
+            </div>
+
+            <!-- Top-3 minters table -->
+            <div class="overflow-x-auto pt-2">
+                <table class="w-full min-w-180 text-[13px]">
+                    <thead class="text-left opacity-70">
+                        <tr class="border-b border-foreground/10">
+                            <th class="py-2 pr-4 font-medium">{i18n.mintersDate}</th>
+                            <th class="py-2 pr-4 font-medium">{i18n.mintersMinter}</th>
+                            <th class="py-2 pr-4 font-medium">{i18n.mintersChain}</th>
+                            <th class="py-2 pr-4 font-medium">{i18n.mintersMessage}</th>
+                            <th class="py-2 font-medium">{i18n.mintersStateCol}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="minters-tbody">
+                        <tr><td class="py-3 opacity-60" colspan="5">{i18n.loading}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-right pt-1">
+                <button id="minters-toggle-all" type="button" class="text-[13px] opacity-80 hover:opacity-100 hover:underline">
+                    {i18n.seeAllModules}
+                </button>
+            </div>
+        </section>
+
+        <!-- ====== CCIP Bridges ====== -->
+        <section class="space-y-3">
+            <h2 class="text-[22px] font-bold tracking-tight">{i18n.ccipTitle}</h2>
+            <p class="text-[14px] opacity-80 max-w-3xl">{i18n.ccipSubtitle}</p>
+
+            <!-- From / To filters -->
+            <div class="flex flex-wrap gap-3">
+                <div>
+                    <label class="block text-[12px] opacity-70 mb-1" for="ccip-from">{i18n.ccipFrom}</label>
+                    <select id="ccip-from" class="rounded-md border border-foreground/20 bg-background px-3 py-2 text-[13px] focus:border-foreground/40 focus:outline-none">
+                        <option value="ethereum">{CHAINS.ethereum.label}</option>
+                        {chainOptionsForClient.filter(c => c.key !== "ethereum").map(c => (
+                            <option value={c.key}>{c.label}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-[12px] opacity-70 mb-1" for="ccip-to">{i18n.ccipTo}</label>
+                    <select id="ccip-to" class="rounded-md border border-foreground/20 bg-background px-3 py-2 text-[13px] focus:border-foreground/40 focus:outline-none">
+                        <option value="">{i18n.ccipAllChains}</option>
+                        {chainOptionsForClient.map(c => (
+                            <option value={c.key}>{c.label}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto pt-1">
+                <table class="w-full min-w-180 text-[13px]">
+                    <thead class="text-left opacity-70">
+                        <tr class="border-b border-foreground/10">
+                            <th class="py-2 pr-4 font-medium">{i18n.ccipFrom}</th>
+                            <th class="py-2 pr-4 font-medium">{i18n.ccipTo}</th>
+                            <th class="py-2 pr-4 font-medium">{i18n.ccipRemoteToken}</th>
+                            <th class="py-2 pr-4 font-medium">{i18n.ccipOutbound}</th>
+                            <th class="py-2 font-medium">{i18n.ccipInbound}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ccip-tbody">
+                        <tr><td class="py-3 opacity-60" colspan="5">{i18n.ccipLoading}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ====== FPS Pool Share Holders ====== -->
+        <section class="space-y-3">
+            <h2 class="text-[22px] font-bold tracking-tight">{i18n.holdersTitle}</h2>
+            <p id="holders-subtitle" class="text-[14px] opacity-80 max-w-3xl">{i18n.holdersSubtitle}</p>
+
+            <!-- Two-card row: Voting Support + Support an Address -->
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <Card title={i18n.delegationSupport}>
+                    <div class="flex justify-between text-[12px] font-medium opacity-70 border-b border-foreground/10 pb-1.5">
+                        <span>{i18n.delegationFrom}</span>
+                        <span>{i18n.delegationVoting}</span>
+                    </div>
+                    <div id="delegation-disconnected" class="text-[13px] opacity-70 text-center py-6">
+                        {i18n.delegationConnect}
+                    </div>
+                    <div id="delegation-connected" class="hidden">
+                        <div id="delegation-rows" class="divide-y divide-foreground/10"></div>
+                        <div class="flex justify-between pt-2">
+                            <span class="text-[13px] font-semibold opacity-70">{i18n.delegationTotal}</span>
+                            <span id="delegation-total" class="text-[13px] font-bold">—</span>
+                        </div>
+                    </div>
+                    <p class="text-[12px] opacity-70 pt-3">{i18n.delegationNote}</p>
+                </Card>
+
+                <Card title={i18n.delegationAction}>
+                    <div id="delegation-action-disconnected" class="text-[13px] opacity-70 py-2">
+                        {i18n.delegationConnect}
+                    </div>
+                    <div id="delegation-action-connected" class="space-y-4 hidden">
+                        <div>
+                            <label class="block text-[12px] font-medium opacity-70 mb-1" for="delegate-input">{i18n.delegationAddress}</label>
+                            <input
+                                id="delegate-input" type="text" placeholder="0x…"
+                                class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 text-[14px] font-mono focus:border-foreground/40 focus:outline-none"
+                            />
+                        </div>
+                        <div class="flex gap-2">
+                            <button
+                                id="delegate-btn" type="button"
+                                class="flex-1 rounded-md bg-foreground text-background px-4 py-2.5 text-[13px] font-medium hover:opacity-90 disabled:opacity-50"
+                            >{i18n.delegationBtn}</button>
+                            <button
+                                id="delegate-self-btn" type="button"
+                                class="rounded-md border border-foreground/20 px-4 py-2.5 text-[13px] font-medium hover:bg-foreground/5 disabled:opacity-50"
+                            >{i18n.delegationBtnSelf}</button>
+                        </div>
+
+                        <div class="border-t border-foreground/10 pt-4 space-y-3">
+                            <div class="text-[14px] font-semibold">{i18n.syncTitle}</div>
+                            <div>
+                                <label class="block text-[12px] font-medium opacity-70 mb-1" for="sync-target">{i18n.syncTarget}</label>
+                                <select
+                                    id="sync-target"
+                                    class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 text-[13px] focus:border-foreground/40 focus:outline-none"
+                                >
+                                    {chainOptionsForClient.filter(c => c.key !== "ethereum").map(c => (
+                                        <option value={c.key}>{c.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div class="flex justify-between text-[12px]">
+                                <span class="opacity-70">{i18n.syncVotesOnTarget}</span>
+                                <span id="sync-current-pct" class="font-mono">—</span>
+                            </div>
+                            <div class="flex justify-between text-[12px]">
+                                <span class="opacity-70">{i18n.syncFee}</span>
+                                <span id="sync-fee" class="font-mono opacity-70">—</span>
+                            </div>
+                            <button
+                                id="sync-btn" type="button"
+                                class="w-full rounded-md bg-foreground text-background px-4 py-2.5 text-[13px] font-medium hover:opacity-90 disabled:opacity-50"
+                            >{i18n.syncBtn}</button>
+                        </div>
+                    </div>
+                </Card>
+            </div>
+
+            <!-- Voters table -->
+            <div class="overflow-x-auto pt-2">
+                <table class="w-full min-w-120 text-[13px]">
+                    <thead class="text-left opacity-70">
+                        <tr class="border-b border-foreground/10">
+                            <th class="py-2 pr-4 font-medium">{i18n.holdersAddress}</th>
+                            <th class="py-2 text-right font-medium">{i18n.holdersVotingPower}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="holders-tbody">
+                        <tr><td class="py-3 opacity-60" colspan="2">{i18n.loading}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script id="gov-i18n" type="application/json" set:html={safeJsonForScript(i18n)}></script>
+    <script id="gov-locale" type="application/json" set:html={safeJsonForScript(locale)}></script>
+    <script id="gov-chains" type="application/json" set:html={safeJsonForScript(chainMeta)}></script>
+</Layout>
+
+<script>
+    import { type Address, formatUnits, decodeAbiParameters, zeroAddress } from "viem";
+    import { getPublicClient, makeWalletClient } from "@lib/client";
+    import { SAVINGS_ABI } from "@abi/savings";
+    import { EQUITY_ABI } from "@abi/equity";
+    import { CCIP_TOKEN_POOL_ABI } from "@abi/ccipTokenPool";
+    import { ADDRESSES } from "@config/addresses";
+    import { CHAINS, type ChainKey } from "@config/network";
+    import {
+        loadGovernance,
+        type Minter,
+        type LeadrateProposed,
+        type FPSHolder,
+    } from "@lib/governance";
+    import { getOnboard } from "@lib/onboard";
+    import { getRawProvider, isUserCancelErr } from "@lib/walletProvider";
+    import { toast } from "@lib/toast";
+    import { buildVotingHelpers } from "@lib/votingHelpers";
+    import {
+        readDelegate, delegateVoteTo,
+        proposeLeadrate, suggestMinter,
+        getSyncVotesFee, syncVotesToChain, readVotesOnTarget,
+        readFPSAverageStats,
+    } from "@lib/governanceActions";
+
+    // ---------- utils ----------
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+    const i18n = JSON.parse($("gov-i18n").textContent || "{}") as Record<string, string>;
+    const locale = JSON.parse($("gov-locale").textContent || '"en"') as string;
+    const chainMeta = JSON.parse($("gov-chains").textContent || "{}") as Record<string, { label: string; explorer: string }>;
+
+    const numberLocale = ({
+        en: "en-US", de: "de-CH", fr: "fr-CH", it: "it-CH", es: "es-ES",
+    } as Record<string, string>)[locale] ?? "en-US";
+
+    const ZCHF_DECIMALS = 18;
+    const FPS_DECIMALS = 18;
+    const PPM_PER_PCT = 10_000;
+
+    function fmtNum(n: number, frac = 2) {
+        return n.toLocaleString(numberLocale, { minimumFractionDigits: frac, maximumFractionDigits: frac });
+    }
+    function fmtBig(v: bigint, dec: number, frac = 2) {
+        return fmtNum(Number(formatUnits(v, dec)), frac);
+    }
+    function fmtPPM(ppm: number) {
+        return `${fmtNum(ppm / PPM_PER_PCT, 2)}%`;
+    }
+    function fmtDate(unixSec: number) {
+        return new Date(unixSec * 1000).toLocaleDateString(numberLocale, {
+            day: "2-digit", month: "short", year: "numeric",
+        });
+    }
+    function shortAddr(addr: string) {
+        return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+    }
+    function esc(s: string) {
+        return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]!));
+    }
+    function isAddress(s: string): s is `0x${string}` {
+        return /^0x[a-fA-F0-9]{40}$/.test(s);
+    }
+
+    // chain id → key lookup
+    const CHAIN_ID_TO_KEY: Record<number, ChainKey> = {};
+    for (const [k, c] of Object.entries(CHAINS)) {
+        CHAIN_ID_TO_KEY[c.chainIdNumber] = k as ChainKey;
+    }
+    function chainLabelFromId(id: number) {
+        const k = CHAIN_ID_TO_KEY[id];
+        return k ? CHAINS[k].label : `chain #${id}`;
+    }
+    function explorerFromId(id: number) {
+        const k = CHAIN_ID_TO_KEY[id];
+        return k ? CHAINS[k].explorer : "https://etherscan.io";
+    }
+
+    function explorerErr(err: any): string {
+        if (isUserCancelErr(err)) return i18n.cancelled;
+        return err?.shortMessage ?? err?.message ?? String(err);
+    }
+
+    // module address → display label (Mint/Save)
+    const MAINNET_MINT_MODULE = (ADDRESSES.ethereum.savingsV2 || "0x").toLowerCase();
+    const MAINNET_SAVE_MODULE = ADDRESSES.ethereum.savings.toLowerCase();
+    function moduleLabel(addr: string) {
+        const a = addr.toLowerCase();
+        if (a === MAINNET_MINT_MODULE) return i18n.ratesMint;
+        if (a === MAINNET_SAVE_MODULE) return i18n.ratesSave;
+        return shortAddr(addr);
+    }
+
+    // ---------- shared governance fetch ----------
+    const governanceP = loadGovernance().catch(err => {
+        console.error("[gov] grenadier load:", err);
+        return null;
+    });
+
+    // ========== SECTION 1: New Positions ==========
+    /**
+     * "New" = positions in their initialization period (start > now). Their
+     * official site renders the full position card here. We keep it simple
+     * for now: link to mypositions filtered to ?phase=new. If/when the
+     * mypositions page supports that filter we get clickable rows.
+     */
+    async function renderNewPositions() {
+        try {
+            const res = await fetch(`${(import.meta as any).env.DEV ? "http://localhost:8080" : "https://grenadier-zchf.enni.ch"}/positions`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json() as { list: Array<{ position: string; start: number; closed: boolean; denied: boolean; collateralSymbol: string; minted: string }> };
+            const now = Math.floor(Date.now() / 1000);
+            const newOnes = data.list
+                .filter(p => !p.closed && !p.denied && p.start > now)
+                .sort((a, b) => a.start - b.start);
+
+            const el = $("positions-new");
+            if (newOnes.length === 0) {
+                el.textContent = i18n.positionsEmpty;
+                return;
+            }
+            el.innerHTML = newOnes.map(p => {
+                const startsIn = p.start - now;
+                const days = Math.floor(startsIn / 86400);
+                const hours = Math.floor((startsIn % 86400) / 3600);
+                return `<div class="flex items-center justify-between border-b border-foreground/5 py-2.5">
+                    <a class="text-primary hover:underline font-mono text-[12px]" target="_blank" rel="noopener" href="https://etherscan.io/address/${esc(p.position)}">${esc(shortAddr(p.position))}</a>
+                    <span class="text-[12px] opacity-70">${esc(p.collateralSymbol)} · ${days}d ${hours}h</span>
+                </div>`;
+            }).join("");
+        } catch (err) {
+            console.error("[gov] new positions:", err);
+            $("positions-new").textContent = i18n.error;
+        }
+    }
+
+    // ========== SECTION 2: Interest Rates ==========
+    /**
+     * Mainnet has TWO Savings modules:
+     *   - MINT module: 0x3bf3...b2ae (legacy SavingsV2)
+     *   - SAVE module: 0x27d9...7b38 (SavingsReferral, current)
+     *
+     * Each tracks its own rate independently. The "Mint Rate" and "Save Rate"
+     * displayed in the UI come from these two contracts respectively, and
+     * proposeChange() is called on each module separately.
+     */
+    async function renderRates() {
+        const client = getPublicClient("ethereum");
+        const mint = ADDRESSES.ethereum.savingsV2 as Address;
+        const save = ADDRESSES.ethereum.savings as Address;
+
+        try {
+            const results = await client.multicall({
+                allowFailure: false,
+                contracts: [
+                    { address: mint, abi: SAVINGS_ABI, functionName: "currentRatePPM" },
+                    { address: mint, abi: SAVINGS_ABI, functionName: "nextRatePPM" },
+                    { address: mint, abi: SAVINGS_ABI, functionName: "nextChange" },
+                    { address: save, abi: SAVINGS_ABI, functionName: "currentRatePPM" },
+                    { address: save, abi: SAVINGS_ABI, functionName: "nextRatePPM" },
+                    { address: save, abi: SAVINGS_ABI, functionName: "nextChange" },
+                ],
+            });
+            // uint24/uint40 come back as number from viem.
+            const [mintCur, mintNext, mintChange, saveCur, saveNext, saveChange] = results as unknown as [number, number, number, number, number, number];
+
+            $("rate-mint-current").textContent = fmtPPM(mintCur);
+            $("rate-save-current").textContent = fmtPPM(saveCur);
+            ($("propose-mint-input") as HTMLInputElement).value = (mintCur / PPM_PER_PCT).toString();
+            ($("propose-save-input") as HTMLInputElement).value = (saveCur / PPM_PER_PCT).toString();
+
+            if (mintNext !== mintCur && mintChange > 0) {
+                const el = $("rate-mint-pending");
+                el.textContent = `${i18n.ratesPendingPropose}: ${fmtPPM(mintNext)} · ${i18n.ratesTakesEffect.replace("{date}", fmtDate(mintChange))}`;
+                el.classList.remove("hidden");
+            }
+            if (saveNext !== saveCur && saveChange > 0) {
+                const el = $("rate-save-pending");
+                el.textContent = `${i18n.ratesPendingPropose}: ${fmtPPM(saveNext)} · ${i18n.ratesTakesEffect.replace("{date}", fmtDate(saveChange))}`;
+                el.classList.remove("hidden");
+            }
+        } catch (err) {
+            console.error("[gov] leadrate live:", err);
+        }
+
+        // Open proposals only — anything where the proposal's nextChange
+        // is still in the future. Matches official site behavior.
+        const data = await governanceP;
+        const tbody = $("rates-open-tbody");
+        if (!data) {
+            tbody.innerHTML = `<tr><td class="py-3 text-primary" colspan="5">${esc(i18n.error)}</td></tr>`;
+            return;
+        }
+        const now = Math.floor(Date.now() / 1000);
+        const open = data.leadrate.proposed.list
+            .filter(p => p.chainId === 1 && p.nextChange > 0 && p.nextChange > now)
+            .sort((a, b) => b.created - a.created);
+
+        if (open.length === 0) {
+            tbody.innerHTML = `<tr><td class="py-3 opacity-60" colspan="5">${esc(i18n.ratesNoOpen)}</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = open.map(p => {
+            const proposerLink = `<a class="text-primary hover:underline font-mono text-[12px]" target="_blank" rel="noopener" href="${esc(explorerFromId(p.chainId))}/address/${esc(p.proposer)}">${esc(shortAddr(p.proposer))}</a>`;
+            const hoursLeft = Math.floor((p.nextChange - now) / 3600);
+            const stateTxt = hoursLeft > 24
+                ? `${Math.floor(hoursLeft / 24)}d`
+                : `${hoursLeft}h`;
+            return `<tr class="border-b border-foreground/5">
+                <td class="py-3 pr-4 whitespace-nowrap">${esc(fmtDate(p.created))}</td>
+                <td class="py-3 pr-4">${proposerLink}</td>
+                <td class="py-3 pr-4 whitespace-nowrap">${esc(moduleLabel(p.module))}</td>
+                <td class="py-3 pr-4 whitespace-nowrap font-mono">${esc(fmtPPM(p.nextRate))}</td>
+                <td class="py-3 whitespace-nowrap"><span class="rounded-sm bg-primary/15 text-primary px-1.5 py-0.5 text-[11px] font-medium">${esc(stateTxt)}</span></td>
+            </tr>`;
+        }).join("");
+    }
+
+    // ========== SECTION 3: Minters ==========
+
+    let showAllMinters = false;
+    async function renderMinters() {
+        const data = await governanceP;
+        const tbody = $("minters-tbody");
+        if (!data) {
+            tbody.innerHTML = `<tr><td class="py-3 text-primary" colspan="5">${esc(i18n.error)}</td></tr>`;
+            return;
+        }
+        const minters: Minter[] = data.minters.list;
+        if (minters.length === 0) {
+            tbody.innerHTML = `<tr><td class="py-3 opacity-60" colspan="5">${esc(i18n.mintersEmpty)}</td></tr>`;
+            return;
+        }
+        const slice = showAllMinters ? minters : minters.slice(0, 3);
+        const now = Math.floor(Date.now() / 1000);
+
+        tbody.innerHTML = slice.map(m => {
+            const explorer = explorerFromId(m.chainId);
+            const minterLink = `<a class="text-primary hover:underline font-mono text-[12px]" target="_blank" rel="noopener" href="${esc(explorer)}/address/${esc(m.minter)}">${esc(shortAddr(m.minter))}</a>`;
+
+            let badge: { label: string; class: string };
+            if (m.denyDate && m.denyDate > 0) {
+                badge = { label: i18n.stateVetoed, class: "bg-primary/15 text-primary" };
+            } else if (m.applyDate + m.applicationPeriod > now) {
+                badge = { label: i18n.stateActive, class: "bg-amber-500/15 text-amber-600 dark:text-amber-400" };
+            } else {
+                badge = { label: i18n.statePassed, class: "bg-foreground/10" };
+            }
+
+            // For vetoed entries, show denyMessage as sub-text + vetor link.
+            const isVetoed = !!(m.denyDate && m.denyDate > 0);
+            const denySubLine = isVetoed && m.denyMessage
+                ? `<div class="text-[11px] opacity-65 italic">"${esc(m.denyMessage)}"${m.vetor ? ` — <a class="text-primary hover:underline" target="_blank" rel="noopener" href="${esc(explorer)}/address/${esc(m.vetor)}">${esc(shortAddr(m.vetor))}</a>` : ""}</div>`
+                : "";
+            const fullTitle = isVetoed && m.denyMessage
+                ? `${m.applyMessage}\n\nVetoed: ${m.denyMessage}${m.vetor ? `\nBy: ${m.vetor}` : ""}`
+                : m.applyMessage;
+
+            return `<tr class="border-b border-foreground/5">
+                <td class="py-3 pr-4 whitespace-nowrap">${esc(fmtDate(m.applyDate))}</td>
+                <td class="py-3 pr-4">${minterLink}</td>
+                <td class="py-3 pr-4 whitespace-nowrap">${esc(chainLabelFromId(m.chainId))}</td>
+                <td class="py-3 pr-4 max-w-[320px]" title="${esc(fullTitle)}">
+                    <div class="truncate">${esc(m.applyMessage)}</div>
+                    ${denySubLine}
+                </td>
+                <td class="py-3"><span class="rounded-sm ${badge.class} px-1.5 py-0.5 text-[11px] font-medium">${esc(badge.label)}</span></td>
+            </tr>`;
+        }).join("");
+
+        const toggleBtn = $("minters-toggle-all");
+        toggleBtn.textContent = showAllMinters
+            ? "↑"
+            : `${i18n.seeAllModules} (${minters.length})`;
+    }
+    $("minters-toggle-all").addEventListener("click", () => {
+        showAllMinters = !showAllMinters;
+        renderMinters();
+    });
+
+    // ========== SECTION 4: CCIP Bridges ==========
+
+    type CCIPBucket = { isEnabled: boolean; tokens: bigint; capacity: bigint; rate: bigint };
+    type CCIPRow = {
+        sourceKey: ChainKey;
+        destKey: ChainKey | null;
+        destSelector: bigint;
+        remoteToken: string | null;
+        outbound: CCIPBucket;
+        inbound: CCIPBucket;
+    };
+
+    const CCIP_CHAIN_KEYS_CLIENT: ChainKey[] = [
+        "ethereum", "arbitrum", "avalanche", "base",
+        "gnosis", "optimism", "polygon", "sonic",
+    ];
+
+    function selectorToChainKey(sel: bigint): ChainKey | null {
+        for (const k of CCIP_CHAIN_KEYS_CLIENT) {
+            if (ADDRESSES[k].ccipSelector === sel) return k;
+        }
+        return null;
+    }
+    function fmtBucket(b: CCIPBucket) {
+        if (!b.isEnabled) return `<span class="opacity-60">${esc(i18n.ccipDisabled)}</span>`;
+        return `<span class="font-mono text-[12px]">${esc(fmtBig(b.tokens, ZCHF_DECIMALS, 0))} / ${esc(fmtBig(b.capacity, ZCHF_DECIMALS, 0))}</span> <span class="opacity-70">ZCHF</span>`;
+    }
+
+    // Cache so filter changes are instant.
+    let ccipCache: CCIPRow[] | null = null;
+
+    async function loadCCIPForChain(sourceKey: ChainKey): Promise<CCIPRow[]> {
+        const pool = ADDRESSES[sourceKey].ccipTokenPool;
+        if (!pool) return [];
+        const client = getPublicClient(sourceKey);
+        let selectors: readonly bigint[];
+        try {
+            selectors = await client.readContract({
+                address: pool, abi: CCIP_TOKEN_POOL_ABI, functionName: "getSupportedChains",
+            }) as readonly bigint[];
+        } catch (err) {
+            console.warn(`[gov] ccip ${sourceKey}:`, err);
+            return [];
+        }
+        if (selectors.length === 0) return [];
+
+        const contracts = selectors.flatMap(sel => [
+            { address: pool, abi: CCIP_TOKEN_POOL_ABI, functionName: "getRemoteToken" as const, args: [sel] },
+            { address: pool, abi: CCIP_TOKEN_POOL_ABI, functionName: "getCurrentOutboundRateLimiterState" as const, args: [sel] },
+            { address: pool, abi: CCIP_TOKEN_POOL_ABI, functionName: "getCurrentInboundRateLimiterState" as const, args: [sel] },
+        ]);
+        const results = await client.multicall({ allowFailure: true, contracts });
+        const out: CCIPRow[] = [];
+        selectors.forEach((sel, i) => {
+            const base = i * 3;
+            const decodeBucket = (r: typeof results[0]): CCIPBucket => {
+                if (r.status !== "success" || !r.result) return { isEnabled: false, tokens: 0n, capacity: 0n, rate: 0n };
+                const s = r.result as { tokens: bigint; isEnabled: boolean; capacity: bigint; rate: bigint };
+                return { isEnabled: s.isEnabled, tokens: s.tokens, capacity: s.capacity, rate: s.rate };
+            };
+            let remoteToken: string | null = null;
+            const tokRes = results[base];
+            if (tokRes.status === "success" && tokRes.result) {
+                try {
+                    const [addr] = decodeAbiParameters([{ type: "address" }], tokRes.result as `0x${string}`);
+                    remoteToken = addr;
+                } catch { /* ignore */ }
+            }
+            out.push({
+                sourceKey,
+                destKey: selectorToChainKey(sel),
+                destSelector: sel,
+                remoteToken,
+                outbound: decodeBucket(results[base + 1]),
+                inbound: decodeBucket(results[base + 2]),
+            });
+        });
+        return out;
+    }
+
+    function renderCCIPTable() {
+        const tbody = $("ccip-tbody");
+        if (!ccipCache) {
+            tbody.innerHTML = `<tr><td class="py-3 opacity-60" colspan="5">${esc(i18n.ccipLoading)}</td></tr>`;
+            return;
+        }
+        const fromFilter = ($("ccip-from") as HTMLSelectElement).value as ChainKey;
+        const toFilter = ($("ccip-to") as HTMLSelectElement).value;
+
+        const rows = ccipCache.filter(r => {
+            if (r.sourceKey !== fromFilter) return false;
+            if (toFilter && r.destKey !== toFilter) return false;
+            return true;
+        });
+
+        if (rows.length === 0) {
+            tbody.innerHTML = `<tr><td class="py-3 opacity-60" colspan="5">—</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = rows.map(r => {
+            const toLabel = r.destKey ? CHAINS[r.destKey].label : `selector ${r.destSelector.toString()}`;
+            const destExplorer = r.destKey ? CHAINS[r.destKey].explorer : null;
+            const tokenCell = r.remoteToken
+                ? (destExplorer
+                    ? `<a class="text-primary hover:underline font-mono text-[12px]" target="_blank" rel="noopener" href="${esc(destExplorer)}/address/${esc(r.remoteToken)}">${esc(shortAddr(r.remoteToken))}</a>`
+                    : `<span class="font-mono text-[12px]">${esc(shortAddr(r.remoteToken))}</span>`)
+                : `<span class="opacity-60">—</span>`;
+            return `<tr class="border-b border-foreground/5">
+                <td class="py-3 pr-4 whitespace-nowrap">${esc(CHAINS[r.sourceKey].label)}</td>
+                <td class="py-3 pr-4 whitespace-nowrap">${esc(toLabel)}</td>
+                <td class="py-3 pr-4">${tokenCell}</td>
+                <td class="py-3 pr-4 whitespace-nowrap">${fmtBucket(r.outbound)}</td>
+                <td class="py-3 whitespace-nowrap">${fmtBucket(r.inbound)}</td>
+            </tr>`;
+        }).join("");
+    }
+
+    async function renderCCIP() {
+        try {
+            const perChain = await Promise.all(
+                CCIP_CHAIN_KEYS_CLIENT.filter(k => ADDRESSES[k].ccipTokenPool).map(k => loadCCIPForChain(k))
+            );
+            ccipCache = perChain.flat();
+            renderCCIPTable();
+        } catch (err) {
+            console.error("[gov] ccip:", err);
+            $("ccip-tbody").innerHTML = `<tr><td class="py-3 text-primary" colspan="5">${esc(i18n.error)}</td></tr>`;
+        }
+    }
+    $("ccip-from").addEventListener("change", renderCCIPTable);
+    $("ccip-to").addEventListener("change", renderCCIPTable);
+
+    // ========== SECTION 5: FPS Holders + Delegation ==========
+
+    async function renderHolders() {
+        const data = await governanceP;
+        const tbody = $("holders-tbody");
+        if (!data) {
+            tbody.innerHTML = `<tr><td class="py-3 text-primary" colspan="2">${esc(i18n.error)}</td></tr>`;
+            return;
+        }
+        const holders: FPSHolder[] = data.fpsHolders.list.slice(0, 20);
+        if (holders.length === 0) {
+            tbody.innerHTML = `<tr><td class="py-3 opacity-70" colspan="2">—</td></tr>`;
+            return;
+        }
+
+        // supporters per holder (excl. self-delegations)
+        const supporters: Record<string, string[]> = {};
+        for (const d of data.delegations.list) {
+            if (d.owner === d.delegatedTo) continue;
+            const to = d.delegatedTo.toLowerCase();
+            (supporters[to] ??= []).push(d.owner.toLowerCase());
+        }
+
+        // Multicall the dedup'd union of holders + all their supporters,
+        // so we can also compute each holder's "supported voting power".
+        const addrSet = new Set<string>();
+        for (const h of holders) addrSet.add(h.account.toLowerCase());
+        for (const list of Object.values(supporters)) {
+            for (const s of list) addrSet.add(s);
+        }
+        const addrList = Array.from(addrSet);
+
+        const client = getPublicClient("ethereum");
+        const equity = ADDRESSES.ethereum.equity as Address;
+        const contracts = [
+            { address: equity, abi: EQUITY_ABI, functionName: "totalVotes" as const },
+            ...addrList.map(a => ({
+                address: equity, abi: EQUITY_ABI,
+                functionName: "votes" as const, args: [a as Address],
+            })),
+        ];
+        let totalVotes = 0n;
+        const votes = new Map<string, bigint>();
+        try {
+            const res = await client.multicall({ allowFailure: false, contracts }) as bigint[];
+            totalVotes = res[0];
+            addrList.forEach((a, i) => votes.set(a, res[1 + i]));
+        } catch (err) {
+            console.error("[gov] votes mc:", err);
+        }
+
+        const wfps = (ADDRESSES.ethereum.fpsWrapper || "").toLowerCase();
+        const connectedLc = connectedAddress?.toLowerCase();
+        const etherscan = CHAINS.ethereum.explorer;
+        const fmtPct = (v: bigint) =>
+            totalVotes > 0n ? `${fmtNum(Number((v * 10000n) / totalVotes) / 100, 2)}%` : "0.00%";
+
+        tbody.innerHTML = holders.map(h => {
+            const acct = h.account.toLowerCase();
+            const ownVotes = votes.get(acct) ?? 0n;
+            const supps = supporters[acct] ?? [];
+            const supportedVotes = supps.reduce((sum, s) => sum + (votes.get(s) ?? 0n), 0n);
+            const combinedPct = fmtPct(ownVotes + supportedVotes);
+            const supportedSubLine = supps.length > 0
+                ? `<div class="text-[11px] opacity-65 font-normal">${esc(fmtPct(supportedVotes))}</div>`
+                : "";
+
+            const isWrapped = acct === wfps;
+            const isMe = connectedLc && acct === connectedLc;
+            const wrappedBadge = isWrapped
+                ? `<span class="ml-2 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 text-[10px] font-medium">${esc(i18n.holdersWrapped)}</span>`
+                : "";
+            const addrCell = isMe
+                ? `<a class="font-semibold text-primary hover:underline" target="_blank" rel="noopener" href="${esc(etherscan)}/address/${esc(h.account)}">${esc(i18n.holdersConnected)}</a>`
+                : `<a class="text-primary hover:underline font-mono text-[12px]" target="_blank" rel="noopener" href="${esc(etherscan)}/address/${esc(h.account)}">${esc(shortAddr(h.account))}</a>`;
+            const supLine = supps.length > 0
+                ? `<div class="text-[11px] opacity-65">${supps.length} ${esc(supps.length === 1 ? i18n.delegationSupporter : i18n.delegationSupporters)}</div>`
+                : "";
+
+            const rowClass = isMe ? "bg-foreground/[0.04]" : "";
+            const cellWeight = isMe ? "font-semibold" : "";
+            return `<tr class="border-b border-foreground/5 ${rowClass}">
+                <td class="py-3 pr-4">
+                    <div class="flex items-center">${addrCell}${wrappedBadge}</div>
+                    ${supLine}
+                </td>
+                <td class="py-3 text-right ${cellWeight}">
+                    <div class="font-mono">${esc(combinedPct)}</div>
+                    ${supportedSubLine}
+                </td>
+            </tr>`;
+        }).join("");
+    }
+
+    /**
+     * Renders the dynamic FPS holders subtitle with avg holding duration
+     * and the FPS threshold required to reach 2% veto power at that duration.
+     */
+    async function renderHoldersSubtitle() {
+        try {
+            const stats = await readFPSAverageStats(getPublicClient("ethereum"));
+            const durSec = Number(stats.avgHoldingDurationSec);
+            // Format duration: prefer months when > 30 days, else days.
+            const days = Math.round(durSec / 86400);
+            let durStr: string;
+            if (days >= 60) durStr = `${Math.round(days / 30)} mo`;
+            else if (days >= 1) durStr = `${days} d`;
+            else durStr = `${Math.max(1, Math.round(durSec / 3600))} h`;
+
+            // fpsForVeto at avg duration: that's exactly the "2% of supply" value
+            // by definition — since votes = balance × duration, the FPS amount
+            // that gives 2% of totalVotes at avg duration equals totalSupply × 2%.
+            const fpsStr = fmtBig(stats.fpsForVeto, FPS_DECIMALS, 2);
+            $("holders-subtitle").textContent = i18n.holdersSubtitleDynamic
+                .replace("{duration}", durStr)
+                .replace("{fps}", fpsStr);
+        } catch (err) {
+            console.error("[gov] fps stats:", err);
+        }
+    }
+
+    // ========== SECTION 6: Wallet-aware UI ==========
+
+    let connectedAddress: Address | null = null;
+    let cachedVotingPower: { qualified: boolean; helpers: Address[]; selfVotes: bigint; totalVotes: bigint; combinedVotes: bigint } | null = null;
+    let myDelegateTarget: Address = zeroAddress as Address;
+    let mySupporters: Array<{ addr: Address; votes: bigint }> = [];
+
+    function getWC() {
+        const p = getRawProvider();
+        if (!p) throw new Error("no wallet provider");
+        return makeWalletClient(p, "ethereum");
+    }
+
+    // Show/hide blocks for all connect-gated sections at once.
+    function setConnectedUI(connected: boolean) {
+        // disconnected panels
+        $("propose-rates-disconnected").classList.toggle("hidden", connected);
+        $("propose-minter-disconnected").classList.toggle("hidden", connected);
+        $("delegation-disconnected").classList.toggle("hidden", connected);
+        $("delegation-action-disconnected").classList.toggle("hidden", connected);
+        // connected panels
+        $("propose-rates-connected").classList.toggle("hidden", !connected);
+        $("propose-minter-connected").classList.toggle("hidden", !connected);
+        $("delegation-connected").classList.toggle("hidden", !connected);
+        $("delegation-action-connected").classList.toggle("hidden", !connected);
+    }
+
+    async function refreshWalletState(addr: Address) {
+        const client = getPublicClient("ethereum");
+        const equity = ADDRESSES.ethereum.equity as Address;
+
+        // Voting helpers + current delegate + supporters list (one big batch).
+        try {
+            const vp = await buildVotingHelpers(client, addr);
+            cachedVotingPower = vp;
+            ($("propose-mint-btn") as HTMLButtonElement).disabled = !vp.qualified;
+            ($("propose-save-btn") as HTMLButtonElement).disabled = !vp.qualified;
+        } catch (err) {
+            console.error("[gov] helpers:", err);
+        }
+
+        try {
+            myDelegateTarget = await readDelegate(client, addr);
+            const input = $("delegate-input") as HTMLInputElement;
+            input.value = myDelegateTarget && myDelegateTarget !== zeroAddress ? myDelegateTarget : "";
+        } catch (err) {
+            console.error("[gov] readDelegate:", err);
+        }
+
+        await renderDelegationSupport(addr);
+        // Re-render holders so the connected wallet's row gets highlighted
+        // (the "You" label + row tint).
+        renderHolders();
+    }
+
+    /**
+     * Renders the "Voting Support" card: my own voting power + each
+     * supporter's voting power + the combined total.
+     */
+    async function renderDelegationSupport(addr: Address) {
+        const gov = await governanceP;
+        if (!gov) return;
+        const myLc = addr.toLowerCase();
+        const supporters: string[] = [];
+        for (const d of gov.delegations.list) {
+            if (d.owner === d.delegatedTo) continue;
+            if (d.delegatedTo.toLowerCase() === myLc) supporters.push(d.owner.toLowerCase());
+        }
+
+        const client = getPublicClient("ethereum");
+        const equity = ADDRESSES.ethereum.equity as Address;
+        const contracts = [
+            { address: equity, abi: EQUITY_ABI, functionName: "totalVotes" as const },
+            { address: equity, abi: EQUITY_ABI, functionName: "votes" as const, args: [addr] },
+            ...supporters.map(s => ({
+                address: equity, abi: EQUITY_ABI,
+                functionName: "votes" as const, args: [s as Address],
+            })),
+        ];
+        let totalVotes = 0n, myVotes = 0n;
+        const supVotes = new Map<string, bigint>();
+        try {
+            const res = await client.multicall({ allowFailure: false, contracts }) as bigint[];
+            totalVotes = res[0];
+            myVotes = res[1];
+            supporters.forEach((s, i) => supVotes.set(s, res[2 + i]));
+        } catch (err) {
+            console.error("[gov] support mc:", err);
+            return;
+        }
+
+        mySupporters = supporters
+            .map(s => ({ addr: s as Address, votes: supVotes.get(s) ?? 0n }))
+            .sort((a, b) => (b.votes > a.votes ? 1 : -1));
+
+        const fmtPct = (v: bigint) => totalVotes > 0n
+            ? `${fmtNum(Number((v * 10000n) / totalVotes) / 100, 2)}%`
+            : "0.00%";
+
+        const rows = $("delegation-rows");
+        let html = "";
+
+        // Top row: "You"
+        const delegateLine = myDelegateTarget && myDelegateTarget !== zeroAddress && myDelegateTarget.toLowerCase() !== myLc
+            ? `<div class="text-[11px] opacity-65">→ ${esc(shortAddr(myDelegateTarget))}</div>`
+            : supporters.length > 0
+                ? `<div class="text-[11px] opacity-65">${supporters.length} ${esc(supporters.length === 1 ? i18n.delegationSupporter : i18n.delegationSupporters)}</div>`
+                : `<div class="text-[11px] opacity-65">${esc(i18n.delegationNoSupporters)}</div>`;
+        html += `<div class="flex justify-between py-2">
+            <div>
+                <div class="text-[13px] font-semibold">${esc(i18n.delegationYou)}</div>
+                ${delegateLine}
+            </div>
+            <div class="text-[13px] font-semibold">${esc(fmtPct(myVotes))}</div>
+        </div>`;
+
+        // supporter rows
+        for (const s of mySupporters) {
+            html += `<div class="flex justify-between py-2">
+                <span class="text-[13px] font-mono">${esc(shortAddr(s.addr))}</span>
+                <span class="text-[13px]">${esc(fmtPct(s.votes))}</span>
+            </div>`;
+        }
+        rows.innerHTML = html;
+
+        const total = myVotes + mySupporters.reduce((a, b) => a + b.votes, 0n);
+        $("delegation-total").textContent = fmtPct(total);
+    }
+
+    // ---- delegate action ----
+    async function doDelegate(target: Address) {
+        if (!connectedAddress) return;
+        const btn = $("delegate-btn") as HTMLButtonElement;
+        const selfBtn = $("delegate-self-btn") as HTMLButtonElement;
+        const orig = btn.textContent;
+        btn.disabled = true; selfBtn.disabled = true;
+        btn.textContent = i18n.delegationBtnPending;
+        try {
+            await delegateVoteTo(getWC(), getPublicClient("ethereum"), connectedAddress, target);
+            toast(i18n.delegationDone, "success");
+            await refreshWalletState(connectedAddress);
+            await renderHolders();
+        } catch (err: any) {
+            toast(explorerErr(err), isUserCancelErr(err) ? "info" : "error");
+        } finally {
+            btn.disabled = false; selfBtn.disabled = false;
+            btn.textContent = orig;
+        }
+    }
+    $("delegate-btn").addEventListener("click", () => {
+        const raw = ($("delegate-input") as HTMLInputElement).value.trim();
+        if (!isAddress(raw)) { toast(i18n.errInvalidAddr, "error"); return; }
+        doDelegate(raw as Address);
+    });
+    $("delegate-self-btn").addEventListener("click", () => {
+        if (!connectedAddress) return;
+        doDelegate(connectedAddress);
+    });
+
+    // ---- propose rate (mint and save handled separately) ----
+    async function doProposeRate(module: "mint" | "save") {
+        if (!connectedAddress || !cachedVotingPower?.qualified) return;
+        const input = $(`propose-${module}-input`) as HTMLInputElement;
+        const pct = parseFloat(input.value);
+        if (!Number.isFinite(pct) || pct < 0 || pct > 100) { toast(i18n.errSameRate, "error"); return; }
+
+        const moduleAddr = module === "mint"
+            ? (ADDRESSES.ethereum.savingsV2 as Address)
+            : (ADDRESSES.ethereum.savings as Address);
+
+        const btn = $(`propose-${module}-btn`) as HTMLButtonElement;
+        const orig = btn.textContent;
+        btn.disabled = true; btn.textContent = i18n.ratesProposeBtnPending;
+        try {
+            await proposeLeadrate(
+                getWC(), getPublicClient("ethereum"),
+                connectedAddress, pct, cachedVotingPower.helpers,
+                moduleAddr,
+            );
+            toast(`✓ ${i18n.ratesProposeBtn}`, "success");
+            renderRates();
+        } catch (err: any) {
+            toast(explorerErr(err), isUserCancelErr(err) ? "info" : "error");
+        } finally {
+            btn.disabled = !cachedVotingPower?.qualified;
+            btn.textContent = orig;
+        }
+    }
+    $("propose-mint-btn").addEventListener("click", () => doProposeRate("mint"));
+    $("propose-save-btn").addEventListener("click", () => doProposeRate("save"));
+
+    // ---- propose minter ----
+    $("propose-minter-btn").addEventListener("click", async () => {
+        if (!connectedAddress) return;
+        const addrEl = $("propose-minter-addr") as HTMLInputElement;
+        const msgEl = $("propose-minter-msg") as HTMLInputElement;
+
+        const minter = addrEl.value.trim();
+        if (!isAddress(minter)) { toast(i18n.errInvalidAddr, "error"); return; }
+        const msg = msgEl.value.trim();
+        if (!msg) { toast(i18n.errMsg, "error"); return; }
+
+        const btn = $("propose-minter-btn") as HTMLButtonElement;
+        const orig = btn.textContent;
+        btn.disabled = true; btn.textContent = i18n.mintersBtnPending;
+        try {
+            await suggestMinter(
+                getWC(), getPublicClient("ethereum"), connectedAddress,
+                minter as Address, 14 * 86400, "1000", msg,
+            );
+            toast(`✓ ${i18n.mintersBtn}`, "success");
+            addrEl.value = ""; msgEl.value = "";
+            renderMinters();
+        } catch (err: any) {
+            toast(explorerErr(err), isUserCancelErr(err) ? "info" : "error");
+        } finally {
+            btn.disabled = false; btn.textContent = orig;
+        }
+    });
+
+    // ---- sync votes ----
+    /**
+     * Refresh the "Votes on Target Chain" + fee estimate whenever the
+     * target dropdown changes or the connected wallet's helpers update.
+     * Reads votesDelegated on the bridged governance + gets a fee quote
+     * from the mainnet sender.
+     */
+    async function refreshSyncQuote() {
+        const pctEl = $("sync-current-pct");
+        const feeEl = $("sync-fee");
+        pctEl.textContent = "—";
+        feeEl.textContent = "—";
+        if (!connectedAddress || !cachedVotingPower) return;
+
+        const targetKey = ($("sync-target") as HTMLSelectElement).value as ChainKey;
+        const targetAddr = ADDRESSES[targetKey];
+        if (!targetAddr?.ccipBridgedGovernance || !targetAddr.ccipSelector) {
+            pctEl.textContent = "—";
+            return;
+        }
+        const helpers = cachedVotingPower.helpers;
+        const voters = [connectedAddress, ...helpers];
+
+        // Current synced votes on target (independent of mainnet quote).
+        try {
+            const targetClient = getPublicClient(targetKey);
+            const { synced, total } = await readVotesOnTarget(
+                targetClient,
+                targetAddr.ccipBridgedGovernance,
+                connectedAddress,
+                helpers,
+            );
+            const pct = total > 0n
+                ? `${fmtNum(Number((synced * 10000n) / total) / 100, 2)}%`
+                : "0.00%";
+            pctEl.textContent = pct;
+        } catch (err) {
+            console.error("[gov] readVotesOnTarget:", err);
+            pctEl.textContent = "—";
+        }
+
+        // Fee quote from mainnet — read-only, no tx. We get an ETH wei value.
+        try {
+            const fee = await getSyncVotesFee(
+                getPublicClient("ethereum"),
+                targetAddr.ccipSelector,
+                targetAddr.ccipBridgedGovernance,
+                voters,
+            );
+            // Display as ETH with 6 decimals (CCIP fees are typically <0.01 ETH).
+            feeEl.textContent = `${fmtNum(Number(formatUnits(fee, 18)), 6)} ETH`;
+        } catch (err) {
+            console.error("[gov] getSyncVotesFee:", err);
+            feeEl.textContent = "—";
+        }
+    }
+    $("sync-target").addEventListener("change", refreshSyncQuote);
+
+    $("sync-btn").addEventListener("click", async () => {
+        if (!connectedAddress || !cachedVotingPower) return;
+        const targetKey = ($("sync-target") as HTMLSelectElement).value as ChainKey;
+        const targetAddr = ADDRESSES[targetKey];
+        if (!targetAddr?.ccipBridgedGovernance || !targetAddr.ccipSelector) {
+            toast(i18n.syncChainMatch, "error");
+            return;
+        }
+        const voters = [connectedAddress, ...cachedVotingPower.helpers];
+
+        const btn = $("sync-btn") as HTMLButtonElement;
+        const orig = btn.textContent;
+        btn.disabled = true; btn.textContent = i18n.syncBtnPending;
+        try {
+            await syncVotesToChain(
+                getWC(), getPublicClient("ethereum"),
+                connectedAddress,
+                targetAddr.ccipSelector,
+                targetAddr.ccipBridgedGovernance,
+                voters,
+            );
+            toast(i18n.syncDone, "success");
+            // CCIP delivery is async (~minutes). Re-quote shortly after — the
+            // target chain won't have the update yet, but the user gets a
+            // visual cue that the tx landed mainnet-side. Real polling is
+            // out of scope here.
+            setTimeout(refreshSyncQuote, 3000);
+        } catch (err: any) {
+            toast(explorerErr(err), isUserCancelErr(err) ? "info" : "error");
+        } finally {
+            btn.disabled = false;
+            btn.textContent = orig;
+        }
+    });
+
+    // ---- wallet subscription ----
+    getOnboard().state.select("wallets").subscribe((wallets) => {
+        const w = wallets[0];
+        const addr = w?.accounts[0]?.address as Address | undefined;
+        if (addr) {
+            connectedAddress = addr;
+            setConnectedUI(true);
+            refreshWalletState(addr)
+                .then(() => refreshSyncQuote())
+                .catch(err => console.error("[gov] refresh:", err));
+        } else {
+            connectedAddress = null;
+            cachedVotingPower = null;
+            setConnectedUI(false);
+        }
+    });
+
+    // ========== bootstrap ==========
+    renderNewPositions();
+    renderRates();
+    renderMinters();
+    renderCCIP();
+    renderHolders();
+    renderHoldersSubtitle();
+</script>

@@ -12,4 +12,10 @@ export const SAVINGS_ABI = parseAbi([
     "function withdraw(address target, uint192 amount) returns (uint256)",
     "function adjust(uint192 targetAmount)",
     "function refreshBalance(address owner) returns (uint192)",
+    // Governance: propose a new leadrate. `helpers` is a delegation chain
+    // proving caller meets the 2% veto threshold. The new rate enters a
+    // 7-day veto window; if no counter-proposal arrives by `nextChange`,
+    // anyone can call applyChange().
+    "function proposeChange(uint24 newRatePPM, address[] helpers)",
+    "function applyChange()",
 ]);

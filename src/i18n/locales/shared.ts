@@ -8,6 +8,7 @@ export const shared = {
     nav_my_positions: "My Positions",
     nav_transfer: "Transfer",
     nav_invest: "Invest",
+    nav_governance: "Governance",
     nav_more: "More",
 
     // Wallet
@@ -40,6 +41,7 @@ export const shared = {
     nav_my_positions: "Übersicht",
     nav_transfer: "Übertragen",
     nav_invest: "Investieren",
+    nav_governance: "Governance",
     nav_more: "Mehr",
 
     // Wallet
@@ -72,6 +74,7 @@ export const shared = {
     nav_my_positions: "Tableau de bord",
     nav_transfer: "Transférer",
     nav_invest: "Investir",
+    nav_governance: "Gouvernance",
     nav_more: "Plus",
 
     // Wallet
@@ -104,6 +107,7 @@ export const shared = {
     nav_my_positions: "Pannello",
     nav_transfer: "Trasferisci",
     nav_invest: "Investi",
+    nav_governance: "Governance",
     nav_more: "Altro",
 
     // Wallet
@@ -136,6 +140,7 @@ export const shared = {
     nav_my_positions: "Panel",
     nav_transfer: "Transferir",
     nav_invest: "Invertir",
+    nav_governance: "Gobernanza",
     nav_more: "Más",
 
     // Wallet

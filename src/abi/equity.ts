@@ -33,11 +33,24 @@ export const EQUITY_ABI = parseAbi([
     "function votes(address holder) view returns (uint256)",
     "function totalVotes() view returns (uint256)",
     "function relativeVotes(address holder) view returns (uint256)",
+    // Aggregate voting power: caller's votes + sum of votes from `helpers`,
+    // where each helper has delegated (transitively) to caller. Reverts if
+    // any helper is not validly delegated — use as a dry-run before any
+    // governance write that takes `address[] helpers`.
+    "function votes(address sender, address[] helpers) view returns (uint256)",
+    // Reverts if `sender` does not meet the 2% threshold (alone or via
+    // helpers). Pure check, no state change.
+    "function checkQualified(address sender, address[] helpers) view returns ()",
+    // Current delegation: who `holder` has supported.
+    "function delegates(address holder) view returns (address)",
 
     // Writes
     "function invest(uint256 amount, uint256 expectedShares) returns (uint256)",
     "function redeem(address target, uint256 shares) returns (uint256)",
     "function redeemExpected(address target, uint256 shares, uint256 expectedProceeds) returns (uint256)",
+    // Delegate voting power to another address. Self-delegate to activate
+    // your own votes for use in governance writes (helpers chain).
+    "function delegateVoteTo(address delegate)",
 
     // Events
     "event Trade(address who, int256 amount, uint256 totPrice, uint256 newprice)",

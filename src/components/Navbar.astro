@@ -24,6 +24,7 @@ const DISCONNECTED: { key: MessageKey; path: string }[] = [
 const DISCONNECTED_MORE: { key: MessageKey; path: string }[] = [
     { key: "nav_my_positions", path: "/mypositions" },
     { key: "nav_invest", path: "/equity" },
+    { key: "nav_governance", path: "/governance" },
 ];
 
 const CONNECTED: { key: MessageKey; path: string }[] = [
@@ -34,6 +35,7 @@ const CONNECTED: { key: MessageKey; path: string }[] = [
 const CONNECTED_MORE: { key: MessageKey; path: string }[] = [
     { key: "nav_transfer", path: "/transfer" },
     { key: "nav_invest", path: "/equity" },
+    { key: "nav_governance", path: "/governance" },
 ];
 
 const currentPath = Astro.url.pathname;
@@ -317,6 +319,7 @@ function isActive(item: { path: string }): boolean {
     });
 
     // ----- wallet-aware nav swap -----
+    // We don't toggle classes on individual nav containers anymore. Instead
     // we flip a single class on <html> — CSS in the <style> block above
     // picks which layout is visible. Also persist the flag to localStorage
     // so the inline pre-paint script in Layout.astro can render the right
