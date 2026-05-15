@@ -7,6 +7,8 @@ export const shared = {
     nav_earn: "Earn",
     nav_my_positions: "My Positions",
     nav_transfer: "Transfer",
+    nav_invest: "Invest",
+    nav_more: "More",
 
     // Wallet
     wallet_connect: "Connect",
@@ -37,6 +39,8 @@ export const shared = {
     nav_earn: "Sparen",
     nav_my_positions: "Übersicht",
     nav_transfer: "Übertragen",
+    nav_invest: "Investieren",
+    nav_more: "Mehr",
 
     // Wallet
     wallet_connect: "Verbinden",
@@ -67,6 +71,8 @@ export const shared = {
     nav_earn: "Épargner",
     nav_my_positions: "Tableau de bord",
     nav_transfer: "Transférer",
+    nav_invest: "Investir",
+    nav_more: "Plus",
 
     // Wallet
     wallet_connect: "Connecter",
@@ -97,6 +103,8 @@ export const shared = {
     nav_earn: "Risparmi",
     nav_my_positions: "Pannello",
     nav_transfer: "Trasferisci",
+    nav_invest: "Investi",
+    nav_more: "Altro",
 
     // Wallet
     wallet_connect: "Connetti",
@@ -127,6 +135,8 @@ export const shared = {
     nav_earn: "Ahorros",
     nav_my_positions: "Panel",
     nav_transfer: "Transferir",
+    nav_invest: "Invertir",
+    nav_more: "Más",
 
     // Wallet
     wallet_connect: "Conectar",

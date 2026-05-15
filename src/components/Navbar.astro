@@ -11,14 +11,37 @@ import type { MessageKey } from "@i18n/messages";
 const tt = t(Astro.url);
 const locale = getLocale(Astro.url);
 
-const navItems: { key: MessageKey; path: string }[] = [
+// Two layouts: the disconnected layout is server-rendered as the default
+// (matches the assumption that incoming visitors aren't connected yet).
+// The client script swaps to the connected layout once onboard reports a
+// wallet. Mobile drawer carries flat versions of both lists for the same
+// swap.
+const DISCONNECTED: { key: MessageKey; path: string }[] = [
+    { key: "nav_borrow", path: "/" },
+    { key: "nav_earn", path: "/earn" },
+    { key: "nav_transfer", path: "/transfer" },
+];
+const DISCONNECTED_MORE: { key: MessageKey; path: string }[] = [
+    { key: "nav_my_positions", path: "/mypositions" },
+    { key: "nav_invest", path: "/equity" },
+];
+
+const CONNECTED: { key: MessageKey; path: string }[] = [
     { key: "nav_borrow", path: "/" },
     { key: "nav_earn", path: "/earn" },
     { key: "nav_my_positions", path: "/mypositions" },
+];
+const CONNECTED_MORE: { key: MessageKey; path: string }[] = [
     { key: "nav_transfer", path: "/transfer" },
+    { key: "nav_invest", path: "/equity" },
 ];
 
 const currentPath = Astro.url.pathname;
+
+function isActive(item: { path: string }): boolean {
+    const href = localePath(locale, item.path);
+    return currentPath === href;
+}
 ---
 
 <nav class="border-b border-foreground/10 bg-background">
@@ -28,27 +51,120 @@ const currentPath = Astro.url.pathname;
             <span class="text-[20px] font-bold tracking-tight">Frankencoin</span>
         </a>
 
-        <ul class="hidden items-center gap-8 md:flex">
-            {
-                navItems.map((item) => {
-                    const href = localePath(locale, item.path);
-                    const isActive = currentPath === href;
-                    return (
-                        <li>
-                            <a
-                                href={href}
-                                class:list={[
-                                    "text-[16px] hover:text-primary",
-                                    isActive ? "font-semibold text-primary" : "font-medium text-foreground",
-                                ]}
-                                aria-current={isActive ? "page" : undefined}
-                            >
-                                {tt(item.key)}
-                            </a>
-                        </li>
-                    );
-                })
-            }
+        <ul id="nav-desktop-disconnected" data-nav="disconnected" class="hidden items-center gap-8 md:flex">
+            {DISCONNECTED.map((item) => {
+                const href = localePath(locale, item.path);
+                const active = isActive(item);
+                return (
+                    <li>
+                        <a
+                            href={href}
+                            class:list={[
+                                "text-[16px] hover:text-primary",
+                                active ? "font-semibold text-primary" : "font-medium text-foreground",
+                            ]}
+                            aria-current={active ? "page" : undefined}
+                        >
+                            {tt(item.key)}
+                        </a>
+                    </li>
+                );
+            })}
+            <li class="relative">
+                <button
+                    type="button"
+                    data-more-toggle="disconnected"
+                    class="more-btn flex items-center gap-1 text-[16px] font-medium text-foreground hover:text-primary"
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                >
+                    <span>{tt("nav_more")}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="more-chevron h-4 w-4 transition-transform duration-200"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <ul
+                    data-more-menu="disconnected"
+                    class="absolute right-0 top-full z-30 mt-2 hidden min-w-45 rounded-md border border-foreground/10 bg-background shadow-lg"
+                    role="menu"
+                >
+                    {DISCONNECTED_MORE.map((item) => {
+                        const href = localePath(locale, item.path);
+                        const active = isActive(item);
+                        return (
+                            <li>
+                                <a
+                                    href={href}
+                                    role="menuitem"
+                                    class:list={[
+                                        "block px-4 py-2.5 text-[14px] hover:bg-foreground/5",
+                                        active ? "font-semibold text-primary" : "font-medium text-foreground",
+                                    ]}
+                                    aria-current={active ? "page" : undefined}
+                                >
+                                    {tt(item.key)}
+                                </a>
+                            </li>
+                        );
+                    })}
+                </ul>
+            </li>
+        </ul>
+
+        <ul id="nav-desktop-connected" data-nav="connected" class="hidden items-center gap-8">
+            {CONNECTED.map((item) => {
+                const href = localePath(locale, item.path);
+                const active = isActive(item);
+                return (
+                    <li>
+                        <a
+                            href={href}
+                            class:list={[
+                                "text-[16px] hover:text-primary",
+                                active ? "font-semibold text-primary" : "font-medium text-foreground",
+                            ]}
+                            aria-current={active ? "page" : undefined}
+                        >
+                            {tt(item.key)}
+                        </a>
+                    </li>
+                );
+            })}
+            <li class="relative">
+                <button
+                    type="button"
+                    data-more-toggle="connected"
+                    class="more-btn flex items-center gap-1 text-[16px] font-medium text-foreground hover:text-primary"
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                >
+                    <span>{tt("nav_more")}</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="more-chevron h-4 w-4 transition-transform duration-200"><path d="m6 9 6 6 6-6"/></svg>
+                </button>
+                <ul
+                    data-more-menu="connected"
+                    class="absolute right-0 top-full z-30 mt-2 hidden min-w-45 rounded-md border border-foreground/10 bg-background shadow-lg"
+                    role="menu"
+                >
+                    {CONNECTED_MORE.map((item) => {
+                        const href = localePath(locale, item.path);
+                        const active = isActive(item);
+                        return (
+                            <li>
+                                <a
+                                    href={href}
+                                    role="menuitem"
+                                    class:list={[
+                                        "block px-4 py-2.5 text-[14px] hover:bg-foreground/5",
+                                        active ? "font-semibold text-primary" : "font-medium text-foreground",
+                                    ]}
+                                    aria-current={active ? "page" : undefined}
+                                >
+                                    {tt(item.key)}
+                                </a>
+                            </li>
+                        );
+                    })}
+                </ul>
+            </li>
         </ul>
 
         <div class="ml-auto flex items-center gap-2">
@@ -74,27 +190,45 @@ const currentPath = Astro.url.pathname;
     </div>
 
     <div id="mobile-menu" class="hidden border-t border-foreground/10 md:hidden">
-        <ul class="flex flex-col">
-            {
-                navItems.map((item) => {
-                    const href = localePath(locale, item.path);
-                    const isActive = currentPath === href;
-                    return (
-                        <li>
-                            <a
-                                href={href}
-                                class:list={[
-                                    "block px-4 py-4 text-[16px] hover:bg-muted",
-                                    isActive ? "font-semibold text-primary" : "font-medium text-foreground",
-                                ]}
-                                aria-current={isActive ? "page" : undefined}
-                            >
-                                {tt(item.key)}
-                            </a>
-                        </li>
-                    );
-                })
-            }
+        <ul id="mobile-list-disconnected" data-mobile-nav="disconnected" class="flex flex-col">
+            {[...DISCONNECTED, ...DISCONNECTED_MORE].map((item) => {
+                const href = localePath(locale, item.path);
+                const active = isActive(item);
+                return (
+                    <li>
+                        <a
+                            href={href}
+                            class:list={[
+                                "block px-4 py-4 text-[16px] hover:bg-muted",
+                                active ? "font-semibold text-primary" : "font-medium text-foreground",
+                            ]}
+                            aria-current={active ? "page" : undefined}
+                        >
+                            {tt(item.key)}
+                        </a>
+                    </li>
+                );
+            })}
+        </ul>
+        <ul id="mobile-list-connected" data-mobile-nav="connected" class="hidden flex-col">
+            {[...CONNECTED, ...CONNECTED_MORE].map((item) => {
+                const href = localePath(locale, item.path);
+                const active = isActive(item);
+                return (
+                    <li>
+                        <a
+                            href={href}
+                            class:list={[
+                                "block px-4 py-4 text-[16px] hover:bg-muted",
+                                active ? "font-semibold text-primary" : "font-medium text-foreground",
+                            ]}
+                            aria-current={active ? "page" : undefined}
+                        >
+                            {tt(item.key)}
+                        </a>
+                    </li>
+                );
+            })}
         </ul>
         <div class="border-t border-foreground/10 px-4 py-4">
             <WalletConnect fullWidth />
@@ -102,9 +236,43 @@ const currentPath = Astro.url.pathname;
     </div>
 </nav>
 
+<style>
+    /* Flip chevron when the More dropdown is open. aria-expanded is the
+       source of truth — we already toggle it in the click handler. */
+    [data-more-toggle][aria-expanded="true"] .more-chevron {
+        transform: rotate(180deg);
+    }
+
+    /* ---- Wallet-state-aware nav visibility ----
+       <html class="wallet-connected"> is set by an inline blocking script
+       in Layout.astro before first paint, based on a localStorage flag the
+       wallet subscriber writes. This avoids the FOUC where the disconnected
+       nav flashes briefly while onboard initializes on each navigation.
+
+       Default (no class on html): disconnected layout visible.
+       When .wallet-connected on html: connected layout visible. */
+
+    /* Desktop layout (md+). Inline `display` overrides Tailwind utilities
+       so the swap is instant on the first paint. */
+    @media (min-width: 768px) {
+        [data-nav="disconnected"]                       { display: flex; }
+        [data-nav="connected"]                          { display: none; }
+        html.wallet-connected [data-nav="disconnected"] { display: none; }
+        html.wallet-connected [data-nav="connected"]    { display: flex; }
+    }
+
+    /* Mobile layout (drawer). */
+    [data-mobile-nav="disconnected"]                       { display: flex; }
+    [data-mobile-nav="connected"]                          { display: none; }
+    html.wallet-connected [data-mobile-nav="disconnected"] { display: none; }
+    html.wallet-connected [data-mobile-nav="connected"]    { display: flex; }
+</style>
+
 <script>
     export {};
+    import { getOnboard } from "@lib/onboard";
 
+    // ----- mobile drawer -----
     const toggle = document.getElementById("menu-toggle");
     const menu = document.getElementById("mobile-menu");
     const menuIcon = document.getElementById("menu-icon");
@@ -115,5 +283,55 @@ const currentPath = Astro.url.pathname;
         menuIcon?.classList.toggle("hidden");
         closeIcon?.classList.toggle("hidden");
         toggle.setAttribute("aria-expanded", String(isOpen));
+    });
+
+    // ----- "More" dropdown(s). Two exist; only one is visible at a time. -----
+    function closeAllDropdowns(except?: HTMLElement) {
+        document.querySelectorAll<HTMLElement>("[data-more-menu]").forEach(m => {
+            if (m !== except) m.classList.add("hidden");
+        });
+        document.querySelectorAll<HTMLButtonElement>("[data-more-toggle]").forEach(b => {
+            if (!except || b.dataset.moreToggle !== except.dataset.moreMenu) {
+                b.setAttribute("aria-expanded", "false");
+            }
+        });
+    }
+    document.querySelectorAll<HTMLButtonElement>("[data-more-toggle]").forEach(btn => {
+        btn.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            const key = btn.dataset.moreToggle!;
+            const target = document.querySelector<HTMLElement>(`[data-more-menu="${key}"]`);
+            if (!target) return;
+            const willOpen = target.classList.contains("hidden");
+            closeAllDropdowns(willOpen ? target : undefined);
+            target.classList.toggle("hidden", !willOpen);
+            btn.setAttribute("aria-expanded", String(willOpen));
+        });
+    });
+    document.addEventListener("click", (ev) => {
+        const target = ev.target as Element;
+        if (!target.closest("[data-more-menu], [data-more-toggle]")) closeAllDropdowns();
+    });
+    document.addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape") closeAllDropdowns();
+    });
+
+    // ----- wallet-aware nav swap -----
+    // we flip a single class on <html> — CSS in the <style> block above
+    // picks which layout is visible. Also persist the flag to localStorage
+    // so the inline pre-paint script in Layout.astro can render the right
+    // layout on the very first paint of the next navigation (no FOUC).
+    function setConnected(isConnected: boolean) {
+        document.documentElement.classList.toggle("wallet-connected", isConnected);
+        try {
+            if (isConnected) localStorage.setItem("frnk:walletConnected", "1");
+            else localStorage.removeItem("frnk:walletConnected");
+        } catch {
+            // ignore quota/private-mode failures — class toggle still works
+        }
+    }
+
+    getOnboard().state.select("wallets").subscribe((wallets) => {
+        setConnected(!!wallets[0]?.accounts[0]?.address);
     });
 </script>

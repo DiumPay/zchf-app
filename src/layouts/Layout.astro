@@ -51,4 +51,7 @@ const htmlLang = ({
     if (stored === "dark" || (!stored && prefersDark)) {
         document.documentElement.classList.add("dark");
     }
+    if (localStorage.getItem("frnk:walletConnected") === "1") {
+        document.documentElement.classList.add("wallet-connected");
+    }
 </script>
