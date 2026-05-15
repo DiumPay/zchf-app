@@ -19,6 +19,9 @@ export const borrow = {
         borrow_col_maturity: "Maturity",
 
         borrow_btn_borrow: "Borrow",
+        borrow_btn_swap: "Swap",
+        borrow_swap_row_name: "AllUnity Swiss Franc",
+        borrow_swap_row_liq: "Swap 1:1",
         borrow_loading: "Loading positions…",
         borrow_empty: "No positions match your search.",
         borrow_error: "Could not load positions. Try refreshing the page.",
@@ -52,6 +55,9 @@ export const borrow = {
         borrow_col_maturity: "Laufzeitende",
 
         borrow_btn_borrow: "Leihen",
+        borrow_btn_swap: "Tauschen",
+        borrow_swap_row_name: "AllUnity Schweizer Franken",
+        borrow_swap_row_liq: "Tausch 1:1",
         borrow_loading: "Positionen werden geladen…",
         borrow_empty: "Keine Positionen für Ihre Suche.",
         borrow_error: "Positionen konnten nicht geladen werden. Bitte Seite neu laden.",
@@ -85,6 +91,9 @@ export const borrow = {
         borrow_col_maturity: "Échéance",
 
         borrow_btn_borrow: "Emprunter",
+        borrow_btn_swap: "Échanger",
+        borrow_swap_row_name: "AllUnity Franc Suisse",
+        borrow_swap_row_liq: "Échange 1:1",
         borrow_loading: "Chargement des positions…",
         borrow_empty: "Aucune position ne correspond à votre recherche.",
         borrow_error: "Impossible de charger les positions. Veuillez rafraîchir la page.",
@@ -118,6 +127,9 @@ export const borrow = {
         borrow_col_maturity: "Scadenza",
 
         borrow_btn_borrow: "Prestito",
+        borrow_btn_swap: "Scambia",
+        borrow_swap_row_name: "AllUnity Franco Svizzero",
+        borrow_swap_row_liq: "Scambio 1:1",
         borrow_loading: "Caricamento posizioni…",
         borrow_empty: "Nessuna posizione corrisponde alla tua ricerca.",
         borrow_error: "Impossibile caricare le posizioni. Aggiorna la pagina.",
@@ -151,6 +163,9 @@ export const borrow = {
         borrow_col_maturity: "Vencimiento",
 
         borrow_btn_borrow: "Pedir",
+        borrow_btn_swap: "Intercambiar",
+        borrow_swap_row_name: "AllUnity Franco Suizo",
+        borrow_swap_row_liq: "Intercambio 1:1",
         borrow_loading: "Cargando posiciones…",
         borrow_empty: "No hay posiciones que coincidan con tu búsqueda.",
         borrow_error: "No se pudieron cargar las posiciones. Recarga la página.",

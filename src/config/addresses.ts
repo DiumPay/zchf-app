@@ -6,6 +6,10 @@ export interface ChainAddresses {
     mintingHubV2?: `0x${string}`;
     cloneHelper?: `0x${string}`;
     positionRollerV2?: `0x${string}`;
+    /** CHFAU stablecoin (Tradable Swiss Franc, AlpenChain). */
+    chfau?: `0x${string}`;
+    /** Bridge for 1:1 CHFAU ↔ ZCHF swaps. */
+    chfauBridge?: `0x${string}`;
     /** TransferReference contract (with CCIP cross-chain transfers). */
     transferReference?: `0x${string}`;
     equity?: `0x${string}`;
@@ -22,6 +26,8 @@ export const ADDRESSES: Record<ChainKey, ChainAddresses> = {
         mintingHubV2: "0xDe12B620A8a714476A97EfD14E6F7180Ca653557",
         cloneHelper:  "0x55cD2820735Db56ca0965BE224D71994265F8bee",
         positionRollerV2: "0xAD0107D3Da540Fd54b1931735b65110C909ea6B6",
+        chfau:        "0xBD4DfC058eb95b8De5ceAF39966A1a70F5556F78",
+        chfauBridge:  "0x3e445ff4ddDf0ff8aE7458c9746eD80bD664F6C1",
         transferReference: "0xf98c221661F51578f5E5236B189a493E2a8a1916",
         equity: "0x1bA26788dfDe592fec8bcB0Eaff472a42BE341B2",
     },

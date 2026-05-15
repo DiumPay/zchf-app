@@ -7,6 +7,7 @@ import { t, getLocale, localePath, safeJsonForScript } from "@i18n/t";
 
 import bossIcon from "@assets/tokens/boss.svg?url";
 import cbbtcIcon from "@assets/tokens/cbbtc.svg?url";
+import chfauIcon from "@assets/tokens/chfau.svg?url";
 import crvIcon from "@assets/tokens/crv.svg?url";
 import gnoIcon from "@assets/tokens/gno.svg?url";
 import lendsIcon from "@assets/tokens/lends.svg?url";
@@ -19,10 +20,12 @@ import wethIcon from "@assets/tokens/weth.svg?url";
 import wstethIcon from "@assets/tokens/wsteth.svg?url";
 import xautIcon from "@assets/tokens/xaut.svg?url";
 import ysyboldIcon from "@assets/tokens/ysybold.svg?url";
+import unknownIcon from "@assets/icons/unknown.svg?url";
 
 const TOKEN_ICONS: Record<string, string> = {
     boss: bossIcon,
     cbbtc: cbbtcIcon,
+    chfau: chfauIcon,
     crv: crvIcon,
     gno: gnoIcon,
     lends: lendsIcon,
@@ -36,6 +39,11 @@ const TOKEN_ICONS: Record<string, string> = {
     xaut: xautIcon,
     ysybold: ysyboldIcon,
 };
+
+// Special key — picked up by the client when a position's symbol isn't in
+// the icon map. Lives in the same dictionary so the script doesn't need a
+// separate import path.
+const UNKNOWN_ICON = unknownIcon;
 
 const tt = t(Astro.url);
 const locale = getLocale(Astro.url);
@@ -73,7 +81,11 @@ const locale = getLocale(Astro.url);
         </div>
 
         <Card title={tt("borrow_table_title")}>
-            <div data-token-icons={JSON.stringify(TOKEN_ICONS)} class="hidden"></div>
+            <div
+                data-token-icons={JSON.stringify(TOKEN_ICONS)}
+                data-unknown-icon={UNKNOWN_ICON}
+                class="hidden"
+            ></div>
 
             <div class="mb-5 flex items-center gap-3">
                 <label for="search-input" class="sr-only">{tt("borrow_search_placeholder")}</label>
@@ -149,6 +161,9 @@ const locale = getLocale(Astro.url);
 <script id="borrow-locale" type="application/json" set:html={safeJsonForScript(getLocale(Astro.url))}></script>
 <script id="borrow-i18n" type="application/json" set:html={safeJsonForScript({
     btn_borrow: tt("borrow_btn_borrow"),
+    btn_swap: tt("borrow_btn_swap") || "Swap",
+    swap_row_name: tt("borrow_swap_row_name") || "AllUnity Swiss Franc",
+    swap_row_liq: tt("borrow_swap_row_liq") || "Swap 1:1",
     status_active: tt("borrow_status_active"),
     status_cooldown: tt("borrow_status_cooldown"),
     status_challenged: tt("borrow_status_challenged"),
@@ -163,6 +178,9 @@ const locale = getLocale(Astro.url);
     import { getMarketPriceCHF } from "@lib/prices";
     import { localePath } from "@i18n/t";
     import type { Locale } from "@i18n/messages";
+    import { getPublicClient } from "@lib/client";
+    import { STABLECOIN_BRIDGE_ABI } from "@abi/stablecoinBridge";
+    import { ADDRESSES } from "@config/addresses";
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -171,6 +189,7 @@ const locale = getLocale(Astro.url);
 
     const iconHost = document.querySelector<HTMLElement>("[data-token-icons]")!;
     const tokenIcons = JSON.parse(iconHost.dataset.tokenIcons || "{}") as Record<string, string>;
+    const unknownIconUrl = iconHost.dataset.unknownIcon || "";
 
     // escape — collateral name/symbol come from snapshot today but flow
     // through localStorage cache, so treat them as untrusted on render.
@@ -190,6 +209,11 @@ const locale = getLocale(Astro.url);
     const search = $<HTMLInputElement>("search-input");
 
     let allPositions: Position[] = [];
+
+    // Bridge horizon — populated async after mount. We pre-render the row
+    // with a placeholder so users see it instantly; the maturity column
+    // updates in place once the contract read returns.
+    let bridgeHorizon: number | null = null;
 
     const priceMap: Record<string, number | null | undefined> = {};
 
@@ -218,8 +242,61 @@ const locale = getLocale(Astro.url);
         expired: "bg-foreground/15 opacity-60",
     };
 
-    function iconFor(symbol: string): string | null {
-        return tokenIcons[symbol.toLowerCase()] ?? null;
+    function iconFor(symbol: string): string {
+        return tokenIcons[symbol.toLowerCase()] ?? unknownIconUrl;
+    }
+
+    /**
+     * Renders the CHFAU swap row that lives above the curated position list.
+     * Not a real position — clicking the button routes to /swap instead of /mint.
+     * Maturity comes from the bridge's `horizon` field; until that read returns
+     * we show a — placeholder.
+     */
+    function swapRowHtml(): string {
+        const icon = iconFor("chfau");
+        const maturity = bridgeHorizon !== null ? fmtDate(bridgeHorizon) : "—";
+        return `<li class="grid grid-cols-1 gap-3 py-4 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] md:items-center md:gap-4">
+            <div class="flex items-center gap-3">
+                <img src="${icon}" alt="" class="h-9 w-9 shrink-0 rounded-full" />
+                <div>
+                    <div class="font-bold text-[15px]">${esc(i18n.swap_row_name)}</div>
+                    <div class="text-[12px] opacity-70">
+                        <span class="inline-block rounded px-1.5 py-0.5 text-[11px] font-medium bg-foreground/10">${STATUS_LABEL.active}</span>
+                        <span class="ml-2">CHFAU</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-[14px]">
+                <span class="md:hidden opacity-60">LTV: </span>
+                <span class="opacity-80">N/A</span>
+            </div>
+
+            <div class="text-[14px]">
+                <span class="md:hidden opacity-60">Liquidation: </span>
+                <span class="opacity-80">${esc(i18n.swap_row_liq)}</span>
+            </div>
+
+            <div class="text-[14px]">
+                <span class="md:hidden opacity-60">Interest: </span>
+                0.00%
+            </div>
+
+            <div class="text-[14px]">
+                <span class="md:hidden opacity-60">Maturity: </span>
+                ${maturity}
+            </div>
+
+            <div>
+                <button
+                    type="button"
+                    data-swap-row="1"
+                    class="relative inline-flex w-full items-center justify-center gap-2 rounded-md border border-transparent bg-primary px-5 py-2 text-[14px] font-semibold text-[#FAF7F2] transition-colors hover:bg-primary-hover dark:text-[#030303] md:w-auto"
+                >
+                    ${esc(i18n.btn_swap)}
+                </button>
+            </div>
+        </li>`;
     }
 
     function ltvValue(p: Position): number | null {
@@ -277,15 +354,23 @@ const locale = getLocale(Astro.url);
         });
     }
 
+    function shouldShowSwapRow(): boolean {
+        const q = search.value.trim().toLowerCase();
+        if (!q) return true;
+        return i18n.swap_row_name.toLowerCase().includes(q) || "chfau".includes(q);
+    }
+
     function render(positions: Position[]) {
-        if (positions.length === 0) {
+        const showSwap = shouldShowSwapRow();
+
+        if (positions.length === 0 && !showSwap) {
             list.innerHTML = "";
             empty.classList.remove("hidden");
             return;
         }
         empty.classList.add("hidden");
 
-        list.innerHTML = positions.map(p => {
+        const positionRows = positions.map(p => {
             // Defense in depth: skip rows with malformed addresses that would
             // otherwise break out of the data-position attribute.
             if (!isAddrLike(p.address)) return "";
@@ -295,9 +380,7 @@ const locale = getLocale(Astro.url);
             const isActive = status === "active";
             const icon = iconFor(p.collateralSymbol);
 
-            const iconHtml = icon
-                ? `<img src="${icon}" alt="" class="h-9 w-9 shrink-0 rounded-full" />`
-                : `<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-foreground/10 text-[12px] font-bold">${esc(p.collateralSymbol.slice(0, 3))}</div>`;
+            const iconHtml = `<img src="${icon}" alt="" class="h-9 w-9 shrink-0 rounded-full" />`;
 
             return `<li class="grid grid-cols-1 gap-3 py-4 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] md:items-center md:gap-4">
                 <div class="flex items-center gap-3">
@@ -344,11 +427,19 @@ const locale = getLocale(Astro.url);
             </li>`;
         }).join("");
 
+        list.innerHTML = (showSwap ? swapRowHtml() : "") + positionRows;
+
         list.querySelectorAll<HTMLButtonElement>("[data-position]").forEach(btn => {
             btn.addEventListener("click", () => {
                 const addr = btn.dataset.position;
                 if (!isAddrLike(addr)) return; // belt and suspenders
                 window.location.href = localePath(locale as Locale, `/mint?address=${addr}`);
+            });
+        });
+
+        list.querySelectorAll<HTMLButtonElement>("[data-swap-row]").forEach(btn => {
+            btn.addEventListener("click", () => {
+                window.location.href = localePath(locale as Locale, "/swap");
             });
         });
     }
@@ -373,6 +464,23 @@ const locale = getLocale(Astro.url);
             }
         }));
         applyFilter();
+    }
+
+    async function loadBridgeHorizon() {
+        const bridge = ADDRESSES.ethereum.chfauBridge;
+        if (!bridge) return;
+        try {
+            const client = getPublicClient("ethereum");
+            const h = await client.readContract({
+                address: bridge,
+                abi: STABLECOIN_BRIDGE_ABI,
+                functionName: "horizon",
+            }) as bigint;
+            bridgeHorizon = Number(h);
+            applyFilter();
+        } catch (err) {
+            console.warn("[index] bridge horizon read failed", err);
+        }
     }
 
     document.querySelectorAll<HTMLButtonElement>(".sort-btn").forEach(btn => {
@@ -403,4 +511,6 @@ const locale = getLocale(Astro.url);
             console.error(err);
             loading.textContent = i18n.error;
         });
+
+    loadBridgeHorizon();
 </script>

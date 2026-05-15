@@ -1,0 +1,571 @@
+---
+import Layout from "@layouts/Layout.astro";
+import Card from "@components/Card.astro";
+import Button from "@components/Button.astro";
+import WalletConnect from "@components/WalletConnect.astro";
+import ExternalLinkIcon from "@assets/icons/square-arrow-out-up-right.svg";
+import { t, getLocale, safeJsonForScript } from "@i18n/t";
+import zchfIcon from "@assets/tokens/zchf.svg?url";
+import chfauIcon from "@assets/tokens/chfau.svg?url";
+
+const tt = t(Astro.url);
+const locale = getLocale(Astro.url);
+
+const i18n = {
+    pageTitle: tt("swap_page_title") || "Swap",
+    pageSubtitle: tt("swap_page_subtitle") || "1:1 conversion between CHFAU and ZCHF through the swap module.",
+
+    fromLabel: tt("swap_from") || "From",
+    toLabel: tt("swap_to") || "To",
+    receiveLabel: tt("swap_receive") || "Receive",
+    balanceLabel: tt("swap_balance") || "Balance",
+    availableLabel: tt("swap_available") || "Available",
+    maxLabel: tt("swap_max") || "Max",
+    rateLabel: tt("swap_rate") || "1 CHFAU = 1 ZCHF",
+
+    actionConnect: tt("wallet_connect") || "Connect Wallet",
+    actionSwap: tt("swap_action") || "Swap",
+    actionApprove: tt("swap_action_approve") || "Approve {symbol}",
+    actionApproving: tt("swap_action_approving") || "Approving…",
+    actionSwapping: tt("swap_action_swapping") || "Swapping…",
+    actionSwitching: tt("swap_action_switching") || "Switching network…",
+
+    errAmount: tt("swap_err_amount") || "Enter an amount",
+    errBalance: tt("swap_err_balance") || "Not enough {symbol} in your wallet",
+    errLimit: tt("swap_err_limit") || "Not enough {symbol} available to swap",
+    errExpired: tt("swap_err_expired") || "Swap module expired on {date}",
+    errInactive: tt("swap_err_inactive") || "Swap module not yet active",
+
+    warnExpiringSoon: tt("swap_warn_expiring") || "Swap module expires in {days} day(s) ({date})",
+
+    toastApproved: tt("swap_toast_approved") || "Approved {symbol}",
+    toastSwapped: tt("swap_toast_swapped") || "Swapped {fromSym} → {toSym}",
+    cancelled: tt("common_cancelled") || "Cancelled",
+    notConnected: tt("wallet_not_connected") || "Wallet not connected",
+
+    errRpcTitle: tt("mint_err_rpc_title"),
+    errRpcBody: tt("mint_err_rpc_body"),
+    errRpcHelp: tt("mint_err_rpc_help"),
+
+    moduleNote: tt("swap_module_note") || "The swap module bridges CHFAU (Tradable Swiss Franc on AlpenChain) and ZCHF at a fixed 1:1 ratio, up to the module's limit.",
+};
+---
+
+<Layout title={`${i18n.pageTitle} | Frankencoin dApp`} description={i18n.pageSubtitle}>
+    <main class="mx-auto max-w-2xl px-4 py-10 md:px-6 md:py-12">
+        <header class="mb-8">
+            <h1 class="text-[28px] font-bold tracking-tight">{i18n.pageTitle}</h1>
+            <p class="mt-2 text-[14px]">{i18n.pageSubtitle}</p>
+        </header>
+
+        <Card title="">
+            <div class="space-y-4">
+                <!-- FROM -->
+                <div class="rounded-md border border-foreground/10 p-4">
+                    <div class="flex items-center justify-between text-[13px] opacity-90">
+                        <span class="font-medium">{i18n.fromLabel}</span>
+                        <span><span>{i18n.balanceLabel}: </span><span id="from-balance">—</span></span>
+                    </div>
+                    <div class="mt-2 flex items-center gap-3">
+                        <input
+                            id="i-amount"
+                            type="text"
+                            inputmode="decimal"
+                            autocomplete="off"
+                            placeholder="0"
+                            aria-label={i18n.fromLabel}
+                            class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none"
+                        />
+                        <button id="btn-max" class="text-[13px] font-semibold text-primary hover:underline">{i18n.maxLabel}</button>
+                        <div class="flex items-center gap-2 text-[14px] opacity-90">
+                            <img id="from-icon" src={chfauIcon} alt="" class="h-5 w-5 rounded-full" />
+                            <span id="from-symbol">CHFAU</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DIRECTION TOGGLE -->
+                <div class="flex justify-center">
+                    <button
+                        id="btn-flip"
+                        type="button"
+                        aria-label="Switch direction"
+                        class="flex h-10 w-10 items-center justify-center rounded-full border border-foreground/10 bg-background transition-colors hover:bg-foreground/5"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+                    </button>
+                </div>
+
+                <!-- TO (read-only) -->
+                <div class="rounded-md border border-foreground/10 p-4">
+                    <div class="flex items-center justify-between text-[13px] opacity-90">
+                        <span class="font-medium">{i18n.receiveLabel}</span>
+                        <span><span>{i18n.availableLabel}: </span><span id="to-available">—</span></span>
+                    </div>
+                    <div class="mt-2 flex items-center gap-3">
+                        <input
+                            id="i-receive"
+                            type="text"
+                            readonly
+                            value="0"
+                            aria-label={i18n.receiveLabel}
+                            class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight opacity-80 focus:outline-none"
+                        />
+                        <div class="flex items-center gap-2 text-[14px] opacity-90">
+                            <img id="to-icon" src={zchfIcon} alt="" class="h-5 w-5 rounded-full" />
+                            <span id="to-symbol">ZCHF</span>
+                        </div>
+                    </div>
+                    <div class="mt-2 text-[13px] opacity-80">{i18n.rateLabel}</div>
+                </div>
+
+                <div id="action-error" class="hidden text-[14px] text-primary"></div>
+                <div id="action-warn" class="hidden text-[14px] opacity-90"></div>
+
+                <div id="actions-connected" class="hidden">
+                    <Button id="btn-action" fullWidth>
+                        <span class="btn-action-label">{i18n.actionSwap}</span>
+                    </Button>
+                </div>
+                <div id="actions-disconnected">
+                    <WalletConnect />
+                </div>
+
+                <p class="text-[14px] opacity-90">
+                    {i18n.moduleNote}
+                    <a
+                        id="bridge-link"
+                        href="https://etherscan.io/address/0x3e445ff4ddDf0ff8aE7458c9746eD80bD664F6C1"
+                        target="_blank"
+                        rel="noopener"
+                        class="text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                        <span>Bridge contract</span>
+                        <ExternalLinkIcon class="h-3 w-3" aria-hidden="true" />
+                    </a>
+                </p>
+            </div>
+        </Card>
+    </main>
+
+    <script id="swap-i18n" type="application/json" set:html={safeJsonForScript(i18n)}></script>
+    <script id="swap-locale" type="application/json" set:html={safeJsonForScript(locale)}></script>
+</Layout>
+
+<script>
+    import { type Address, parseUnits, formatUnits, erc20Abi, maxUint256 } from "viem";
+    import { mainnet } from "viem/chains";
+    import { getOnboard } from "@lib/onboard";
+    import { getPublicClient, makeWalletClient } from "@lib/client";
+    import { toast } from "@lib/toast";
+    import { friendlyError } from "@lib/errors";
+    import { ADDRESSES } from "@config/addresses";
+    import { STABLECOIN_BRIDGE_ABI } from "@abi/stablecoinBridge";
+    import { getRawProvider, readChainId, forceMainnet, isUserCancelErr, isWalletRpcError, ETH_CHAIN_ID_HEX } from "@lib/walletProvider";
+
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+    const i18n = JSON.parse($("swap-i18n").textContent || "{}") as Record<string, string>;
+
+    // ===== contract config =====
+    const ZCHF = ADDRESSES.ethereum.zchf as Address;
+    const CHFAU = ADDRESSES.ethereum.chfau as Address;
+    const BRIDGE = ADDRESSES.ethereum.chfauBridge as Address;
+    // CHFAU has 6 decimals (decimalMultiplier = 1e12 = 10^(18-6))
+    const CHFAU_DECIMALS = 6;
+    const ZCHF_DECIMALS = 18;
+
+    // ===== state =====
+    let connected: Address | null = null;
+    let dirChfauToZchf = true; // true = CHFAU→ZCHF (mint), false = ZCHF→CHFAU (burn)
+    let amount = 0n; // always in fromDecimals
+    let userChfau = 0n;
+    let userZchf = 0n;
+    let chfauAllowance = 0n;
+    let bridgeMinted = 0n;
+    let bridgeLimit = 0n;
+    let bridgeHorizon = 0n; // unix seconds
+
+    const els = {
+        amount: $<HTMLInputElement>("i-amount"),
+        receive: $<HTMLInputElement>("i-receive"),
+        max: $<HTMLButtonElement>("btn-max"),
+        flip: $<HTMLButtonElement>("btn-flip"),
+        action: $<HTMLButtonElement>("btn-action"),
+        actionLabel: document.querySelector("#btn-action .btn-action-label") as HTMLElement,
+        actionsConnected: $("actions-connected"),
+        actionsDisconnected: $("actions-disconnected"),
+        actionError: $("action-error"),
+        actionWarn: $("action-warn"),
+        fromBalance: $("from-balance"),
+        toAvailable: $("to-available"),
+        fromIcon: $<HTMLImageElement>("from-icon"),
+        toIcon: $<HTMLImageElement>("to-icon"),
+        fromSymbol: $("from-symbol"),
+        toSymbol: $("to-symbol"),
+    };
+
+    // ===== input keystroke guard (decimal clamp) =====
+    function isValidPartial(next: string, dec: number): boolean {
+        if (next === "") return true;
+        const re = dec === 0 ? /^\d*$/ : new RegExp(`^\\d*(\\.\\d{0,${dec}})?$`);
+        return re.test(next);
+    }
+    function clampDecimals(raw: string, dec: number): string {
+        let s = raw.replace(/,/g, ".").replace(/[^\d.]/g, "");
+        const i = s.indexOf(".");
+        if (i !== -1) {
+            s = s.slice(0, i + 1) + s.slice(i + 1).replace(/\./g, "");
+            const [whole, frac = ""] = s.split(".");
+            s = dec === 0 ? whole : whole + (frac.length > 0 ? "." + frac.slice(0, dec) : ".");
+        }
+        return s;
+    }
+    function applyClamp(input: HTMLInputElement, dec: number): string {
+        const trimmed = clampDecimals(input.value, dec);
+        if (trimmed !== input.value) {
+            const pos = input.selectionStart;
+            input.value = trimmed;
+            if (pos !== null) {
+                const c = Math.min(pos, trimmed.length);
+                input.setSelectionRange(c, c);
+            }
+        }
+        return trimmed;
+    }
+    els.amount.addEventListener("beforeinput", (ev) => {
+        const ie = ev as InputEvent;
+        if (!ie.data) return;
+        const dec = inputPrecision();
+        const start = els.amount.selectionStart ?? els.amount.value.length;
+        const end = els.amount.selectionEnd ?? els.amount.value.length;
+        const next = els.amount.value.slice(0, start) + ie.data.replace(/,/g, ".") + els.amount.value.slice(end);
+        if (!isValidPartial(next, dec)) ie.preventDefault();
+    });
+
+    // ===== math =====
+    // The bridge truncates ZCHF amounts to CHFAU's decimal precision (6) on
+    // both sides — anything beyond 6 fractional digits gets silently dropped
+    // by the contract math. Cap the input UI to that resolution so the user
+    // sees exactly what'll happen on chain.
+    const SWAP_PRECISION = CHFAU_DECIMALS; // 6
+    const fromDecimals = () => (dirChfauToZchf ? CHFAU_DECIMALS : ZCHF_DECIMALS);
+    const toDecimals = () => (dirChfauToZchf ? ZCHF_DECIMALS : CHFAU_DECIMALS);
+    const inputPrecision = () => SWAP_PRECISION; // for keystroke + display clamp
+    const fromSymbol = () => (dirChfauToZchf ? "CHFAU" : "ZCHF");
+    const toSymbol = () => (dirChfauToZchf ? "ZCHF" : "CHFAU");
+    const fromBalance = () => (dirChfauToZchf ? userChfau : userZchf);
+
+    // Round a bigint down to SWAP_PRECISION fractional digits in fromDecimals.
+    // Used when the user types ZCHF amounts so we never send dust the bridge drops.
+    function snapToBridgePrecision(amt: bigint): bigint {
+        if (dirChfauToZchf) return amt; // already in CHFAU's 6dp
+        // ZCHF (18dp) → snap to 6dp by truncating the last 12 digits
+        const factor = 10n ** BigInt(ZCHF_DECIMALS - SWAP_PRECISION);
+        return (amt / factor) * factor;
+    }
+
+    // Per bridge: minted is total ZCHF outstanding (18-dec). swapLimit is
+    // the amount the user is allowed to push through in the chosen direction,
+    // expressed in fromDecimals.
+    //
+    //  - mint (chfau→zchf): you can mint up to (limit - minted) ZCHF.
+    //    The CHFAU you supply gets multiplied by decimalMultiplier on chain,
+    //    so in CHFAU units the cap is (limit - minted) / 1e12.
+    //  - burn (zchf→chfau): you can burn up to `minted` ZCHF and receive
+    //    the equivalent CHFAU.
+    const swapLimit = (): bigint => {
+        if (dirChfauToZchf) {
+            const headroom = bridgeLimit > bridgeMinted ? bridgeLimit - bridgeMinted : 0n;
+            return headroom / 10n ** BigInt(ZCHF_DECIMALS - CHFAU_DECIMALS);
+        }
+        return bridgeMinted;
+    };
+
+    const toAmount = (): bigint => {
+        const diff = toDecimals() - fromDecimals();
+        if (diff > 0) return amount * 10n ** BigInt(diff);
+        if (diff < 0) return amount / 10n ** BigInt(-diff);
+        return amount;
+    };
+
+    function fmt(v: bigint, dec: number): string {
+        if (v === 0n) return "0";
+        const whole = formatUnits(v, dec);
+        const [w, f = ""] = whole.split(".");
+        const wf = Number(w).toLocaleString("en-US");
+        const ff = f.replace(/0+$/, "").slice(0, dec === ZCHF_DECIMALS ? 2 : 2);
+        return ff ? `${wf}.${ff}` : wf;
+    }
+
+    // ===== bridge state checks =====
+    function moduleStatus(): { active: boolean; message: string | null; warning: string | null } {
+        const horizonMs = Number(bridgeHorizon) * 1000;
+        const nowMs = Date.now();
+
+        if (bridgeHorizon === 0n) {
+            return { active: false, message: i18n.errInactive, warning: null };
+        }
+        // Burn direction stays open after expiry (users can always exit).
+        if (horizonMs < nowMs && dirChfauToZchf) {
+            return {
+                active: false,
+                message: i18n.errExpired.replace("{date}", new Date(horizonMs).toDateString()),
+                warning: null,
+            };
+        }
+        const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+        if (dirChfauToZchf && horizonMs - nowMs < thirtyDaysMs && horizonMs > nowMs) {
+            const days = Math.ceil((horizonMs - nowMs) / (24 * 60 * 60 * 1000));
+            return {
+                active: true,
+                message: null,
+                warning: i18n.warnExpiringSoon
+                    .replace("{days}", String(days))
+                    .replace("{date}", new Date(horizonMs).toDateString()),
+            };
+        }
+        return { active: true, message: null, warning: null };
+    }
+
+    // ===== rendering =====
+    function setMessage(el: HTMLElement, text: string | null) {
+        if (!text) { el.classList.add("hidden"); el.textContent = ""; return; }
+        el.textContent = text;
+        el.classList.remove("hidden");
+    }
+
+    function refresh() {
+        // Tokens
+        els.fromIcon.src = dirChfauToZchf ? (els.fromIcon.dataset.chfau || "") : (els.fromIcon.dataset.zchf || "");
+        els.toIcon.src = dirChfauToZchf ? (els.toIcon.dataset.zchf || "") : (els.toIcon.dataset.chfau || "");
+        els.fromSymbol.textContent = fromSymbol();
+        els.toSymbol.textContent = toSymbol();
+
+        // Balances
+        els.fromBalance.textContent = `${fmt(fromBalance(), fromDecimals())} ${fromSymbol()}`;
+        els.toAvailable.textContent = `${fmt(swapLimit(), fromDecimals())} ${fromSymbol()}`;
+
+        // Receive field (1:1 — same value, just different decimals)
+        els.receive.value = formatUnits(toAmount(), toDecimals());
+
+        // Validation
+        const status = moduleStatus();
+        let err: string | null = null;
+        if (status.message) err = status.message;
+        else if (amount > fromBalance()) err = i18n.errBalance.replace("{symbol}", fromSymbol());
+        else if (amount > swapLimit()) err = i18n.errLimit.replace("{symbol}", toSymbol());
+
+        setMessage(els.actionError, connected && amount > 0n ? err : null);
+        setMessage(els.actionWarn, status.warning);
+
+        if (connected) {
+            // Action label: approve vs swap
+            const needsApproval = dirChfauToZchf && amount > 0n && chfauAllowance < amount;
+            els.actionLabel.textContent = needsApproval
+                ? i18n.actionApprove.replace("{symbol}", fromSymbol())
+                : i18n.actionSwap;
+            els.action.disabled = !!err || amount === 0n || !status.active;
+        }
+    }
+
+    // Pre-bake icon URLs so the flip swap is instant
+    {
+        const chfau = els.fromIcon.src;
+        const zchf = els.toIcon.src;
+        els.fromIcon.dataset.chfau = chfau;
+        els.fromIcon.dataset.zchf = zchf;
+        els.toIcon.dataset.chfau = chfau;
+        els.toIcon.dataset.zchf = zchf;
+    }
+
+    // ===== handlers =====
+    els.amount.addEventListener("input", () => {
+        // Always clamp visual input at 6 decimals — the bridge resolution.
+        const cleaned = applyClamp(els.amount, inputPrecision());
+        const dec = fromDecimals();
+        try {
+            const raw = cleaned ? parseUnits((cleaned || "0") as `${number}`, dec) : 0n;
+            amount = snapToBridgePrecision(raw);
+        } catch {
+            amount = 0n;
+        }
+        refresh();
+    });
+
+    els.max.addEventListener("click", () => {
+        const cap = fromBalance() < swapLimit() ? fromBalance() : swapLimit();
+        amount = snapToBridgePrecision(cap);
+        els.amount.value = formatUnits(amount, fromDecimals());
+        refresh();
+    });
+
+    els.flip.addEventListener("click", () => {
+        dirChfauToZchf = !dirChfauToZchf;
+        amount = 0n;
+        els.amount.value = "";
+        refresh();
+    });
+
+    function showRpcError() {
+        els.actionError.classList.remove("hidden");
+        els.actionError.innerHTML = "";
+        const wrap = document.createElement("div");
+        wrap.className = "rpc-error";
+        for (const [cls, text] of [
+            ["rpc-error-title", i18n.errRpcTitle],
+            ["rpc-error-body", i18n.errRpcBody],
+            ["rpc-error-help", i18n.errRpcHelp],
+        ] as const) {
+            const d = document.createElement("div");
+            d.className = cls;
+            d.textContent = text;
+            wrap.append(d);
+        }
+        els.actionError.append(wrap);
+    }
+    function handleErr(err: any) {
+        if (isUserCancelErr(err)) toast(i18n.cancelled, "info");
+        else if (isWalletRpcError(err)) showRpcError();
+        else toast(friendlyError(err).message, "error");
+    }
+    async function ensureMainnet(): Promise<boolean> {
+        if (await readChainId() === ETH_CHAIN_ID_HEX) return true;
+        try {
+            await forceMainnet();
+            return (await readChainId()) === ETH_CHAIN_ID_HEX;
+        } catch (err) { handleErr(err); return false; }
+    }
+
+    function lockBtn(label: string) {
+        const original = els.actionLabel.textContent ?? "";
+        els.action.dataset.loading = "1";
+        els.action.disabled = true;
+        els.actionLabel.textContent = label;
+        return () => { delete els.action.dataset.loading; els.actionLabel.textContent = original; refresh(); };
+    }
+
+    els.action.addEventListener("click", async () => {
+        if (!connected) return;
+        els.actionError.classList.add("hidden");
+        if (!(await ensureMainnet())) return;
+
+        const rawProvider = getRawProvider();
+        if (!rawProvider) { toast(i18n.notConnected, "error"); return; }
+        const publicClient = getPublicClient("ethereum");
+        const walletClient = makeWalletClient(rawProvider, "ethereum");
+
+        // Approve path (only chfau→zchf needs CHFAU allowance; burn pulls ZCHF
+        // via burnFrom which uses ZCHF's allowance to msg.sender; but on V2,
+        // bridge.burn() calls zchf.burnFrom(msg.sender, ...) which requires
+        // the user to have given ZCHF allowance to the bridge. ZCHF however
+        // supports infinite minter-burn — the bridge IS a minter so it
+        // doesn't need ERC20 allowance. So burn path has zero approvals.)
+        if (dirChfauToZchf && chfauAllowance < amount) {
+            const unlock = lockBtn(i18n.actionApproving);
+            try {
+                const hash = await walletClient.writeContract({
+                    address: CHFAU,
+                    abi: erc20Abi,
+                    functionName: "approve",
+                    args: [BRIDGE, maxUint256],
+                    account: connected,
+                    chain: mainnet,
+                });
+                await publicClient.waitForTransactionReceipt({ hash });
+                chfauAllowance = await publicClient.readContract({
+                    address: CHFAU, abi: erc20Abi, functionName: "allowance",
+                    args: [connected, BRIDGE],
+                }) as bigint;
+                toast(i18n.toastApproved.replace("{symbol}", "CHFAU"), "success");
+            } catch (err) { handleErr(err); }
+            finally { unlock(); }
+            return;
+        }
+
+        // Swap
+        const unlock = lockBtn(i18n.actionSwapping);
+        try {
+            const hash = await walletClient.writeContract({
+                address: BRIDGE,
+                abi: STABLECOIN_BRIDGE_ABI,
+                functionName: dirChfauToZchf ? "mint" : "burn",
+                args: [amount],
+                account: connected,
+                chain: mainnet,
+            });
+            await publicClient.waitForTransactionReceipt({ hash });
+            toast(
+                i18n.toastSwapped
+                    .replace("{fromSym}", fromSymbol())
+                    .replace("{toSym}", toSymbol()),
+                "success",
+            );
+            amount = 0n;
+            els.amount.value = "";
+            await refreshUserState();
+            await refreshBridgeState();
+            refresh();
+        } catch (err) { handleErr(err); }
+        finally { unlock(); }
+    });
+
+    // ===== data loading =====
+    async function refreshUserState() {
+        if (!connected) {
+            userChfau = 0n; userZchf = 0n; chfauAllowance = 0n;
+            return;
+        }
+        const client = getPublicClient("ethereum");
+        const r = await client.multicall({
+            allowFailure: false,
+            contracts: [
+                { address: CHFAU, abi: erc20Abi, functionName: "balanceOf", args: [connected] },
+                { address: ZCHF,  abi: erc20Abi, functionName: "balanceOf", args: [connected] },
+                { address: CHFAU, abi: erc20Abi, functionName: "allowance", args: [connected, BRIDGE] },
+            ],
+        });
+        userChfau = r[0] as bigint;
+        userZchf = r[1] as bigint;
+        chfauAllowance = r[2] as bigint;
+    }
+
+    async function refreshBridgeState() {
+        const client = getPublicClient("ethereum");
+        const r = await client.multicall({
+            allowFailure: false,
+            contracts: [
+                { address: BRIDGE, abi: STABLECOIN_BRIDGE_ABI, functionName: "minted" },
+                { address: BRIDGE, abi: STABLECOIN_BRIDGE_ABI, functionName: "limit" },
+                { address: BRIDGE, abi: STABLECOIN_BRIDGE_ABI, functionName: "horizon" },
+            ],
+        });
+        bridgeMinted = r[0] as bigint;
+        bridgeLimit = r[1] as bigint;
+        bridgeHorizon = r[2] as bigint;
+    }
+
+    function setConnectedUI(isConnected: boolean) {
+        els.actionsConnected.classList.toggle("hidden", !isConnected);
+        els.actionsDisconnected.classList.toggle("hidden", isConnected);
+    }
+
+    getOnboard().state.select("wallets").subscribe(async (wallets) => {
+        const newAddr = wallets[0]?.accounts[0]?.address as Address | null;
+        if (newAddr !== connected) {
+            connected = newAddr;
+            setConnectedUI(!!connected);
+            await refreshUserState();
+            refresh();
+        }
+    });
+
+    // Initial state load (bridge state is wallet-independent)
+    setConnectedUI(false);
+    refreshBridgeState().then(() => {
+        // If the bridge has already expired, flip to burn so users can exit.
+        if (bridgeHorizon > 0n && Number(bridgeHorizon) * 1000 < Date.now()) {
+            dirChfauToZchf = false;
+        }
+        refresh();
+    });
+</script>
