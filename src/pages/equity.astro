@@ -30,9 +30,10 @@ const i18n = {
     tabWrap:   tt("equity_tab_wrap")   || "Wrap",
     tabUnwrap: tt("equity_tab_unwrap") || "Unwrap",
 
-    fromLabel: tt("equity_from") || "From",
+    fromLabel: tt("equity_from") || "Send",
     receiveLabel: tt("equity_receive") || "Receive",
     balanceLabel: tt("equity_balance") || "Balance",
+    minLabel: tt("equity_min") || "Min",
     maxLabel: tt("equity_max") || "Max",
 
     actionConnect: tt("wallet_connect") || "Connect Wallet",
@@ -52,16 +53,18 @@ const i18n = {
     errEmpty: tt("equity_err_empty") || "Connect your wallet to redeem",
 
     statsTitle: tt("equity_stats_title") || "FPS Pool Share",
-    statsPrice: tt("equity_stats_price") || "Price",
-    statsSupply: tt("equity_stats_supply") || "Supply",
-    statsMarketCap: tt("equity_stats_market_cap") || "Market Cap",
+    statsPrice: tt("equity_stats_price") || "FPS Price",
+    statsSupply: tt("equity_stats_supply") || "Total Supply",
+    statsMarketCap: tt("equity_stats_market_cap") || "Market Cap.",
     statsTotalReserve: tt("equity_stats_total_reserve") || "Total Reserve",
     statsEquityCapital: tt("equity_stats_equity_capital") || "Equity Capital",
     statsMinterReserve: tt("equity_stats_minter_reserve") || "Minter Reserve",
+    statsYourBalance: tt("equity_stats_your_balance") || "Your Balance",
+    statsValueAtPrice: tt("equity_stats_value_at_price") || "Value at Current Price",
     statsYourFps: tt("equity_stats_your_fps") || "Your FPS Balance",
     statsYourWfps: tt("equity_stats_your_wfps") || "Your WFPS Balance",
     statsHolding: tt("equity_stats_holding") || "Holding Duration",
-    statsRedeemableIn: tt("equity_stats_redeemable_in") || "Redeemable in {days} day(s)",
+    statsRedeemableIn: tt("equity_stats_redeemable_in") || "Can redeem after {days} day(s)",
     statsRedeemableNow: tt("equity_stats_redeemable_now") || "Redeemable now",
     statsHoldingDays: tt("equity_stats_holding_days") || "{days} day(s)",
 
@@ -127,7 +130,7 @@ const i18n = {
 
         <section class="grid grid-cols-1 gap-6 md:grid-cols-2">
             <!-- Interaction Card -->
-            <Card title="">
+            <Card title="Frankencoin Pool Shares (FPS)">
                 <!-- Mode tab strip -->
                 <div class="mb-5 flex rounded-md border border-foreground/10 bg-foreground/5 p-1">
                     <button data-mode="invest" class="mode-btn flex-1 rounded px-2 py-1.5 text-[13px] font-semibold transition-colors">
@@ -145,11 +148,15 @@ const i18n = {
                 </div>
 
                 <div class="space-y-4">
-                    <!-- FROM -->
+                    <!-- SEND -->
                     <div class="rounded-md border border-foreground/10 p-4">
-                        <div class="flex items-center justify-between text-[13px] opacity-90">
-                            <span class="font-medium">{i18n.fromLabel}</span>
-                            <span><span>{i18n.balanceLabel}: </span><span id="from-balance">—</span></span>
+                        <div class="flex items-center justify-between text-[13px]">
+                            <span class="font-medium opacity-90">{i18n.fromLabel}</span>
+                            <div class="flex items-center gap-3">
+                                <span class="opacity-80"><span>{i18n.balanceLabel}: </span><span id="from-balance">—</span></span>
+                                <button id="btn-min" class="font-semibold text-primary hover:underline">{i18n.minLabel}</button>
+                                <button id="btn-max" class="font-semibold text-primary hover:underline">{i18n.maxLabel}</button>
+                            </div>
                         </div>
                         <div class="mt-2 flex items-center gap-3">
                             <input
@@ -161,7 +168,6 @@ const i18n = {
                                 aria-label={i18n.fromLabel}
                                 class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none"
                             />
-                            <button id="btn-max" class="text-[13px] font-semibold text-primary hover:underline">{i18n.maxLabel}</button>
                             <div class="flex items-center gap-2 text-[14px] opacity-90">
                                 <img id="from-icon" src={zchfIcon} alt="" class="h-5 w-5 rounded-full" />
                                 <span id="from-symbol">ZCHF</span>
@@ -169,11 +175,11 @@ const i18n = {
                         </div>
                     </div>
 
-                    <!-- RECEIVE preview -->
+                    <!-- RECEIVE -->
                     <div class="rounded-md border border-foreground/10 p-4">
-                        <div class="flex items-center justify-between text-[13px] opacity-90">
-                            <span class="font-medium">{i18n.receiveLabel}</span>
-                            <span id="receive-preview" class="opacity-80">—</span>
+                        <div class="flex items-center justify-between text-[13px]">
+                            <span class="font-medium opacity-90">{i18n.receiveLabel}</span>
+                            <span class="opacity-80"><span>{i18n.balanceLabel}: </span><span id="to-balance">—</span></span>
                         </div>
                         <div class="mt-2 flex items-center gap-3">
                             <input
@@ -205,48 +211,109 @@ const i18n = {
                 </div>
             </Card>
 
-            <!-- Stats Card -->
+            <!-- Details Card -->
             <Card title={i18n.statsTitle}>
-                <div class="space-y-3">
-                    <div class="flex items-center justify-between border-b border-foreground/10 pb-3">
-                        <span class="text-[13px] opacity-80">{i18n.statsPrice}</span>
-                        <span id="s-price" class="text-[15px] font-semibold">—</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-[13px] opacity-80">{i18n.statsSupply}</span>
-                        <span id="s-supply" class="text-[14px]">—</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-[13px] opacity-80">{i18n.statsMarketCap}</span>
-                        <span id="s-mcap" class="text-[14px]">—</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-[13px] opacity-80">{i18n.statsTotalReserve}</span>
-                        <span id="s-reserve" class="text-[14px]">—</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-[13px] opacity-80">{i18n.statsEquityCapital}</span>
-                        <span id="s-equity" class="text-[14px]">—</span>
-                    </div>
-                    <div class="flex items-center justify-between">
-                        <span class="text-[13px] opacity-80">{i18n.statsMinterReserve}</span>
-                        <span id="s-minter-reserve" class="text-[14px]">—</span>
+                <!-- Top group: user-specific -->
+                <div class="space-y-4">
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-[13px] opacity-80">{i18n.statsYourBalance}</span>
+                        <div class="text-right">
+                            <div id="s-user-fps" class="text-[18px] font-semibold tracking-tight">—</div>
+                            <a href="https://etherscan.io/address/0x1bA26788dfDe592fec8bcB0Eaff472a42BE341B2" target="_blank" rel="noopener" class="mt-0.5 inline-flex items-center gap-1 text-[12px] text-primary hover:underline">
+                                <img src={fpsIcon} alt="" class="h-3.5 w-3.5 rounded-full" />
+                                <span>FPS</span>
+                            </a>
+                        </div>
                     </div>
 
-                    <div class="mt-2 border-t border-foreground/10 pt-3 space-y-3">
-                        <div class="flex items-center justify-between">
-                            <span class="text-[13px] opacity-80">{i18n.statsYourFps}</span>
-                            <span id="s-user-fps" class="text-[14px]">—</span>
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-[13px] opacity-80">{i18n.statsValueAtPrice}</span>
+                        <div class="text-right">
+                            <div id="s-user-value" class="text-[18px] font-semibold tracking-tight">—</div>
+                            <a href="https://etherscan.io/address/0xB58E61C3098d85632Df34EecfB899A1Ed80921cB" target="_blank" rel="noopener" class="mt-0.5 inline-flex items-center gap-1 text-[12px] text-primary hover:underline">
+                                <img src={zchfIcon} alt="" class="h-3.5 w-3.5 rounded-full" />
+                                <span>ZCHF</span>
+                            </a>
                         </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-[13px] opacity-80">{i18n.statsYourWfps}</span>
-                            <span id="s-user-wfps" class="text-[14px]">—</span>
+                    </div>
+
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-[13px] opacity-80">{i18n.statsHolding}</span>
+                        <div class="text-right">
+                            <div id="s-holding" class="text-[18px] font-semibold tracking-tight">—</div>
+                            <div id="s-redeem-status" class="mt-0.5 text-[12px] opacity-80"></div>
                         </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-[13px] opacity-80">{i18n.statsHolding}</span>
-                            <span id="s-holding" class="text-[14px]">—</span>
+                    </div>
+
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-[13px] opacity-80">{i18n.statsYourWfps}</span>
+                        <div class="text-right">
+                            <div id="s-user-wfps" class="text-[18px] font-semibold tracking-tight">—</div>
+                            <a href="https://etherscan.io/address/0x5052D3Cc819f53116641e89b96Ff4cD1EE80B182" target="_blank" rel="noopener" class="mt-0.5 inline-flex items-center gap-1 text-[12px] text-primary hover:underline">
+                                <img src={wfpsIcon} alt="" class="h-3.5 w-3.5 rounded-full" />
+                                <span>WFPS</span>
+                            </a>
                         </div>
-                        <div id="s-redeem-status" class="text-[13px] opacity-80"></div>
+                    </div>
+                </div>
+
+                <div class="my-6 border-t border-foreground/10"></div>
+
+                <!-- Pool stats group -->
+                <div class="space-y-4">
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-[13px] opacity-80">{i18n.statsPrice}</span>
+                        <div class="text-right">
+                            <div id="s-price" class="text-[18px] font-semibold tracking-tight">—</div>
+                            <a href="https://etherscan.io/address/0xB58E61C3098d85632Df34EecfB899A1Ed80921cB" target="_blank" rel="noopener" class="mt-0.5 inline-flex items-center gap-1 text-[12px] text-primary hover:underline">
+                                <img src={zchfIcon} alt="" class="h-3.5 w-3.5 rounded-full" />
+                                <span>ZCHF</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-[13px] opacity-80">{i18n.statsSupply}</span>
+                        <div class="text-right">
+                            <div id="s-supply" class="text-[18px] font-semibold tracking-tight">—</div>
+                            <a href="https://etherscan.io/address/0x1bA26788dfDe592fec8bcB0Eaff472a42BE341B2" target="_blank" rel="noopener" class="mt-0.5 inline-flex items-center gap-1 text-[12px] text-primary hover:underline">
+                                <img src={fpsIcon} alt="" class="h-3.5 w-3.5 rounded-full" />
+                                <span>FPS</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-[13px] opacity-80">{i18n.statsMarketCap}</span>
+                        <div class="text-right">
+                            <div id="s-mcap" class="text-[18px] font-semibold tracking-tight">—</div>
+                            <a href="https://etherscan.io/address/0xB58E61C3098d85632Df34EecfB899A1Ed80921cB" target="_blank" rel="noopener" class="mt-0.5 inline-flex items-center gap-1 text-[12px] text-primary hover:underline">
+                                <img src={zchfIcon} alt="" class="h-3.5 w-3.5 rounded-full" />
+                                <span>ZCHF</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-[13px] opacity-80">{i18n.statsEquityCapital}</span>
+                        <div class="text-right">
+                            <div id="s-equity" class="text-[18px] font-semibold tracking-tight">—</div>
+                            <a href="https://etherscan.io/address/0xB58E61C3098d85632Df34EecfB899A1Ed80921cB" target="_blank" rel="noopener" class="mt-0.5 inline-flex items-center gap-1 text-[12px] text-primary hover:underline">
+                                <img src={zchfIcon} alt="" class="h-3.5 w-3.5 rounded-full" />
+                                <span>ZCHF</span>
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="flex items-start justify-between gap-4">
+                        <span class="text-[13px] opacity-80">{i18n.statsMinterReserve}</span>
+                        <div class="text-right">
+                            <div id="s-minter-reserve" class="text-[18px] font-semibold tracking-tight">—</div>
+                            <a href="https://etherscan.io/address/0xB58E61C3098d85632Df34EecfB899A1Ed80921cB" target="_blank" rel="noopener" class="mt-0.5 inline-flex items-center gap-1 text-[12px] text-primary hover:underline">
+                                <img src={zchfIcon} alt="" class="h-3.5 w-3.5 rounded-full" />
+                                <span>ZCHF</span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </Card>
@@ -259,6 +326,7 @@ const i18n = {
         fps: fpsIcon,
         wfps: wfpsIcon,
     })}></script>
+    <script id="equity-locale" type="application/json" set:html={safeJsonForScript(locale)}></script>
 </Layout>
 
 <style>
@@ -298,6 +366,13 @@ const i18n = {
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
     const i18n = JSON.parse($("equity-i18n").textContent || "{}") as Record<string, string>;
     const ICONS = JSON.parse($("equity-icons").textContent || "{}") as { zchf: string; fps: string; wfps: string };
+    const locale = JSON.parse($("equity-locale").textContent || '"en"') as string;
+
+    // Map our UI locale to a number-formatting BCP-47 locale. CH variants for
+    // CH-relevant tongues so thousand/decimal separators feel Swiss.
+    const numberLocale = ({
+        en: "en-US", de: "de-CH", fr: "fr-CH", it: "it-CH", es: "es-ES",
+    } as Record<string, string>)[locale] ?? "en-US";
 
     // ===== contracts =====
     const ZCHF   = ADDRESSES.ethereum.zchf as Address;
@@ -333,7 +408,7 @@ const i18n = {
     const els = {
         amount: $<HTMLInputElement>("i-amount"),
         receive: $<HTMLInputElement>("i-receive"),
-        receivePreview: $("receive-preview"),
+        min: $<HTMLButtonElement>("btn-min"),
         max: $<HTMLButtonElement>("btn-max"),
         action: $<HTMLButtonElement>("btn-action"),
         actionLabel: document.querySelector("#btn-action .btn-action-label") as HTMLElement,
@@ -341,20 +416,22 @@ const i18n = {
         actionsDisconnected: $("actions-disconnected"),
         actionError: $("action-error"),
         fromBalance: $("from-balance"),
+        toBalance: $("to-balance"),
         fromIcon: $<HTMLImageElement>("from-icon"),
         toIcon: $<HTMLImageElement>("to-icon"),
         fromSymbol: $("from-symbol"),
         toSymbol: $("to-symbol"),
         modeButtons: document.querySelectorAll<HTMLButtonElement>("[data-mode]"),
-        // stats
+        // stats — pool
         sPrice: $("s-price"),
         sSupply: $("s-supply"),
         sMcap: $("s-mcap"),
-        sReserve: $("s-reserve"),
         sEquity: $("s-equity"),
         sMinterReserve: $("s-minter-reserve"),
+        // stats — user
         sUserFps: $("s-user-fps"),
         sUserWfps: $("s-user-wfps"),
+        sUserValue: $("s-user-value"),
         sHolding: $("s-holding"),
         sRedeemStatus: $("s-redeem-status"),
     };
@@ -419,12 +496,15 @@ const i18n = {
 
     // ===== formatting =====
     function fmt(v: bigint, dec = DEC, maxFrac = 4): string {
-        if (v === 0n) return "0";
+        if (v === 0n) return Number(0).toLocaleString(numberLocale);
         const s = formatUnits(v, dec);
         const [w, f = ""] = s.split(".");
-        const wf = Number(w).toLocaleString("en-US");
-        const ff = f.slice(0, maxFrac).replace(/0+$/, "");
-        return ff ? `${wf}.${ff}` : wf;
+        const whole = Number(w).toLocaleString(numberLocale);
+        const frac = f.slice(0, maxFrac).replace(/0+$/, "");
+        if (!frac) return whole;
+        // Locale-correct decimal separator (1.5 in en-US, 1,5 in de-CH/fr-CH).
+        const decSep = (1.1).toLocaleString(numberLocale).replace(/\d/g, "");
+        return `${whole}${decSep}${frac}`;
     }
     function fmtPrice(v: bigint): string {
         // price has 18 decimals; show 2dp
@@ -469,13 +549,7 @@ const i18n = {
         }
     }
     function paintPreview() {
-        els.receive.value = formatUnits(previewOut, DEC);
-        const symbol = mode === "invest" ? "FPS"
-            : mode === "redeem" ? "ZCHF"
-            : mode === "wrap" ? "WFPS"
-            : "FPS";
-        els.receivePreview.textContent =
-            previewOut === 0n ? "—" : `≈ ${fmt(previewOut)} ${symbol}`;
+        els.receive.value = previewOut === 0n ? "0" : formatUnits(previewOut, DEC);
     }
 
     // ===== validation =====
@@ -517,39 +591,40 @@ const i18n = {
         });
     }
     function paintStats() {
-        if (fpsPrice > 0n) {
-            els.sPrice.textContent = `${fmtPrice(fpsPrice)} ZCHF`;
-        }
-        els.sSupply.textContent = `${fmt(fpsSupply, DEC, 2)} FPS`;
+        // Pool stats. Token suffix now lives in the markup as a tag, so we
+        // only paint the number into each value cell.
+        els.sPrice.textContent = fmtPrice(fpsPrice);
+        els.sSupply.textContent = fmt(fpsSupply, DEC, 2);
         // market cap = price * supply / 1e18 (both 18dp)
         const mcap = (fpsPrice * fpsSupply) / ONE;
-        els.sMcap.textContent = `${fmt(mcap, DEC, 0)} ZCHF`;
-        // Total reserve = equity + minter reserve
-        const totalReserve = zchfEquity + zchfMinterReserve;
-        els.sReserve.textContent = `${fmt(totalReserve, DEC, 0)} ZCHF`;
-        els.sEquity.textContent = `${fmt(zchfEquity, DEC, 0)} ZCHF`;
-        els.sMinterReserve.textContent = `${fmt(zchfMinterReserve, DEC, 0)} ZCHF`;
+        els.sMcap.textContent = fmt(mcap, DEC, 0);
+        els.sEquity.textContent = fmt(zchfEquity, DEC, 0);
+        els.sMinterReserve.textContent = fmt(zchfMinterReserve, DEC, 0);
 
         if (connected) {
-            els.sUserFps.textContent = `${fmt(userFps, DEC, 4)} FPS`;
-            els.sUserWfps.textContent = `${fmt(userWfps, DEC, 4)} WFPS`;
+            els.sUserFps.textContent = fmt(userFps, DEC, 4);
+            els.sUserWfps.textContent = fmt(userWfps, DEC, 4);
+            // Value at current price = user FPS balance × price / 1e18
+            const userValue = (userFps * fpsPrice) / ONE;
+            els.sUserValue.textContent = fmt(userValue, DEC, 2);
             const days = Number(holdingDuration) / 86400;
             els.sHolding.textContent = userFps === 0n ? "—" : i18n.statsHoldingDays.replace("{days}", days.toFixed(1));
             if (userFps === 0n) {
                 els.sRedeemStatus.textContent = "";
             } else if (canRedeem) {
                 els.sRedeemStatus.textContent = i18n.statsRedeemableNow;
-                els.sRedeemStatus.className = "text-[13px] text-primary";
+                els.sRedeemStatus.className = "mt-0.5 text-[12px] text-primary";
             } else {
                 const ninetyDaysSec = 90n * 24n * 60n * 60n;
                 const remaining = holdingDuration < ninetyDaysSec ? ninetyDaysSec - holdingDuration : 0n;
                 const d = Math.max(1, Math.ceil(Number(remaining) / 86400));
                 els.sRedeemStatus.textContent = i18n.statsRedeemableIn.replace("{days}", String(d));
-                els.sRedeemStatus.className = "text-[13px] opacity-80";
+                els.sRedeemStatus.className = "mt-0.5 text-[12px] opacity-80";
             }
         } else {
             els.sUserFps.textContent = "—";
             els.sUserWfps.textContent = "—";
+            els.sUserValue.textContent = "—";
             els.sHolding.textContent = "—";
             els.sRedeemStatus.textContent = "";
         }
@@ -560,7 +635,13 @@ const i18n = {
         els.toIcon.src = cfg.toIcon;
         els.fromSymbol.textContent = cfg.fromSymbol;
         els.toSymbol.textContent = cfg.toSymbol;
-        els.fromBalance.textContent = `${fmt(cfg.balance(), DEC, 4)} ${cfg.fromSymbol}`;
+        els.fromBalance.textContent = fmt(cfg.balance(), DEC, 4);
+        // Receive side balance — the user's balance of the TO token.
+        const toBal = mode === "invest" ? userFps
+            : mode === "redeem" ? userZchf
+            : mode === "wrap" ? userWfps
+            : userFps;
+        els.toBalance.textContent = fmt(toBal, DEC, 4);
 
         const err = validate();
         setMessage(els.actionError, err);
@@ -601,6 +682,14 @@ const i18n = {
         const cleaned = applyClamp(els.amount);
         try { amount = cleaned ? parseUnits((cleaned || "0") as `${number}`, DEC) : 0n; }
         catch { amount = 0n; }
+        refresh();
+        recomputePreview();
+    });
+
+    els.min.addEventListener("click", () => {
+        // 1 unit of the from token — a sensible starter amount.
+        amount = ONE;
+        els.amount.value = formatUnits(amount, DEC);
         refresh();
         recomputePreview();
     });

@@ -371,15 +371,13 @@ const i18n = {
         type CollTokenInfo,
         type FormStatus,
     } from "@lib/proposePosition";
+    import { fmt } from "@lib/inputFormat";
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
     const i18n = JSON.parse($("create-i18n").textContent || "{}") as Record<string, string>;
     const locale = JSON.parse($("create-locale").textContent || '"en"') as string;
 
     const ETH_CHAIN_ID_HEX = "0x1";
-
-    const fmt = (n: number, max = 4) =>
-        n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: max });
 
     function getRawProvider(): any {
         const eth = (window as any).ethereum;
@@ -599,7 +597,7 @@ const i18n = {
         els.symMinColl.textContent = sym;
         els.symInitColl.textContent = sym;
         if (collInfo) {
-            els.balanceColl.textContent = `${fmt(Number(formatUnits(collInfo.userBalance, collInfo.decimals)))} ${sym}`;
+            els.balanceColl.textContent = `${fmt(Number(formatUnits(collInfo.userBalance, collInfo.decimals)), 0, 4)} ${sym}`;
             els.infoCollateral.textContent = `${collInfo.name} (${collInfo.symbol}) · ${collInfo.decimals} decimals`;
             els.infoCollateral.classList.remove("hidden");
         } else {

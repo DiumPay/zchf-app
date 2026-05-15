@@ -3,6 +3,7 @@ import "../styles/global.css";
 import "@fontsource-variable/manrope/wght.css";
 import Navbar from "@components/Navbar.astro";
 import Footer from "@components/Footer.astro";
+import { getLocale } from "@i18n/t";
 
 interface Props {
     title?: string;
@@ -13,9 +14,17 @@ const {
     title = "Frankencoin (ZCHF) - dApp",
     description = "Borrow ZCHF against collateral.",
 } = Astro.props;
+
+// Map our UI locale to a BCP-47 lang. CH variants where appropriate so number
+// formatting in the client (via navigator.language / <html lang>) picks
+// up Swiss thousand/decimal separators.
+const localeKey = getLocale(Astro.url);
+const htmlLang = ({
+    en: "en", de: "de-CH", fr: "fr-CH", it: "it-CH", es: "es-ES",
+} as Record<string, string>)[localeKey] ?? "en";
 ---
 
-<html lang="en">
+<html lang={htmlLang}>
     <head>
         <meta charset="utf-8" />
         <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">

@@ -55,7 +55,7 @@ const i18n = {
     <main class="mx-auto max-w-2xl px-4 py-10 md:px-6 md:py-12">
         <header class="mb-8">
             <h1 class="text-[28px] font-bold tracking-tight">{i18n.pageTitle}</h1>
-            <p class="mt-2 text-[14px]">{i18n.pageSubtitle}</p>
+            <p class="mt-2 text-[14px] opacity-90">{i18n.pageSubtitle}</p>
         </header>
 
         <Card title="">
@@ -165,6 +165,10 @@ const i18n = {
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
     const i18n = JSON.parse($("swap-i18n").textContent || "{}") as Record<string, string>;
+    const locale = JSON.parse($("swap-locale").textContent || '"en"') as string;
+    const numberLocale = ({
+        en: "en-US", de: "de-CH", fr: "fr-CH", it: "it-CH", es: "es-ES",
+    } as Record<string, string>)[locale] ?? "en-US";
 
     // ===== contract config =====
     const ZCHF = ADDRESSES.ethereum.zchf as Address;
@@ -292,9 +296,20 @@ const i18n = {
         if (v === 0n) return "0";
         const whole = formatUnits(v, dec);
         const [w, f = ""] = whole.split(".");
-        const wf = Number(w).toLocaleString("en-US");
-        const ff = f.replace(/0+$/, "").slice(0, dec === ZCHF_DECIMALS ? 2 : 2);
-        return ff ? `${wf}.${ff}` : wf;
+        const wf = Number(w).toLocaleString(numberLocale);
+        // Cap fractional digits at 2; trim trailing zeros.
+        const ff = f.replace(/0+$/, "").slice(0, 2);
+        if (!ff) return wf;
+        // Locale-correct decimal separator (1.5 in en-US, 1,5 in de-CH, etc.).
+        const decSep = (1.1).toLocaleString(numberLocale).replace(/\d/g, "");
+        return `${wf}${decSep}${ff}`;
+    }
+
+    // Locale-aware date for "expired on" / "expires in N days (date)" copy.
+    function fmtDate(ts: number): string {
+        return new Date(ts).toLocaleDateString(numberLocale, {
+            day: "2-digit", month: "short", year: "numeric",
+        });
     }
 
     // ===== bridge state checks =====
@@ -309,7 +324,7 @@ const i18n = {
         if (horizonMs < nowMs && dirChfauToZchf) {
             return {
                 active: false,
-                message: i18n.errExpired.replace("{date}", new Date(horizonMs).toDateString()),
+                message: i18n.errExpired.replace("{date}", fmtDate(horizonMs)),
                 warning: null,
             };
         }
@@ -321,7 +336,7 @@ const i18n = {
                 message: null,
                 warning: i18n.warnExpiringSoon
                     .replace("{days}", String(days))
-                    .replace("{date}", new Date(horizonMs).toDateString()),
+                    .replace("{date}", fmtDate(horizonMs)),
             };
         }
         return { active: true, message: null, warning: null };

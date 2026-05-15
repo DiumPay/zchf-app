@@ -2,11 +2,27 @@
  * Pure formatting + bigint <-> decimal helpers used across input forms.
  * No DOM dependencies except the `applyClamp` / `guardKeystrokes` pair which
  * take an HTMLInputElement explicitly.
+ *
+ * fmt() honours the page locale for thousand/decimal separators — it's for
+ * read-only display only.
+ *
+ * fmtPlain() always emits canonical '.' decimals with no grouping — it's
+ * used to write values back into <input> fields, which parseNum then reads
+ * with parseFloat (and parseFloat only understands '.' decimals).
  */
 
-export const fmt = (n: number, min = 2, max = 2) =>
-    n.toLocaleString("en-US", { minimumFractionDigits: min, maximumFractionDigits: max });
+function detectDisplayLocale(): string {
+    if (typeof document === "undefined") return "en-US";
+    const lang = document.documentElement?.lang;
+    return lang && lang.length >= 2 ? lang : "en-US";
+}
+const DISPLAY_LOCALE = detectDisplayLocale();
 
+export const fmt = (n: number, min = 2, max = 2) =>
+    n.toLocaleString(DISPLAY_LOCALE, { minimumFractionDigits: min, maximumFractionDigits: max });
+
+// IMPORTANT: stays in canonical en-US so the string we emit can round-trip
+// through <input>.value → parseNum → parseFloat without locale collisions.
 export const fmtPlain = (n: number, max = 8) =>
     n.toLocaleString("en-US", { useGrouping: false, maximumFractionDigits: max });
 
