@@ -1,0 +1,797 @@
+---
+import Layout from "@layouts/Layout.astro";
+import Card from "@components/Card.astro";
+import Button from "@components/Button.astro";
+import WalletConnect from "@components/WalletConnect.astro";
+import ExternalLinkIcon from "@assets/icons/square-arrow-out-up-right.svg";
+import { t, getLocale, safeJsonForScript } from "@i18n/t";
+import zchfIcon from "@assets/tokens/zchf.svg?url";
+import fpsIcon from "@assets/tokens/fps.svg?url";
+import wfpsIcon from "@assets/tokens/wfps.svg?url";
+
+const tt = t(Astro.url);
+const locale = getLocale(Astro.url);
+
+const i18n = {
+    pageTitle: tt("equity_page_title") || "Invest",
+    pageSubtitlePrefix: tt("equity_page_subtitle_prefix") || "Invest in or redeem your ",
+    pageSubtitleLink: tt("equity_page_subtitle_link") || "Frankencoin Pool Shares",
+    pageSubtitleSuffix: tt("equity_page_subtitle_suffix") || " (FPS) — the governance token of the Frankencoin Ecosystem.",
+
+    step1Title: tt("equity_step1_title") || "Get Pool Shares",
+    step1Text:  tt("equity_step1_text")  || "Add ZCHF to the Frankencoin reserve pool and get newly minted pool shares in return.",
+    step2Title: tt("equity_step2_title") || "Participate",
+    step2Text:  tt("equity_step2_text")  || "FPS's fundamental value climbs (or falls) with Frankencoin's success (or decline).",
+    step3Title: tt("equity_step3_title") || "Govern",
+    step3Text:  tt("equity_step3_text")  || "Team up with others to veto protocol extensions or collaterals you don't like.",
+
+    tabInvest: tt("equity_tab_invest") || "Invest",
+    tabRedeem: tt("equity_tab_redeem") || "Redeem",
+    tabWrap:   tt("equity_tab_wrap")   || "Wrap",
+    tabUnwrap: tt("equity_tab_unwrap") || "Unwrap",
+
+    fromLabel: tt("equity_from") || "From",
+    receiveLabel: tt("equity_receive") || "Receive",
+    balanceLabel: tt("equity_balance") || "Balance",
+    maxLabel: tt("equity_max") || "Max",
+
+    actionConnect: tt("wallet_connect") || "Connect Wallet",
+    actionInvest:  tt("equity_action_invest")  || "Invest",
+    actionRedeem:  tt("equity_action_redeem")  || "Redeem",
+    actionWrap:    tt("equity_action_wrap")    || "Wrap",
+    actionUnwrap:  tt("equity_action_unwrap")  || "Unwrap",
+    actionUnwrapAndSell: tt("equity_action_unwrap_sell") || "Unwrap & Redeem",
+    actionApprove: tt("equity_action_approve") || "Approve {symbol}",
+    actionApproving: tt("equity_action_approving") || "Approving…",
+    actionWorking: tt("equity_action_working") || "Working…",
+
+    errAmount: tt("equity_err_amount") || "Enter an amount",
+    errBalance: tt("equity_err_balance") || "Not enough {symbol} in your wallet",
+    errMinInvest: tt("equity_err_min_invest") || "Minimum first investment is 1,000 ZCHF",
+    errCanRedeem: tt("equity_err_can_redeem") || "You can redeem in {days} day(s) — average holding duration not yet 90 days",
+    errEmpty: tt("equity_err_empty") || "Connect your wallet to redeem",
+
+    statsTitle: tt("equity_stats_title") || "FPS Pool Share",
+    statsPrice: tt("equity_stats_price") || "Price",
+    statsSupply: tt("equity_stats_supply") || "Supply",
+    statsMarketCap: tt("equity_stats_market_cap") || "Market Cap",
+    statsTotalReserve: tt("equity_stats_total_reserve") || "Total Reserve",
+    statsEquityCapital: tt("equity_stats_equity_capital") || "Equity Capital",
+    statsMinterReserve: tt("equity_stats_minter_reserve") || "Minter Reserve",
+    statsYourFps: tt("equity_stats_your_fps") || "Your FPS Balance",
+    statsYourWfps: tt("equity_stats_your_wfps") || "Your WFPS Balance",
+    statsHolding: tt("equity_stats_holding") || "Holding Duration",
+    statsRedeemableIn: tt("equity_stats_redeemable_in") || "Redeemable in {days} day(s)",
+    statsRedeemableNow: tt("equity_stats_redeemable_now") || "Redeemable now",
+    statsHoldingDays: tt("equity_stats_holding_days") || "{days} day(s)",
+
+    receivePreviewFps: tt("equity_preview_fps") || "≈ {amount} FPS",
+    receivePreviewZchf: tt("equity_preview_zchf") || "≈ {amount} ZCHF",
+    feeNote: tt("equity_fee_note") || "0.30% fee applies on both directions.",
+
+    toastInvested: tt("equity_toast_invested") || "Bought FPS",
+    toastRedeemed: tt("equity_toast_redeemed") || "Redeemed FPS",
+    toastWrapped:  tt("equity_toast_wrapped")  || "Wrapped FPS to WFPS",
+    toastUnwrapped: tt("equity_toast_unwrapped") || "Unwrapped WFPS to FPS",
+    toastApproved: tt("equity_toast_approved") || "Approved {symbol}",
+    cancelled: tt("common_cancelled") || "Cancelled",
+    notConnected: tt("wallet_not_connected") || "Wallet not connected",
+
+    errRpcTitle: tt("mint_err_rpc_title"),
+    errRpcBody: tt("mint_err_rpc_body"),
+    errRpcHelp: tt("mint_err_rpc_help"),
+};
+---
+
+<Layout title={`${i18n.pageTitle} | Frankencoin dApp`} description="Invest in or redeem Frankencoin Pool Shares (FPS).">
+    <main class="mx-auto max-w-5xl px-4 py-10 md:px-6 md:py-12">
+        <header class="mb-8">
+            <h1 class="text-[28px] font-bold tracking-tight">{i18n.pageTitle}</h1>
+            <p class="mt-2 text-[14px] opacity-90">
+                {i18n.pageSubtitlePrefix}
+                <a
+                    href="https://etherscan.io/address/0x1bA26788dfDe592fec8bcB0Eaff472a42BE341B2"
+                    target="_blank"
+                    rel="noopener"
+                    class="text-primary hover:underline inline-flex items-center gap-1"
+                >
+                    <span>{i18n.pageSubtitleLink}</span>
+                    <ExternalLinkIcon class="h-3 w-3" aria-hidden="true" />
+                </a>{i18n.pageSubtitleSuffix}
+            </p>
+        </header>
+
+        <div class="mb-8 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div class="rounded-md border border-foreground/10 bg-background p-5">
+                <div class="mb-2 flex items-center gap-3">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/10 text-[14px] font-bold">1</span>
+                    <h2 class="text-[16px] font-bold">{i18n.step1Title}</h2>
+                </div>
+                <p class="text-[14px] opacity-80">{i18n.step1Text}</p>
+            </div>
+            <div class="rounded-md border border-foreground/10 bg-background p-5">
+                <div class="mb-2 flex items-center gap-3">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/10 text-[14px] font-bold">2</span>
+                    <h2 class="text-[16px] font-bold">{i18n.step2Title}</h2>
+                </div>
+                <p class="text-[14px] opacity-80">{i18n.step2Text}</p>
+            </div>
+            <div class="rounded-md border border-foreground/10 bg-background p-5">
+                <div class="mb-2 flex items-center gap-3">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-foreground/10 text-[14px] font-bold">3</span>
+                    <h2 class="text-[16px] font-bold">{i18n.step3Title}</h2>
+                </div>
+                <p class="text-[14px] opacity-80">{i18n.step3Text}</p>
+            </div>
+        </div>
+
+        <section class="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <!-- Interaction Card -->
+            <Card title="">
+                <!-- Mode tab strip -->
+                <div class="mb-5 flex rounded-md border border-foreground/10 bg-foreground/5 p-1">
+                    <button data-mode="invest" class="mode-btn flex-1 rounded px-2 py-1.5 text-[13px] font-semibold transition-colors">
+                        {i18n.tabInvest}
+                    </button>
+                    <button data-mode="redeem" class="mode-btn flex-1 rounded px-2 py-1.5 text-[13px] font-semibold transition-colors">
+                        {i18n.tabRedeem}
+                    </button>
+                    <button data-mode="wrap" class="mode-btn flex-1 rounded px-2 py-1.5 text-[13px] font-semibold transition-colors">
+                        {i18n.tabWrap}
+                    </button>
+                    <button data-mode="unwrap" class="mode-btn flex-1 rounded px-2 py-1.5 text-[13px] font-semibold transition-colors">
+                        {i18n.tabUnwrap}
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- FROM -->
+                    <div class="rounded-md border border-foreground/10 p-4">
+                        <div class="flex items-center justify-between text-[13px] opacity-90">
+                            <span class="font-medium">{i18n.fromLabel}</span>
+                            <span><span>{i18n.balanceLabel}: </span><span id="from-balance">—</span></span>
+                        </div>
+                        <div class="mt-2 flex items-center gap-3">
+                            <input
+                                id="i-amount"
+                                type="text"
+                                inputmode="decimal"
+                                autocomplete="off"
+                                placeholder="0"
+                                aria-label={i18n.fromLabel}
+                                class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight focus:outline-none"
+                            />
+                            <button id="btn-max" class="text-[13px] font-semibold text-primary hover:underline">{i18n.maxLabel}</button>
+                            <div class="flex items-center gap-2 text-[14px] opacity-90">
+                                <img id="from-icon" src={zchfIcon} alt="" class="h-5 w-5 rounded-full" />
+                                <span id="from-symbol">ZCHF</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RECEIVE preview -->
+                    <div class="rounded-md border border-foreground/10 p-4">
+                        <div class="flex items-center justify-between text-[13px] opacity-90">
+                            <span class="font-medium">{i18n.receiveLabel}</span>
+                            <span id="receive-preview" class="opacity-80">—</span>
+                        </div>
+                        <div class="mt-2 flex items-center gap-3">
+                            <input
+                                id="i-receive"
+                                type="text"
+                                readonly
+                                value="0"
+                                aria-label={i18n.receiveLabel}
+                                class="min-w-0 flex-1 bg-transparent text-[20px] font-bold tracking-tight opacity-80 focus:outline-none"
+                            />
+                            <div class="flex items-center gap-2 text-[14px] opacity-90">
+                                <img id="to-icon" src={fpsIcon} alt="" class="h-5 w-5 rounded-full" />
+                                <span id="to-symbol">FPS</span>
+                            </div>
+                        </div>
+                        <div class="mt-2 text-[13px] opacity-80">{i18n.feeNote}</div>
+                    </div>
+
+                    <div id="action-error" class="hidden text-[14px] text-primary"></div>
+
+                    <div id="actions-connected" class="hidden">
+                        <Button id="btn-action" fullWidth>
+                            <span class="btn-action-label">{i18n.actionInvest}</span>
+                        </Button>
+                    </div>
+                    <div id="actions-disconnected">
+                        <WalletConnect />
+                    </div>
+                </div>
+            </Card>
+
+            <!-- Stats Card -->
+            <Card title={i18n.statsTitle}>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between border-b border-foreground/10 pb-3">
+                        <span class="text-[13px] opacity-80">{i18n.statsPrice}</span>
+                        <span id="s-price" class="text-[15px] font-semibold">—</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[13px] opacity-80">{i18n.statsSupply}</span>
+                        <span id="s-supply" class="text-[14px]">—</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[13px] opacity-80">{i18n.statsMarketCap}</span>
+                        <span id="s-mcap" class="text-[14px]">—</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[13px] opacity-80">{i18n.statsTotalReserve}</span>
+                        <span id="s-reserve" class="text-[14px]">—</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[13px] opacity-80">{i18n.statsEquityCapital}</span>
+                        <span id="s-equity" class="text-[14px]">—</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-[13px] opacity-80">{i18n.statsMinterReserve}</span>
+                        <span id="s-minter-reserve" class="text-[14px]">—</span>
+                    </div>
+
+                    <div class="mt-2 border-t border-foreground/10 pt-3 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[13px] opacity-80">{i18n.statsYourFps}</span>
+                            <span id="s-user-fps" class="text-[14px]">—</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[13px] opacity-80">{i18n.statsYourWfps}</span>
+                            <span id="s-user-wfps" class="text-[14px]">—</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-[13px] opacity-80">{i18n.statsHolding}</span>
+                            <span id="s-holding" class="text-[14px]">—</span>
+                        </div>
+                        <div id="s-redeem-status" class="text-[13px] opacity-80"></div>
+                    </div>
+                </div>
+            </Card>
+        </section>
+    </main>
+
+    <script id="equity-i18n" type="application/json" set:html={safeJsonForScript(i18n)}></script>
+    <script id="equity-icons" type="application/json" set:html={safeJsonForScript({
+        zchf: zchfIcon,
+        fps: fpsIcon,
+        wfps: wfpsIcon,
+    })}></script>
+</Layout>
+
+<style>
+    /* Inactive tabs sit on the muted track; the active one lifts onto the
+       background surface. Border + foreground-tinted shadow so it reads in
+       both light and dark themes. */
+    .mode-btn {
+        color: color-mix(in srgb, var(--color-foreground) 70%, transparent);
+    }
+    .mode-btn:hover {
+        color: var(--color-foreground);
+    }
+    .mode-btn[data-active] {
+        background: var(--color-background);
+        color: var(--color-foreground);
+        border: 1px solid color-mix(in srgb, var(--color-foreground) 10%, transparent);
+        box-shadow: 0 1px 2px color-mix(in srgb, var(--color-foreground) 12%, transparent);
+    }
+</style>
+
+<script>
+    import { type Address, parseUnits, formatUnits, erc20Abi, maxUint256, zeroAddress } from "viem";
+    import { mainnet } from "viem/chains";
+    import { getOnboard } from "@lib/onboard";
+    import { getPublicClient, makeWalletClient } from "@lib/client";
+    import { toast } from "@lib/toast";
+    import { friendlyError } from "@lib/errors";
+    import { ADDRESSES } from "@config/addresses";
+    import { EQUITY_ABI } from "@abi/equity";
+    import { FRANKENCOIN_ABI } from "@abi/frankencoin";
+    import { FPS_WRAPPER_ABI } from "@abi/fpsWrapper";
+    import {
+        getRawProvider, readChainId, forceMainnet,
+        isUserCancelErr, isWalletRpcError, ETH_CHAIN_ID_HEX,
+    } from "@lib/walletProvider";
+
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+    const i18n = JSON.parse($("equity-i18n").textContent || "{}") as Record<string, string>;
+    const ICONS = JSON.parse($("equity-icons").textContent || "{}") as { zchf: string; fps: string; wfps: string };
+
+    // ===== contracts =====
+    const ZCHF   = ADDRESSES.ethereum.zchf as Address;
+    const EQUITY = ADDRESSES.ethereum.equity as Address;
+    const WFPS   = ADDRESSES.ethereum.fpsWrapper as Address;
+    const DEC = 18;
+    const ONE = 10n ** 18n;
+
+    // ===== state =====
+    type Mode = "invest" | "redeem" | "wrap" | "unwrap";
+    let mode: Mode = "invest";
+    let connected: Address | null = null;
+    let amount = 0n;
+
+    // user state
+    let userZchf = 0n;
+    let userFps = 0n;
+    let userWfps = 0n;
+    let allowZchfToEquity = 0n;   // not strictly needed if we use transferAndCall, but tracked
+    let allowFpsToWrapper = 0n;
+    let canRedeem = false;
+    let holdingDuration = 0n;     // seconds
+
+    // pool state
+    let fpsPrice = 0n;
+    let fpsSupply = 0n;
+    let zchfEquity = 0n;
+    let zchfMinterReserve = 0n;
+
+    // computed preview
+    let previewOut = 0n;
+
+    const els = {
+        amount: $<HTMLInputElement>("i-amount"),
+        receive: $<HTMLInputElement>("i-receive"),
+        receivePreview: $("receive-preview"),
+        max: $<HTMLButtonElement>("btn-max"),
+        action: $<HTMLButtonElement>("btn-action"),
+        actionLabel: document.querySelector("#btn-action .btn-action-label") as HTMLElement,
+        actionsConnected: $("actions-connected"),
+        actionsDisconnected: $("actions-disconnected"),
+        actionError: $("action-error"),
+        fromBalance: $("from-balance"),
+        fromIcon: $<HTMLImageElement>("from-icon"),
+        toIcon: $<HTMLImageElement>("to-icon"),
+        fromSymbol: $("from-symbol"),
+        toSymbol: $("to-symbol"),
+        modeButtons: document.querySelectorAll<HTMLButtonElement>("[data-mode]"),
+        // stats
+        sPrice: $("s-price"),
+        sSupply: $("s-supply"),
+        sMcap: $("s-mcap"),
+        sReserve: $("s-reserve"),
+        sEquity: $("s-equity"),
+        sMinterReserve: $("s-minter-reserve"),
+        sUserFps: $("s-user-fps"),
+        sUserWfps: $("s-user-wfps"),
+        sHolding: $("s-holding"),
+        sRedeemStatus: $("s-redeem-status"),
+    };
+
+    // ===== input filter =====
+    const decRe = new RegExp(`^\\d*(\\.\\d{0,${DEC}})?$`);
+    function isValidPartial(next: string): boolean {
+        return next === "" || decRe.test(next);
+    }
+    function clampDecimals(raw: string): string {
+        let s = raw.replace(/,/g, ".").replace(/[^\d.]/g, "");
+        const i = s.indexOf(".");
+        if (i !== -1) {
+            s = s.slice(0, i + 1) + s.slice(i + 1).replace(/\./g, "");
+            const [w, f = ""] = s.split(".");
+            s = w + (f ? "." + f.slice(0, DEC) : ".");
+        }
+        return s;
+    }
+    function applyClamp(input: HTMLInputElement): string {
+        const t = clampDecimals(input.value);
+        if (t !== input.value) {
+            const pos = input.selectionStart;
+            input.value = t;
+            if (pos !== null) {
+                const c = Math.min(pos, t.length);
+                input.setSelectionRange(c, c);
+            }
+        }
+        return t;
+    }
+    els.amount.addEventListener("beforeinput", (ev) => {
+        const ie = ev as InputEvent;
+        if (!ie.data) return;
+        const start = els.amount.selectionStart ?? els.amount.value.length;
+        const end = els.amount.selectionEnd ?? els.amount.value.length;
+        const next = els.amount.value.slice(0, start) + ie.data.replace(/,/g, ".") + els.amount.value.slice(end);
+        if (!isValidPartial(next)) ie.preventDefault();
+    });
+
+    // ===== mode helpers =====
+    interface ModeConfig {
+        fromSymbol: string;
+        fromIcon: string;
+        toSymbol: string;
+        toIcon: string;
+        balance: () => bigint;
+        actionLabel: string;
+    }
+    function modeConfig(m: Mode): ModeConfig {
+        switch (m) {
+            case "invest":
+                return { fromSymbol: "ZCHF", fromIcon: ICONS.zchf, toSymbol: "FPS",  toIcon: ICONS.fps,  balance: () => userZchf, actionLabel: i18n.actionInvest };
+            case "redeem":
+                return { fromSymbol: "FPS",  fromIcon: ICONS.fps,  toSymbol: "ZCHF", toIcon: ICONS.zchf, balance: () => userFps,  actionLabel: i18n.actionRedeem };
+            case "wrap":
+                return { fromSymbol: "FPS",  fromIcon: ICONS.fps,  toSymbol: "WFPS", toIcon: ICONS.wfps, balance: () => userFps,  actionLabel: i18n.actionWrap };
+            case "unwrap":
+                return { fromSymbol: "WFPS", fromIcon: ICONS.wfps, toSymbol: "FPS",  toIcon: ICONS.fps,  balance: () => userWfps, actionLabel: i18n.actionUnwrap };
+        }
+    }
+
+    // ===== formatting =====
+    function fmt(v: bigint, dec = DEC, maxFrac = 4): string {
+        if (v === 0n) return "0";
+        const s = formatUnits(v, dec);
+        const [w, f = ""] = s.split(".");
+        const wf = Number(w).toLocaleString("en-US");
+        const ff = f.slice(0, maxFrac).replace(/0+$/, "");
+        return ff ? `${wf}.${ff}` : wf;
+    }
+    function fmtPrice(v: bigint): string {
+        // price has 18 decimals; show 2dp
+        return fmt(v, DEC, 2);
+    }
+
+    // ===== preview math =====
+    // Pool curve preview is non-trivial; we call calculateShares / calculateProceeds.
+    // For wrap/unwrap, output = input (1:1).
+    let previewToken = 0;
+    async function recomputePreview() {
+        const myToken = ++previewToken;
+        if (amount === 0n) { previewOut = 0n; return paintPreview(); }
+        const client = getPublicClient("ethereum");
+        try {
+            let out: bigint;
+            if (mode === "invest") {
+                out = await client.readContract({
+                    address: EQUITY, abi: EQUITY_ABI, functionName: "calculateShares", args: [amount],
+                }) as bigint;
+            } else if (mode === "redeem") {
+                // calculateProceeds reverts when shares are too close to totalSupply.
+                // Clamp visually to avoid spinning errors.
+                if (amount + ONE >= fpsSupply) {
+                    out = 0n;
+                } else {
+                    out = await client.readContract({
+                        address: EQUITY, abi: EQUITY_ABI, functionName: "calculateProceeds", args: [amount],
+                    }) as bigint;
+                }
+            } else {
+                // wrap / unwrap: 1:1
+                out = amount;
+            }
+            if (myToken !== previewToken) return;
+            previewOut = out;
+            paintPreview();
+        } catch {
+            if (myToken !== previewToken) return;
+            previewOut = 0n;
+            paintPreview();
+        }
+    }
+    function paintPreview() {
+        els.receive.value = formatUnits(previewOut, DEC);
+        const symbol = mode === "invest" ? "FPS"
+            : mode === "redeem" ? "ZCHF"
+            : mode === "wrap" ? "WFPS"
+            : "FPS";
+        els.receivePreview.textContent =
+            previewOut === 0n ? "—" : `≈ ${fmt(previewOut)} ${symbol}`;
+    }
+
+    // ===== validation =====
+    function validate(): string | null {
+        if (!connected) return null;
+        if (amount === 0n) return null;
+        const cfg = modeConfig(mode);
+        if (amount > cfg.balance()) return i18n.errBalance.replace("{symbol}", cfg.fromSymbol);
+        if (mode === "invest") {
+            // If equity pool is below MINIMUM_EQUITY, contract requires the
+            // investment to bring it back to 1000 ZCHF.
+            const MIN_EQUITY = 1000n * ONE;
+            if (zchfEquity < MIN_EQUITY && (zchfEquity + amount) < MIN_EQUITY) {
+                return i18n.errMinInvest;
+            }
+        }
+        if (mode === "redeem" && !canRedeem) {
+            // ~ days until 90d threshold. _anchorTime() shifts by TIME_RESOLUTION_BITS=20.
+            // holdingDuration() returns plain seconds.
+            const ninetyDaysSec = 90n * 24n * 60n * 60n;
+            const remaining = holdingDuration < ninetyDaysSec ? ninetyDaysSec - holdingDuration : 0n;
+            const days = Math.max(1, Math.ceil(Number(remaining) / 86400));
+            return i18n.errCanRedeem.replace("{days}", String(days));
+        }
+        return null;
+    }
+
+    // ===== rendering =====
+    function setMessage(el: HTMLElement, text: string | null) {
+        if (!text) { el.classList.add("hidden"); el.textContent = ""; return; }
+        el.textContent = text;
+        el.classList.remove("hidden");
+    }
+
+    function paintModeTabs() {
+        els.modeButtons.forEach(b => {
+            if (b.dataset.mode === mode) b.dataset.active = "1";
+            else delete b.dataset.active;
+        });
+    }
+    function paintStats() {
+        if (fpsPrice > 0n) {
+            els.sPrice.textContent = `${fmtPrice(fpsPrice)} ZCHF`;
+        }
+        els.sSupply.textContent = `${fmt(fpsSupply, DEC, 2)} FPS`;
+        // market cap = price * supply / 1e18 (both 18dp)
+        const mcap = (fpsPrice * fpsSupply) / ONE;
+        els.sMcap.textContent = `${fmt(mcap, DEC, 0)} ZCHF`;
+        // Total reserve = equity + minter reserve
+        const totalReserve = zchfEquity + zchfMinterReserve;
+        els.sReserve.textContent = `${fmt(totalReserve, DEC, 0)} ZCHF`;
+        els.sEquity.textContent = `${fmt(zchfEquity, DEC, 0)} ZCHF`;
+        els.sMinterReserve.textContent = `${fmt(zchfMinterReserve, DEC, 0)} ZCHF`;
+
+        if (connected) {
+            els.sUserFps.textContent = `${fmt(userFps, DEC, 4)} FPS`;
+            els.sUserWfps.textContent = `${fmt(userWfps, DEC, 4)} WFPS`;
+            const days = Number(holdingDuration) / 86400;
+            els.sHolding.textContent = userFps === 0n ? "—" : i18n.statsHoldingDays.replace("{days}", days.toFixed(1));
+            if (userFps === 0n) {
+                els.sRedeemStatus.textContent = "";
+            } else if (canRedeem) {
+                els.sRedeemStatus.textContent = i18n.statsRedeemableNow;
+                els.sRedeemStatus.className = "text-[13px] text-primary";
+            } else {
+                const ninetyDaysSec = 90n * 24n * 60n * 60n;
+                const remaining = holdingDuration < ninetyDaysSec ? ninetyDaysSec - holdingDuration : 0n;
+                const d = Math.max(1, Math.ceil(Number(remaining) / 86400));
+                els.sRedeemStatus.textContent = i18n.statsRedeemableIn.replace("{days}", String(d));
+                els.sRedeemStatus.className = "text-[13px] opacity-80";
+            }
+        } else {
+            els.sUserFps.textContent = "—";
+            els.sUserWfps.textContent = "—";
+            els.sHolding.textContent = "—";
+            els.sRedeemStatus.textContent = "";
+        }
+    }
+    function paintInteraction() {
+        const cfg = modeConfig(mode);
+        els.fromIcon.src = cfg.fromIcon;
+        els.toIcon.src = cfg.toIcon;
+        els.fromSymbol.textContent = cfg.fromSymbol;
+        els.toSymbol.textContent = cfg.toSymbol;
+        els.fromBalance.textContent = `${fmt(cfg.balance(), DEC, 4)} ${cfg.fromSymbol}`;
+
+        const err = validate();
+        setMessage(els.actionError, err);
+
+        if (connected) {
+            // Action label depends on whether approval is needed.
+            // - invest: uses transferAndCall (no approval needed)
+            // - redeem: no approval needed (Equity burns sender's FPS directly)
+            // - wrap:   FPS allowance to WFPS required
+            // - unwrap: no approval needed
+            let label = cfg.actionLabel;
+            if (mode === "wrap" && amount > 0n && allowFpsToWrapper < amount) {
+                label = i18n.actionApprove.replace("{symbol}", "FPS");
+            }
+            els.actionLabel.textContent = label;
+            els.action.disabled = !!err || amount === 0n;
+        }
+    }
+    function refresh() {
+        paintModeTabs();
+        paintInteraction();
+        paintStats();
+    }
+
+    // ===== handlers =====
+    els.modeButtons.forEach(b => {
+        b.addEventListener("click", () => {
+            mode = b.dataset.mode as Mode;
+            amount = 0n;
+            els.amount.value = "";
+            previewOut = 0n;
+            paintPreview();
+            refresh();
+        });
+    });
+
+    els.amount.addEventListener("input", () => {
+        const cleaned = applyClamp(els.amount);
+        try { amount = cleaned ? parseUnits((cleaned || "0") as `${number}`, DEC) : 0n; }
+        catch { amount = 0n; }
+        refresh();
+        recomputePreview();
+    });
+
+    els.max.addEventListener("click", () => {
+        amount = modeConfig(mode).balance();
+        els.amount.value = formatUnits(amount, DEC);
+        refresh();
+        recomputePreview();
+    });
+
+    function showRpcError() {
+        els.actionError.classList.remove("hidden");
+        els.actionError.innerHTML = "";
+        const wrap = document.createElement("div");
+        wrap.className = "rpc-error";
+        for (const [cls, text] of [
+            ["rpc-error-title", i18n.errRpcTitle],
+            ["rpc-error-body", i18n.errRpcBody],
+            ["rpc-error-help", i18n.errRpcHelp],
+        ] as const) {
+            const d = document.createElement("div");
+            d.className = cls;
+            d.textContent = text;
+            wrap.append(d);
+        }
+        els.actionError.append(wrap);
+    }
+    function handleErr(err: any) {
+        if (isUserCancelErr(err)) toast(i18n.cancelled, "info");
+        else if (isWalletRpcError(err)) showRpcError();
+        else toast(friendlyError(err).message, "error");
+    }
+    async function ensureMainnet(): Promise<boolean> {
+        if (await readChainId() === ETH_CHAIN_ID_HEX) return true;
+        try { await forceMainnet(); return (await readChainId()) === ETH_CHAIN_ID_HEX; }
+        catch (err) { handleErr(err); return false; }
+    }
+    function lockBtn(label: string) {
+        const original = els.actionLabel.textContent ?? "";
+        els.action.dataset.loading = "1";
+        els.action.disabled = true;
+        els.actionLabel.textContent = label;
+        return () => {
+            delete els.action.dataset.loading;
+            els.actionLabel.textContent = original;
+            refresh();
+        };
+    }
+
+    els.action.addEventListener("click", async () => {
+        if (!connected) return;
+        els.actionError.classList.add("hidden");
+        if (!(await ensureMainnet())) return;
+        const rawProvider = getRawProvider();
+        if (!rawProvider) { toast(i18n.notConnected, "error"); return; }
+        const publicClient = getPublicClient("ethereum");
+        const walletClient = makeWalletClient(rawProvider, "ethereum");
+
+        // ---- approval branch (wrap only) ----
+        if (mode === "wrap" && allowFpsToWrapper < amount) {
+            const unlock = lockBtn(i18n.actionApproving);
+            try {
+                const hash = await walletClient.writeContract({
+                    address: EQUITY, abi: erc20Abi, functionName: "approve",
+                    args: [WFPS, maxUint256],
+                    account: connected, chain: mainnet,
+                });
+                await publicClient.waitForTransactionReceipt({ hash });
+                allowFpsToWrapper = await publicClient.readContract({
+                    address: EQUITY, abi: erc20Abi, functionName: "allowance",
+                    args: [connected, WFPS],
+                }) as bigint;
+                toast(i18n.toastApproved.replace("{symbol}", "FPS"), "success");
+            } catch (err) { handleErr(err); }
+            finally { unlock(); }
+            return;
+        }
+
+        const unlock = lockBtn(i18n.actionWorking);
+        try {
+            let hash: `0x${string}`;
+            if (mode === "invest") {
+                // ERC-677: transferAndCall is one-tx (no allowance).
+                // Frankencoin's transferAndCall fires Equity.onTokenTransfer which mints FPS.
+                hash = await walletClient.writeContract({
+                    address: ZCHF, abi: FRANKENCOIN_ABI, functionName: "transferAndCall",
+                    args: [EQUITY, amount, "0x"],
+                    account: connected, chain: mainnet,
+                });
+            } else if (mode === "redeem") {
+                // 1% slippage floor.
+                const minProceeds = (previewOut * 99n) / 100n;
+                hash = await walletClient.writeContract({
+                    address: EQUITY, abi: EQUITY_ABI, functionName: "redeemExpected",
+                    args: [connected, amount, minProceeds],
+                    account: connected, chain: mainnet,
+                });
+            } else if (mode === "wrap") {
+                hash = await walletClient.writeContract({
+                    address: WFPS, abi: FPS_WRAPPER_ABI, functionName: "wrap",
+                    args: [amount],
+                    account: connected, chain: mainnet,
+                });
+            } else {
+                // unwrap
+                hash = await walletClient.writeContract({
+                    address: WFPS, abi: FPS_WRAPPER_ABI, functionName: "unwrap",
+                    args: [amount],
+                    account: connected, chain: mainnet,
+                });
+            }
+            await publicClient.waitForTransactionReceipt({ hash });
+            const msg = mode === "invest"  ? i18n.toastInvested
+                      : mode === "redeem"  ? i18n.toastRedeemed
+                      : mode === "wrap"    ? i18n.toastWrapped
+                      :                      i18n.toastUnwrapped;
+            toast(msg, "success");
+            amount = 0n;
+            els.amount.value = "";
+            previewOut = 0n;
+            await Promise.all([loadUserState(), loadPoolState()]);
+            refresh();
+            paintPreview();
+        } catch (err) { handleErr(err); }
+        finally { unlock(); }
+    });
+
+    // ===== data loading =====
+    async function loadPoolState() {
+        const client = getPublicClient("ethereum");
+        const r = await client.multicall({
+            allowFailure: false,
+            contracts: [
+                { address: EQUITY, abi: EQUITY_ABI,      functionName: "price" },
+                { address: EQUITY, abi: EQUITY_ABI,      functionName: "totalSupply" },
+                { address: ZCHF,   abi: FRANKENCOIN_ABI, functionName: "equity" },
+                { address: ZCHF,   abi: FRANKENCOIN_ABI, functionName: "minterReserve" },
+            ],
+        });
+        fpsPrice = r[0] as bigint;
+        fpsSupply = r[1] as bigint;
+        zchfEquity = r[2] as bigint;
+        zchfMinterReserve = r[3] as bigint;
+    }
+    async function loadUserState() {
+        if (!connected) {
+            userZchf = 0n; userFps = 0n; userWfps = 0n;
+            allowZchfToEquity = 0n; allowFpsToWrapper = 0n;
+            canRedeem = false; holdingDuration = 0n;
+            return;
+        }
+        const client = getPublicClient("ethereum");
+        const r = await client.multicall({
+            allowFailure: false,
+            contracts: [
+                { address: ZCHF,   abi: erc20Abi,    functionName: "balanceOf", args: [connected] },
+                { address: EQUITY, abi: erc20Abi,    functionName: "balanceOf", args: [connected] },
+                { address: WFPS,   abi: erc20Abi,    functionName: "balanceOf", args: [connected] },
+                { address: ZCHF,   abi: erc20Abi,    functionName: "allowance", args: [connected, EQUITY] },
+                { address: EQUITY, abi: erc20Abi,    functionName: "allowance", args: [connected, WFPS] },
+                { address: EQUITY, abi: EQUITY_ABI,  functionName: "canRedeem", args: [connected] },
+                { address: EQUITY, abi: EQUITY_ABI,  functionName: "holdingDuration", args: [connected] },
+            ],
+        });
+        userZchf = r[0] as bigint;
+        userFps = r[1] as bigint;
+        userWfps = r[2] as bigint;
+        allowZchfToEquity = r[3] as bigint;
+        allowFpsToWrapper = r[4] as bigint;
+        canRedeem = r[5] as boolean;
+        holdingDuration = r[6] as bigint;
+    }
+
+    function setConnectedUI(c: boolean) {
+        els.actionsConnected.classList.toggle("hidden", !c);
+        els.actionsDisconnected.classList.toggle("hidden", c);
+    }
+
+    getOnboard().state.select("wallets").subscribe(async (wallets) => {
+        const newAddr = wallets[0]?.accounts[0]?.address as Address | null;
+        if (newAddr !== connected) {
+            connected = newAddr;
+            setConnectedUI(!!connected);
+            await loadUserState();
+            refresh();
+        }
+    });
+
+    // Bootstrap: pool state is wallet-independent, kick it off immediately.
+    setConnectedUI(false);
+    loadPoolState().then(() => refresh()).catch(() => refresh());
+    refresh();
+</script>

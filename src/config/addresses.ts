@@ -13,6 +13,8 @@ export interface ChainAddresses {
     /** TransferReference contract (with CCIP cross-chain transfers). */
     transferReference?: `0x${string}`;
     equity?: `0x${string}`;
+    /** FPSWrapper (WFPS) — ERC20 wrapper for FPS, preserves holding duration on transfer. */
+    fpsWrapper?: `0x${string}`;
     mintingHub?: `0x${string}`;
     positionFactory?: `0x${string}`;
 }
@@ -30,6 +32,7 @@ export const ADDRESSES: Record<ChainKey, ChainAddresses> = {
         chfauBridge:  "0x3e445ff4ddDf0ff8aE7458c9746eD80bD664F6C1",
         transferReference: "0xf98c221661F51578f5E5236B189a493E2a8a1916",
         equity: "0x1bA26788dfDe592fec8bcB0Eaff472a42BE341B2",
+        fpsWrapper: "0x5052D3Cc819f53116641e89b96Ff4cD1EE80B182",
     },
     arbitrum: {
         savings: "0xb41715e54e9f0827821A149AE8eC1aF70aa70180",
