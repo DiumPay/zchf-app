@@ -22,6 +22,10 @@ export const POSITION_V2_ABI = parseAbi([
     "function annualInterestPPM() view returns (uint24)",
     "function calculateCurrentFee() view returns (uint24)",
     "function owner() view returns (address)",
+    // Roller preview: how much you'd need to mint here to deliver N ZCHF
+    // after the position's upfront interest is deducted.
+    "function getMintAmount(uint256 usableMint) view returns (uint256)",
+    "function getUsableMint(uint256 totalMint, bool afterFees) view returns (uint256)",
     // Writes
     "function adjust(uint256 newMinted, uint256 newCollateral, uint256 newPrice)",
     "function adjustPrice(uint256 newPrice)",

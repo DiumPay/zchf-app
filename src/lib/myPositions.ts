@@ -180,28 +180,40 @@ export async function findUserPositions(
 
 /**
  * Hydrate full position details. Uses cached API metadata + ONE multicall
- * for fresh on-chain state and user balances.
+ * for fresh on-chain state.
+ *
+ * @param addresses Positions to hydrate.
+ * @param user The connected wallet — used for balance/allowance reads. Pass
+ *             null in public view to skip those calls (position metadata
+ *             still loads).
+ * @param owner Optional explicit owner address. Used to look up the API rows
+ *              when viewing someone else's positions. Defaults to user.
  */
 export async function loadMyPositionDetails(
     addresses: Address[],
-    user: Address | null
+    user: Address | null,
+    owner?: Address | null
 ): Promise<MyPositionDetail[]> {
     if (addresses.length === 0) return [];
     const client = getPublicClient("ethereum");
     const zchf = ADDRESSES.ethereum.zchf as Address;
 
+    // Resolve which owner's API rows we need. Public view passes an explicit
+    // owner separate from the connected user (who may be unconnected or
+    // someone else entirely).
+    const apiOwner = owner ?? user;
+    if (!apiOwner) return [];
+
     let apiRows: ApiPosition[] = [];
-    if (user && lastOwnerLookup?.user === user.toLowerCase()) {
+    if (lastOwnerLookup?.user === apiOwner.toLowerCase()) {
         const wanted = new Set(addresses.map(a => a.toLowerCase()));
         apiRows = lastOwnerLookup.rows.filter(r => wanted.has(r.position.toLowerCase()));
-    } else if (user) {
+    } else {
         // Fallback: lookup wasn't primed, fetch fresh
-        const fresh = await fetchOwnerRows(user);
-        lastOwnerLookup = { user: user.toLowerCase(), rows: fresh };
+        const fresh = await fetchOwnerRows(apiOwner);
+        lastOwnerLookup = { user: apiOwner.toLowerCase(), rows: fresh };
         const wanted = new Set(addresses.map(a => a.toLowerCase()));
         apiRows = fresh.filter(r => wanted.has(r.position.toLowerCase()));
-    } else {
-        return [];
     }
 
     if (apiRows.length === 0) return [];

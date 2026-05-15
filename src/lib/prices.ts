@@ -7,13 +7,23 @@ import { getPublicClient } from "@lib/client";
  * Strategy per asset: try a chain of public endpoints, first success wins.
  * localStorage cache keeps results across reloads and avoids hammering APIs.
  *
- * Tokens without a public price feed (BOSS, LENDS, REALU, SPYon) intentionally
- * resolve to null and display "N/A" in the UI — better than showing fake LTVs.
+ * For the 5 illiquid tokens (BOSS, REALU, SPYon, LENDS, FPS) we route through
+ * grenadier first since no public oracle covers them. Grenadier proxies
+ * api.frankencoin.com which sources from defillama / thegraph / on-chain.
  */
 
 const CACHE_PREFIX = "fc-price:";
 const PRICE_TTL_MS = 5 * 60 * 1000;
 const FX_TTL_MS = 60 * 60 * 1000;
+
+// dev → local grenadier. prod → deployed grenadier behind cf.
+const GRENADIER_BASE = import.meta.env.DEV
+    ? "http://localhost:8080"
+    : "https://grenadier-zchf.enni.ch";
+
+// Tokens grenadier tracks via /prices/ticker. Anything outside this set falls
+// through to the public sources below.
+const GRENADIER_TRACKED = new Set(["BOSS", "REALU", "SPYON", "LENDS", "FPS"]);
 
 type CachedValue = { v: number; t: number };
 
@@ -74,6 +84,63 @@ async function fromCoincap(slug: string): Promise<number> {
     const p = parseFloat(j?.data?.priceUsd);
     if (!Number.isFinite(p) || p <= 0) throw new Error("coincap bad price");
     return p;
+}
+
+/* ------------------------------------------------------------------ */
+/* Grenadier — single source for both USD and CHF on the 5 illiquid    */
+/* tokens (BOSS, REALU, SPYon, LENDS, FPS). One fetch fills both       */
+/* caches so getPriceUSD and getMarketPriceCHF share the same call.    */
+/* ------------------------------------------------------------------ */
+
+interface GrenadierPrice {
+    address: string;
+    symbol: string;
+    decimals: number;
+    chainId: number;
+    source: string;
+    timestamp: number;
+    chf: number;
+    usd: number;
+}
+
+// In-flight dedup: if two callers hit the same ticker before the first
+// returns, both await the same promise.
+const grenadierInflight = new Map<string, Promise<GrenadierPrice | null>>();
+
+async function fetchGrenadierTicker(symbolUpper: string): Promise<GrenadierPrice | null> {
+    const existing = grenadierInflight.get(symbolUpper);
+    if (existing) return existing;
+
+    const p = (async (): Promise<GrenadierPrice | null> => {
+        try {
+            const r = await fetch(`${GRENADIER_BASE}/prices/ticker/${symbolUpper}`);
+            if (!r.ok) return null;
+            const j = (await r.json()) as GrenadierPrice;
+            if (!Number.isFinite(j?.usd) || j.usd <= 0) return null;
+            return j;
+        } catch {
+            return null;
+        }
+    })();
+    grenadierInflight.set(symbolUpper, p);
+    try {
+        return await p;
+    } finally {
+        grenadierInflight.delete(symbolUpper);
+    }
+}
+
+/**
+ * Side-effect: writes both usd and chf caches when grenadier responds. Returns
+ * the USD price (or throws so it slots into the existing Source chain).
+ */
+async function fromGrenadierUSD(symbolUpper: string): Promise<number> {
+    const j = await fetchGrenadierTicker(symbolUpper);
+    if (!j) throw new Error(`grenadier ${symbolUpper} unavailable`);
+    if (Number.isFinite(j.chf) && j.chf > 0) {
+        writeCache(`chf:${symbolUpper}`, j.chf);
+    }
+    return j.usd;
 }
 
 type Source = () => Promise<number>;
@@ -181,7 +248,13 @@ const SOURCES: Record<string, Source[]> = {
         () => fromDefiLlama(eth("0x23346B04a7f55b8760E5860AA5A77383D63491cD")),
     ],
 
-    // BOSS, LENDS, REALU, SPYON: no public oracle -> null -> "N/A" in UI.
+    // The 5 illiquid tokens — grenadier proxies upstream feeds that cover
+    // these (defillama / thegraph / on-chain). No public fallback available.
+    BOSS:  [() => fromGrenadierUSD("BOSS")],
+    REALU: [() => fromGrenadierUSD("REALU")],
+    SPYON: [() => fromGrenadierUSD("SPYON")],
+    LENDS: [() => fromGrenadierUSD("LENDS")],
+    FPS:   [() => fromGrenadierUSD("FPS")],
 };
 
 /* ------------------------------------------------------------------ */
@@ -229,7 +302,29 @@ export async function getUsdChfRate(): Promise<number | null> {
 }
 
 export async function getMarketPriceCHF(symbol: string): Promise<number | null> {
-    const [usd, rate] = await Promise.all([getPriceUSD(symbol), getUsdChfRate()]);
+    const key = symbol.toUpperCase();
+
+    // Fast path for grenadier-tracked tokens: the upstream feed already
+    // gives us a direct CHF value, no FX rate hop needed.
+    if (GRENADIER_TRACKED.has(key)) {
+        const cached = readCache(`chf:${key}`, PRICE_TTL_MS);
+        if (cached !== null) return cached;
+
+        // fromGrenadierUSD writes the chf cache as a side effect. Pull it
+        // back out after the fetch resolves. If grenadier fails, fall
+        // through to the multiplied path below — won't help for these
+        // tokens but is harmless.
+        const usd = await getPriceUSD(key);
+        const afterFetch = readCache(`chf:${key}`, PRICE_TTL_MS);
+        if (afterFetch !== null) return afterFetch;
+        if (usd === null) return null;
+        // Grenadier returned USD but not CHF (unlikely) — fall back to FX.
+        const rate = await getUsdChfRate();
+        return rate === null ? null : usd * rate;
+    }
+
+    // Default: USD price * USD/CHF FX rate.
+    const [usd, rate] = await Promise.all([getPriceUSD(key), getUsdChfRate()]);
     if (usd === null || rate === null) return null;
     return usd * rate;
 }

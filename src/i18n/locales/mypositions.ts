@@ -94,6 +94,33 @@ export const mypositions = {
     mypos_label_reset: "Reset",
     mypos_note_coll_sent_back: "{amount} {symbol} sent back to your wallet",
     mypos_note_coll_taken: "{amount} {symbol} taken from your wallet",
+
+    // Roller (renewal) — flash-mint refinance into a longer position
+    mypos_roller_section: "Renewal",
+    mypos_roller_intro: "Roll this position into a longer one with the same collateral. The owed amount will be increased by the upfront interest of the new position. Excess collateral is returned to your wallet.",
+    mypos_roller_none: "No open positions available for rolling.",
+    mypos_roller_loading: "Looking for renewal targets…",
+    mypos_roller_col_target: "Target",
+    mypos_roller_col_liq: "Liquidation Price",
+    mypos_roller_col_interest: "Annual Interest",
+    mypos_roller_col_maturity: "Maturity",
+    mypos_roller_col_missing: "Additional Funds",
+    mypos_roller_roll: "Roll",
+    mypos_roller_merge: "Merge",
+    mypos_roller_approve: "Approve {symbol}",
+    mypos_roller_approving: "Approving…",
+    mypos_roller_rolling: "Rolling…",
+    mypos_roller_merging: "Merging…",
+    mypos_roller_cooldown: "Cooldown",
+    mypos_roller_toast_rolled: "Position rolled",
+    mypos_roller_toast_merged: "Position merged",
+    mypos_roller_err_balance: "Insufficient ZCHF to cover additional funds",
+
+    // Public view — read-only mode when ?owner=… is in the URL
+    mypos_public_banner: "Viewing positions of {owner}. Read-only.",
+    mypos_public_close: "Close",
+    mypos_public_empty: "This address has no open positions.",
+    mypos_public_manage_notice: "Read-only view. Connect as the owner to manage this position.",
   },
 
   de: {
@@ -191,6 +218,33 @@ export const mypositions = {
     mypos_label_reset: "Zurücksetzen",
     mypos_note_coll_sent_back: "{amount} {symbol} an Ihre Wallet zurückgesendet",
     mypos_note_coll_taken: "{amount} {symbol} aus Ihrer Wallet entnommen",
+
+    // Roller (Erneuerung) — Flash-Mint Refinanzierung in eine längere Position
+    mypos_roller_section: "Erneuerung",
+    mypos_roller_intro: "Übertragen Sie diese Position in eine längere mit derselben Sicherheit. Der geschuldete Betrag wird um die Vorabzinsen der neuen Position erhöht. Überschüssige Sicherheit wird an Ihre Wallet zurückgegeben.",
+    mypos_roller_none: "Keine offenen Positionen zum Übertragen verfügbar.",
+    mypos_roller_loading: "Suche nach Erneuerungszielen…",
+    mypos_roller_col_target: "Ziel",
+    mypos_roller_col_liq: "Liquidationspreis",
+    mypos_roller_col_interest: "Jahreszins",
+    mypos_roller_col_maturity: "Fälligkeit",
+    mypos_roller_col_missing: "Zusätzliche Mittel",
+    mypos_roller_roll: "Übertragen",
+    mypos_roller_merge: "Zusammenführen",
+    mypos_roller_approve: "{symbol} genehmigen",
+    mypos_roller_approving: "Wird genehmigt…",
+    mypos_roller_rolling: "Wird übertragen…",
+    mypos_roller_merging: "Wird zusammengeführt…",
+    mypos_roller_cooldown: "Wartezeit",
+    mypos_roller_toast_rolled: "Position übertragen",
+    mypos_roller_toast_merged: "Position zusammengeführt",
+    mypos_roller_err_balance: "Nicht genügend ZCHF zur Deckung der zusätzlichen Mittel",
+
+    // Öffentliche Ansicht — schreibgeschützt bei ?owner=… in der URL
+    mypos_public_banner: "Positionen von {owner} werden angezeigt. Schreibgeschützt.",
+    mypos_public_close: "Schließen",
+    mypos_public_empty: "Diese Adresse hat keine offenen Positionen.",
+    mypos_public_manage_notice: "Schreibgeschützte Ansicht. Als Eigentümer verbinden, um diese Position zu verwalten.",
   },
 
   fr: {
@@ -288,6 +342,33 @@ export const mypositions = {
     mypos_label_reset: "Réinitialiser",
     mypos_note_coll_sent_back: "{amount} {symbol} renvoyé vers votre portefeuille",
     mypos_note_coll_taken: "{amount} {symbol} prélevé de votre portefeuille",
+
+    // Roller (renouvellement) — refinancement par flash-mint vers une position plus longue
+    mypos_roller_section: "Renouvellement",
+    mypos_roller_intro: "Transférez cette position vers une autre plus longue avec le même collatéral. Le montant dû sera augmenté de l'intérêt initial de la nouvelle position. Le collatéral excédentaire est renvoyé vers votre portefeuille.",
+    mypos_roller_none: "Aucune position ouverte disponible pour le transfert.",
+    mypos_roller_loading: "Recherche de cibles de renouvellement…",
+    mypos_roller_col_target: "Cible",
+    mypos_roller_col_liq: "Prix de liquidation",
+    mypos_roller_col_interest: "Intérêt annuel",
+    mypos_roller_col_maturity: "Échéance",
+    mypos_roller_col_missing: "Fonds supplémentaires",
+    mypos_roller_roll: "Transférer",
+    mypos_roller_merge: "Fusionner",
+    mypos_roller_approve: "Approuver {symbol}",
+    mypos_roller_approving: "Approbation…",
+    mypos_roller_rolling: "Transfert…",
+    mypos_roller_merging: "Fusion…",
+    mypos_roller_cooldown: "Délai d'attente",
+    mypos_roller_toast_rolled: "Position transférée",
+    mypos_roller_toast_merged: "Position fusionnée",
+    mypos_roller_err_balance: "ZCHF insuffisants pour couvrir les fonds supplémentaires",
+
+    // Vue publique — mode lecture seule avec ?owner=… dans l'URL
+    mypos_public_banner: "Affichage des positions de {owner}. Lecture seule.",
+    mypos_public_close: "Fermer",
+    mypos_public_empty: "Cette adresse n'a pas de positions ouvertes.",
+    mypos_public_manage_notice: "Vue en lecture seule. Connectez-vous en tant que propriétaire pour gérer cette position.",
   },
 
   it: {
@@ -385,6 +466,33 @@ export const mypositions = {
     mypos_label_reset: "Reimposta",
     mypos_note_coll_sent_back: "{amount} {symbol} restituito al tuo wallet",
     mypos_note_coll_taken: "{amount} {symbol} prelevato dal tuo wallet",
+
+    // Roller (rinnovo) — rifinanziamento flash-mint in una posizione più lunga
+    mypos_roller_section: "Rinnovo",
+    mypos_roller_intro: "Trasferisci questa posizione in una più lunga con lo stesso collaterale. L'importo dovuto sarà aumentato dell'interesse iniziale della nuova posizione. Il collaterale in eccesso viene restituito al tuo wallet.",
+    mypos_roller_none: "Nessuna posizione aperta disponibile per il trasferimento.",
+    mypos_roller_loading: "Ricerca di destinazioni per il rinnovo…",
+    mypos_roller_col_target: "Destinazione",
+    mypos_roller_col_liq: "Prezzo di liquidazione",
+    mypos_roller_col_interest: "Interesse annuo",
+    mypos_roller_col_maturity: "Scadenza",
+    mypos_roller_col_missing: "Fondi aggiuntivi",
+    mypos_roller_roll: "Trasferisci",
+    mypos_roller_merge: "Unisci",
+    mypos_roller_approve: "Approva {symbol}",
+    mypos_roller_approving: "Approvazione…",
+    mypos_roller_rolling: "Trasferimento…",
+    mypos_roller_merging: "Unione…",
+    mypos_roller_cooldown: "Periodo di attesa",
+    mypos_roller_toast_rolled: "Posizione trasferita",
+    mypos_roller_toast_merged: "Posizione unita",
+    mypos_roller_err_balance: "ZCHF insufficienti per coprire i fondi aggiuntivi",
+
+    // Vista pubblica — modalità di sola lettura con ?owner=… nell'URL
+    mypos_public_banner: "Visualizzazione delle posizioni di {owner}. Sola lettura.",
+    mypos_public_close: "Chiudi",
+    mypos_public_empty: "Questo indirizzo non ha posizioni aperte.",
+    mypos_public_manage_notice: "Vista in sola lettura. Connettiti come proprietario per gestire questa posizione.",
   },
 
   es: {
@@ -482,5 +590,32 @@ export const mypositions = {
     mypos_label_reset: "Restablecer",
     mypos_note_coll_sent_back: "{amount} {symbol} devuelto a tu wallet",
     mypos_note_coll_taken: "{amount} {symbol} tomado de tu wallet",
+
+    // Roller (renovación) — refinanciación por flash-mint en una posición más larga
+    mypos_roller_section: "Renovación",
+    mypos_roller_intro: "Transfiere esta posición a una más larga con el mismo colateral. El monto adeudado se incrementará con el interés inicial de la nueva posición. El colateral excedente se devuelve a tu wallet.",
+    mypos_roller_none: "No hay posiciones abiertas disponibles para transferir.",
+    mypos_roller_loading: "Buscando destinos de renovación…",
+    mypos_roller_col_target: "Destino",
+    mypos_roller_col_liq: "Precio de liquidación",
+    mypos_roller_col_interest: "Interés anual",
+    mypos_roller_col_maturity: "Vencimiento",
+    mypos_roller_col_missing: "Fondos adicionales",
+    mypos_roller_roll: "Transferir",
+    mypos_roller_merge: "Fusionar",
+    mypos_roller_approve: "Aprobar {symbol}",
+    mypos_roller_approving: "Aprobando…",
+    mypos_roller_rolling: "Transfiriendo…",
+    mypos_roller_merging: "Fusionando…",
+    mypos_roller_cooldown: "Período de espera",
+    mypos_roller_toast_rolled: "Posición transferida",
+    mypos_roller_toast_merged: "Posición fusionada",
+    mypos_roller_err_balance: "ZCHF insuficientes para cubrir los fondos adicionales",
+
+    // Vista pública — modo de solo lectura con ?owner=… en la URL
+    mypos_public_banner: "Visualizando posiciones de {owner}. Solo lectura.",
+    mypos_public_close: "Cerrar",
+    mypos_public_empty: "Esta dirección no tiene posiciones abiertas.",
+    mypos_public_manage_notice: "Vista de solo lectura. Conéctate como propietario para gestionar esta posición.",
   },
 } as const;

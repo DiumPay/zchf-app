@@ -96,6 +96,31 @@ const i18n = {
     errRpcTitle: tt("mint_err_rpc_title"),
     errRpcBody: tt("mint_err_rpc_body"),
     errRpcHelp: tt("mint_err_rpc_help"),
+    // ---- roller ----
+    rollerSection: tt("mypos_roller_section") || "Renewal",
+    rollerIntro: tt("mypos_roller_intro") || "Roll this position into a longer one with the same collateral. The owed amount will be increased by the upfront interest of the new position. Excess collateral is returned to your wallet.",
+    rollerNone: tt("mypos_roller_none") || "No open positions available for rolling.",
+    rollerColTarget: tt("mypos_roller_col_target") || "Target",
+    rollerColLiqPrice: tt("mypos_roller_col_liq") || "Liquidation Price",
+    rollerColInterest: tt("mypos_roller_col_interest") || "Annual Interest",
+    rollerColMaturity: tt("mypos_roller_col_maturity") || "Maturity",
+    rollerColMissing: tt("mypos_roller_col_missing") || "Additional Funds",
+    rollerActionRoll: tt("mypos_roller_roll") || "Roll",
+    rollerActionMerge: tt("mypos_roller_merge") || "Merge",
+    rollerActionApprove: tt("mypos_roller_approve") || "Approve {symbol}",
+    rollerActionApproving: tt("mypos_roller_approving") || "Approving…",
+    rollerActionRolling: tt("mypos_roller_rolling") || "Rolling…",
+    rollerActionMerging: tt("mypos_roller_merging") || "Merging…",
+    rollerCooldown: tt("mypos_roller_cooldown") || "Cooldown",
+    rollerLoading: tt("mypos_roller_loading") || "Looking for renewal targets…",
+    rollerToastRolled: tt("mypos_roller_toast_rolled") || "Position rolled",
+    rollerToastMerged: tt("mypos_roller_toast_merged") || "Position merged",
+    rollerErrBalance: tt("mypos_roller_err_balance") || "Insufficient ZCHF to cover additional funds",
+    // ---- public view ----
+    publicBanner: tt("mypos_public_banner") || "Viewing positions of {owner}. Read-only.",
+    publicClose: tt("mypos_public_close") || "Close",
+    publicEmpty: tt("mypos_public_empty") || "This address has no open positions.",
+    publicManageNotice: tt("mypos_public_manage_notice") || "Read-only view. Connect as the owner to manage this position.",
 };
 ---
 
@@ -107,6 +132,7 @@ const i18n = {
         </header>
 
         <section id="view-list">
+            <div id="public-banner" class="hidden mb-6"></div>
             <div id="list-state-disconnected" class="hidden">
                 <Card title={i18n.notConnected}>
                     <p class="mb-4 text-[14px] opacity-90">{i18n.notConnected}</p>
@@ -125,6 +151,7 @@ const i18n = {
         </section>
 
         <section id="view-manage" class="hidden">
+            <div id="manage-public-banner" class="hidden mb-6"></div>
             <button id="btn-back" class="mb-6 inline-flex items-center gap-1 text-[14px] opacity-90 transition-opacity hover:opacity-100">
                 ← <span>{i18n.manageBack}</span>
             </button>
@@ -146,6 +173,11 @@ const i18n = {
     import { findUserPositions, loadMyPositionDetails, clearAllPositionsCache, type MyPositionDetail } from "@lib/myPositions";
     import { getMarketPriceCHF } from "@lib/prices";
     import { POSITION_V2_ABI as PositionV2ABI } from "@abi/position";
+    import {
+        findRollTargets, previewRoll, getRollerAllowance,
+        approveCollateralForRoller, executeRollFully,
+        type RollTarget, type RollPreview,
+    } from "@lib/positionRoller";
 
     // ================== utilities ==================
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -208,6 +240,21 @@ const i18n = {
     let marketPrice80Pct: bigint = 0n; // liquidation-price ceiling, in 36-dec units (0 = no cap available)
     let editor: { p: MyPositionDetail; mintAmount: bigint; collAmount: bigint; liqPrice: bigint } | null = null;
 
+    // Public view: when ?owner=0x... is in the URL, the page treats that
+    // address as the owner whose positions to list — read-only, write
+    // buttons hidden. Set once at boot from the URL; doesn't change with
+    // wallet (re)connects.
+    let publicOwner: Address | null = null;
+    const viewerIsOwner = (): boolean =>
+        !publicOwner || (!!connected && publicOwner.toLowerCase() === connected.toLowerCase());
+
+    // Roller state — populated lazily when the user enters manage view for a
+    // position that has outstanding debt. Targets are listed, preview is computed
+    // on demand per target.
+    let rollerTargets: RollTarget[] = [];
+    let rollerPreviews: Map<string, RollPreview> = new Map(); // key: target.address.toLowerCase()
+    let rollerLoadedFor: string | null = null; // lowercased source address — gates re-fetch
+
     // ================== format helpers ==================
     const fmt = (n: number, max = 2) => n.toLocaleString(numberLocale, { minimumFractionDigits: 0, maximumFractionDigits: max });
     const fmtZCHF = (n: number, max = 2) => n.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: max });
@@ -265,10 +312,51 @@ const i18n = {
         ($("list-grid") as HTMLElement).style.display = state === "grid" ? "" : "none";
     }
 
-    function renderList() {
-        if (!connected) return setListState("disconnected");
-        if (positions.length === 0) return setListState("empty");
+    function shortAddr(a: Address): string {
+        return `${a.slice(0, 6)}…${a.slice(-4)}`;
+    }
 
+    function bannerHtml(text: string): string {
+        return `
+            <div class="rounded-md border border-foreground/10 bg-foreground/[0.03] px-4 py-3 flex items-center justify-between gap-3 text-[13px]">
+                <span class="opacity-90">${text}</span>
+                <a href="?" class="text-primary hover:underline font-medium">${i18n.publicClose}</a>
+            </div>
+        `;
+    }
+
+    function renderPublicBanner() {
+        const el = $("public-banner");
+        if (!publicOwner) { el.classList.add("hidden"); el.innerHTML = ""; return; }
+        const text = i18n.publicBanner.replace("{owner}", shortAddr(publicOwner));
+        el.innerHTML = bannerHtml(text);
+        el.classList.remove("hidden");
+    }
+
+    function renderManagePublicBanner() {
+        const el = $("manage-public-banner");
+        if (!publicOwner) { el.classList.add("hidden"); el.innerHTML = ""; return; }
+        const text = i18n.publicBanner.replace("{owner}", shortAddr(publicOwner));
+        el.innerHTML = bannerHtml(text);
+        el.classList.remove("hidden");
+    }
+
+    function renderList() {
+        // In public view we never gate on wallet connection — the owner is
+        // resolved from the URL and the data is always fetchable.
+        if (!connected && !publicOwner) return setListState("disconnected");
+
+        renderPublicBanner();
+
+        if (positions.length === 0) {
+            // Override the default empty copy when in public view.
+            if (publicOwner) {
+                const empty = $("list-state-empty");
+                const card = empty.querySelector("p");
+                if (card) card.textContent = i18n.publicEmpty;
+            }
+            return setListState("empty");
+        }
         const grid = $("list-grid");
         grid.innerHTML = "";
         for (const p of positions) {
@@ -414,6 +502,18 @@ const i18n = {
                     </div>
                 </div>
             </div>
+
+            ${p.minted > 0n && !p.isClosed ? `
+            <section id="roller-section" class="mt-10">
+                <h3 class="text-[20px] font-bold tracking-tight">${i18n.rollerSection}</h3>
+                <p class="mt-2 text-[14px] opacity-90">${i18n.rollerIntro}</p>
+                <div id="roller-content" class="mt-6">
+                    <div class="rounded-md border border-foreground/10 bg-background p-6">
+                        <p class="text-center text-[14px] opacity-90">${i18n.rollerLoading}</p>
+                    </div>
+                </div>
+            </section>
+            ` : ""}
         `;
 
         hydrateStaticFields(p);
@@ -435,6 +535,7 @@ const i18n = {
     }
 
     function renderManage() {
+        renderManagePublicBanner();
         const root = $("manage-content");
         const p = positions.find(x => x.address.toLowerCase() === activeAddress?.toLowerCase());
         if (!p) {
@@ -446,11 +547,37 @@ const i18n = {
             buildManage(p);
             lastRenderedAddress = p.address;
             loadMarketPriceCap(p); // async, updates marketPrice80Pct
+            loadRollerTargets(p);  // async, populates the renewal section
+            // Public mode: lock down all writes after the DOM is built.
+            applyPublicModeToManage();
         } else {
             hydrateStaticFields(p);
         }
-        attachAdjustHandlers(p);
+        // Skip wiring write handlers when viewing someone else's position.
+        if (viewerIsOwner()) attachAdjustHandlers(p);
         refresh(p);
+    }
+
+    function applyPublicModeToManage() {
+        if (viewerIsOwner()) return;
+
+        // Disable + relabel the Adjust button.
+        const adjustBtn = $<HTMLButtonElement>("btn-adjust");
+        if (adjustBtn) {
+            adjustBtn.disabled = true;
+            const label = adjustBtn.querySelector(".btn-action-label") as HTMLElement | null;
+            if (label) label.textContent = i18n.publicManageNotice;
+        }
+
+        // Make all adjustment inputs read-only — keeps the layout intact
+        // so the user still sees current values, just can't fiddle.
+        for (const id of ["i-mint", "i-coll", "i-price"]) {
+            const inp = $<HTMLInputElement>(id);
+            if (inp) inp.readOnly = true;
+        }
+
+        // Roller buttons get hidden in updateRollerRow / rollerRowHtml when
+        // publicOwner is set — no further work needed here.
     }
 
     async function loadMarketPriceCap(p: MyPositionDetail) {
@@ -463,6 +590,233 @@ const i18n = {
                 marketPrice80Pct = parseUnits(((m * 0.8).toFixed(Math.min(dec, 18))) as `${number}`, dec);
             }
         } catch {}
+    }
+
+    // ================== roller (renewal) ==================
+
+    async function loadRollerTargets(p: MyPositionDetail) {
+        // Section is only rendered when minted > 0 && !closed (see buildManage),
+        // but double-check so we never fetch for nothing.
+        if (p.minted === 0n || p.isClosed) return;
+
+        const key = p.address.toLowerCase();
+        rollerLoadedFor = key;
+        rollerTargets = [];
+        rollerPreviews = new Map();
+
+        try {
+            const targets = await findRollTargets({
+                address: p.address,
+                collateral: p.collateral,
+                collateralSymbol: p.collateralSymbol,
+                collateralDecimals: p.collateralDecimals,
+                minted: p.minted,
+                collateralBalance: p.collateralBalance,
+                reserveContribution: p.reserveContribution,
+                expiration: p.expiration,
+                owner: connected ?? undefined,
+            });
+            // Race guard: if the user navigated to a different position while
+            // this awaited, abandon the result.
+            if (rollerLoadedFor !== key) return;
+            rollerTargets = targets;
+
+            // Render the empty state immediately, then compute previews per
+            // target in parallel. Each preview is cheap (2 reads) and we kick
+            // them all off so the user doesn't wait sequentially.
+            renderRollerSection(p);
+            await Promise.all(targets.map(async (t) => {
+                try {
+                    const preview = await previewRoll({
+                        address: p.address,
+                        collateral: p.collateral,
+                        collateralSymbol: p.collateralSymbol,
+                        collateralDecimals: p.collateralDecimals,
+                        minted: p.minted,
+                        collateralBalance: p.collateralBalance,
+                        reserveContribution: p.reserveContribution,
+                        expiration: p.expiration,
+                        owner: connected ?? undefined,
+                    }, t);
+                    if (rollerLoadedFor !== key) return;
+                    rollerPreviews.set(t.address.toLowerCase(), preview);
+                    // Update the row in place — cheap, no re-render of the whole section.
+                    updateRollerRow(p, t, preview);
+                } catch (err) {
+                    console.warn("[roller] preview failed", t.address, err);
+                }
+            }));
+        } catch (err) {
+            console.error("[roller] target fetch failed", err);
+            if (rollerLoadedFor !== key) return;
+            const root = $("roller-content");
+            if (root) root.innerHTML = `
+                <div class="rounded-md border border-foreground/10 bg-background p-6">
+                    <p class="text-center text-[14px] opacity-90">${i18n.rollerNone}</p>
+                </div>
+            `;
+        }
+    }
+
+    function renderRollerSection(p: MyPositionDetail) {
+        const root = $("roller-content");
+        if (!root) return;
+        if (rollerTargets.length === 0) {
+            root.innerHTML = `
+                <div class="rounded-md border border-foreground/10 bg-background p-6">
+                    <p class="text-center text-[14px] opacity-90">${i18n.rollerNone}</p>
+                </div>
+            `;
+            return;
+        }
+
+        const headers = `
+            <div class="grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto] gap-3 px-4 py-3 text-[12px] uppercase tracking-wide opacity-80">
+                <div>${i18n.rollerColTarget}</div>
+                <div>${i18n.rollerColLiqPrice}</div>
+                <div>${i18n.rollerColInterest}</div>
+                <div>${i18n.rollerColMaturity}</div>
+                <div>${i18n.rollerColMissing}</div>
+                <div></div>
+            </div>
+        `;
+
+        const rows = rollerTargets.map(t => rollerRowHtml(p, t)).join("");
+
+        root.innerHTML = `
+            <div class="rounded-md border border-foreground/10 bg-background">
+                ${headers}
+                <div class="divide-y divide-foreground/10">
+                    ${rows}
+                </div>
+            </div>
+        `;
+
+        for (const t of rollerTargets) {
+            const btn = document.getElementById(`btn-roll-${t.address}`);
+            if (btn) btn.onclick = () => doRoll(p, t);
+        }
+    }
+
+    function rollerRowHtml(p: MyPositionDetail, t: RollTarget): string {
+        const liqUnits = fromBig(t.price, 36 - t.collateralDecimals);
+        const interest = (t.annualInterestPPM / 10_000).toFixed(2);
+        const maturityStr = fmtDate(t.expiration);
+        const shortAddr = `${t.address.slice(0, 6)}…${t.address.slice(-4)}`;
+        // Action cell: hidden in public view (no wallet → no roll).
+        const actionCell = viewerIsOwner()
+            ? `<button id="btn-roll-${t.address}"
+                    class="inline-flex items-center justify-center gap-2 rounded-md border border-transparent bg-primary px-4 py-2 text-[13px] font-semibold text-[#FAF7F2] transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50 dark:text-[#030303]"
+                    disabled>
+                    <span class="btn-label">${t.isOwnedBySource ? i18n.rollerActionMerge : i18n.rollerActionRoll}</span>
+                </button>`
+            : `<span class="text-[12px] opacity-60">—</span>`;
+        // Missing funds + action label resolved by updateRollerRow once preview lands.
+        return `
+            <div id="row-${t.address}" class="grid grid-cols-[1.4fr_1fr_1fr_1fr_1fr_auto] gap-3 items-center px-4 py-3 text-[14px]">
+                <a href="https://etherscan.io/address/${t.address}" target="_blank" rel="noopener"
+                   class="font-mono text-[13px] text-primary hover:underline">${shortAddr}</a>
+                <div>${fmtZCHF(liqUnits)} ZCHF</div>
+                <div>${interest}%</div>
+                <div>${maturityStr}</div>
+                <div id="missing-${t.address}" class="opacity-60">—</div>
+                ${actionCell}
+            </div>
+        `;
+    }
+
+    function updateRollerRow(p: MyPositionDetail, t: RollTarget, preview: RollPreview) {
+        const missingEl = $(`missing-${t.address}`);
+        if (!missingEl) return;
+
+        if (preview.missingFunds === 0n) {
+            missingEl.textContent = "—";
+            missingEl.className = "opacity-60";
+        } else {
+            // In public view we don't know the viewer's ZCHF balance, and it
+            // wouldn't matter anyway. Show the figure plainly.
+            if (!viewerIsOwner()) {
+                missingEl.textContent = `${fmtZCHF(fromBig(preview.missingFunds, 18))} ZCHF`;
+                missingEl.className = "";
+            } else {
+                const enough = preview.sufficientForRoll(p.userZchfBalance);
+                missingEl.textContent = `${fmtZCHF(fromBig(preview.missingFunds, 18))} ZCHF`;
+                missingEl.className = enough ? "" : "text-primary font-semibold";
+            }
+        }
+
+        // Public view: no button to update.
+        const btn = $<HTMLButtonElement>(`btn-roll-${t.address}`);
+        if (!btn) return;
+
+        // Cooldown wins over everything else as a label.
+        const labelEl = btn.querySelector(".btn-label") as HTMLElement;
+        if (preview.cooldownBlocking) {
+            labelEl.textContent = i18n.rollerCooldown;
+            btn.disabled = true;
+            return;
+        }
+
+        labelEl.textContent = t.isOwnedBySource ? i18n.rollerActionMerge : i18n.rollerActionRoll;
+        btn.disabled = !preview.sufficientForRoll(p.userZchfBalance);
+    }
+
+    async function doRoll(p: MyPositionDetail, t: RollTarget) {
+        if (!connected) { toast(i18n.notConnectedToast, "error"); return; }
+        if (!(await ensureMainnet())) return;
+
+        const preview = rollerPreviews.get(t.address.toLowerCase());
+        if (!preview) return;
+        if (preview.cooldownBlocking) return;
+        if (!preview.sufficientForRoll(p.userZchfBalance)) {
+            toast(i18n.rollerErrBalance, "error");
+            return;
+        }
+
+        const publicClient = getPublicClient("ethereum");
+        const rawProvider = getRawProvider();
+        if (!rawProvider) { toast(i18n.notConnectedToast, "error"); return; }
+        const walletClient = makeWalletClient(rawProvider, "ethereum");
+
+        const btn = $<HTMLButtonElement>(`btn-roll-${t.address}`);
+        const labelEl = btn?.querySelector(".btn-label") as HTMLElement | null;
+        const original = labelEl?.textContent ?? "";
+        if (btn) btn.disabled = true;
+
+        try {
+            // Step 1: ensure collateral approval to the roller. We approve the
+            // source collateral because the contract pulls it from msg.sender
+            // during the atomic flash-mint sequence.
+            const allowance = await getRollerAllowance(publicClient, p.collateral, connected);
+            if (allowance < p.collateralBalance) {
+                if (labelEl) labelEl.textContent = i18n.rollerActionApproving.replace("{symbol}", p.collateralSymbol);
+                await approveCollateralForRoller(walletClient, publicClient, p.collateral, connected);
+                toast(i18n.toastApproved.replace("{symbol}", p.collateralSymbol), "success");
+            }
+
+            // Step 2: rollFully.
+            if (labelEl) labelEl.textContent = t.isOwnedBySource ? i18n.rollerActionMerging : i18n.rollerActionRolling;
+            const result = await executeRollFully(walletClient, publicClient, {
+                source: p.address,
+                target: t.address,
+                account: connected,
+            });
+
+            toast(result.merged ? i18n.rollerToastMerged : i18n.rollerToastRolled, "success");
+
+            // Source position is now empty; the user's position list needs a refresh.
+            clearAllPositionsCache();
+            // Navigate to the (possibly new) target position so the user sees
+            // their refinanced debt. result.target is the actual final address
+            // (clone path returns a fresh address, merge returns the input).
+            await refreshPositions();
+            navigate(result.target);
+        } catch (err) {
+            if (isUserCancelErr(err)) toast(i18n.cancelled, "info");
+            else toast(friendlyError(err).message, "error");
+            if (labelEl) labelEl.textContent = original;
+            if (btn) btn.disabled = false;
+        }
     }
 
     // ================== editor handlers ==================
@@ -673,12 +1027,30 @@ const i18n = {
     // ================== init ==================
     $("btn-back").onclick = () => navigate(null);
 
+    // Parse ?owner=... at boot. Once set, the page stays in public mode
+    // regardless of wallet state — closing public view is explicit (the
+    // banner has a Close link that removes the param).
+    {
+        const o = new URLSearchParams(location.search).get("owner");
+        if (o && isAddrLike(o)) publicOwner = o;
+    }
+
     async function refreshPositions() {
-        if (!connected) { positions = []; lastRenderedAddress = null; renderList(); return; }
+        // Determine whose positions to list. Public view wins over connected
+        // wallet so the URL is authoritative.
+        const ownerAddr: Address | null = publicOwner ?? connected;
+        if (!ownerAddr) {
+            positions = []; lastRenderedAddress = null;
+            renderList(); return;
+        }
         setListState("loading");
         try {
-            const addrs = await findUserPositions(connected);
-            positions = await loadMyPositionDetails(addrs, connected);
+            const addrs = await findUserPositions(ownerAddr);
+            // In public view: pass null for user so balance/allowance calls
+            // are skipped, and pass the owner explicitly so API rows resolve.
+            positions = publicOwner
+                ? await loadMyPositionDetails(addrs, null, ownerAddr)
+                : await loadMyPositionDetails(addrs, connected);
         } catch (err) {
             console.error("[mypositions] refresh failed:", err);
             positions = [];
@@ -691,13 +1063,22 @@ const i18n = {
         if (newAddr !== connected) {
             connected = newAddr;
             lastRenderedAddress = null;
-            await refreshPositions();
+            // In public view we don't re-fetch on wallet change — the URL
+            // owner stays the source of truth.
+            if (!publicOwner) await refreshPositions();
+            else applyRoute();
         } else {
             applyRoute();
         }
     });
 
-    applyRoute();
+    // Public view boots without waiting for a wallet — fire an initial fetch
+    // right away so the list populates immediately.
+    if (publicOwner) {
+        refreshPositions();
+    } else {
+        applyRoute();
+    }
 
     window.addEventListener("storage", (ev) => {
         if (ev.key === "frnk:invalidatePositions:v1") {

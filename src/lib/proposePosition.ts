@@ -266,7 +266,6 @@ export async function openPosition(
         ],
         account,
         chain: mainnet,
-        gas: 3_000_000n,
     });
     return hash;
 }

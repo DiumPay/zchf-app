@@ -3,44 +3,25 @@ import { getPublicClient } from "@lib/client";
 import { POSITION_V2_ABI } from "@abi/position";
 import { ADDRESSES } from "@config/addresses";
 
-const API_BASE = "https://api.frankencoin.com";
-const POSITIONS_URL = `${API_BASE}/positions/open`;
+// ============================================================================
+// STATIC METADATA — pure on-chain reads, cached forever per address.
+//
+// Position immutables (collateral, limit, minimumCollateral, expiration,
+// start, challengePeriod, riskPremiumPPM, reserveContribution, original)
+// are set at deployment/initialization and have no setter on the V2 contract.
+// They never change.
+//
+// ERC20 metadata (name, symbol, decimals) is also immutable per token.
+// We cache it keyed by collateral address — 138 positions share ~15 tokens,
+// so this saves repeat ERC20 reads across the whole app.
+//
+// Two localStorage namespaces:
+//   frnk:posStatic:v1:<addr>  → PositionStaticDetail (serialized bigints)
+//   frnk:erc20Meta:v1:<addr>  → { name, symbol, decimals }
+// ============================================================================
 
-interface ApiPosition {
-    version: number;
-    position: Address;
-    owner: Address;
-    collateral: Address;
-    price: string;
-    isOriginal: boolean;
-    isClone: boolean;
-    denied: boolean;
-    closed: boolean;
-    original: Address;
-    parent: Address;
-    minimumCollateral: string;
-    annualInterestPPM: number;
-    riskPremiumPPM: number;
-    reserveContribution: number;
-    start: number;
-    cooldown: number;
-    expiration: number;
-    challengePeriod: number;
-    collateralName: string;
-    collateralSymbol: string;
-    collateralDecimals: number;
-    collateralBalance: string;
-    limitForPosition: string;
-    availableForClones: string;
-    availableForMinting: string;
-    minted: string;
-}
-
-interface ApiResponse {
-    num: number;
-    addresses: Address[];
-    map: Record<string, ApiPosition>;
-}
+const POS_KEY = (addr: string) => `frnk:posStatic:v1:${addr.toLowerCase()}`;
+const ERC20_KEY = (addr: string) => `frnk:erc20Meta:v1:${addr.toLowerCase()}`;
 
 export interface PositionStaticDetail {
     address: Address;
@@ -74,66 +55,66 @@ export interface PositionLiveDetail {
 
 export type PositionDetail = PositionStaticDetail & PositionLiveDetail;
 
-// Tiny per-session cache of the bulk API response so the detail page doesn't
-// refetch the whole map on every nav. We still re-pull live state from chain.
-let apiCache: { map: Record<string, ApiPosition>; at: number } | null = null;
-const API_TTL_MS = 30_000;
-
-async function fetchApiMap(): Promise<Record<string, ApiPosition>> {
-    if (apiCache && Date.now() - apiCache.at < API_TTL_MS) return apiCache.map;
-    const res = await fetch(POSITIONS_URL, { headers: { accept: "application/json" } });
-    if (!res.ok) throw new Error(`positions API ${res.status}`);
-    const json = (await res.json()) as ApiResponse;
-    // Normalize keys to lowercase so address-casing variations resolve.
-    const map: Record<string, ApiPosition> = {};
-    for (const k of Object.keys(json.map)) map[k.toLowerCase()] = json.map[k];
-    apiCache = { map, at: Date.now() };
-    return map;
+function loadPosCache(addr: Address): PositionStaticDetail | null {
+    try {
+        const raw = localStorage.getItem(POS_KEY(addr));
+        if (!raw) return null;
+        const j = JSON.parse(raw);
+        return {
+            ...j,
+            limit: BigInt(j.limit),
+            minimumCollateral: BigInt(j.minimumCollateral),
+        };
+    } catch { return null; }
 }
 
-function staticFromApi(p: ApiPosition): PositionStaticDetail {
-    return {
-        address: p.position,
-        original: p.original,
-        isOriginal: p.isOriginal,
-        collateral: p.collateral,
-        collateralName: p.collateralName,
-        collateralSymbol: p.collateralSymbol,
-        collateralDecimals: Number(p.collateralDecimals),
-        limit: BigInt(p.limitForPosition),
-        minimumCollateral: BigInt(p.minimumCollateral),
-        expiration: Number(p.expiration),
-        start: Number(p.start),
-        challengePeriod: Number(p.challengePeriod),
-        riskPremiumPPM: Number(p.riskPremiumPPM),
-        reserveContribution: Number(p.reserveContribution),
-    };
+function savePosCache(p: PositionStaticDetail) {
+    try {
+        localStorage.setItem(POS_KEY(p.address), JSON.stringify({
+            ...p,
+            limit: p.limit.toString(),
+            minimumCollateral: p.minimumCollateral.toString(),
+        }));
+    } catch { /* quota / private mode — drop silently */ }
+}
+
+interface Erc20Meta { name: string; symbol: string; decimals: number; }
+
+function loadErc20Cache(addr: Address): Erc20Meta | null {
+    try {
+        const raw = localStorage.getItem(ERC20_KEY(addr));
+        return raw ? JSON.parse(raw) as Erc20Meta : null;
+    } catch { return null; }
+}
+
+function saveErc20Cache(addr: Address, meta: Erc20Meta) {
+    try { localStorage.setItem(ERC20_KEY(addr), JSON.stringify(meta)); }
+    catch { /* ignore */ }
 }
 
 /**
- * Resolve a position's static metadata.
+ * Resolve a position's static metadata. Pure on-chain, layered cache.
  *
- * Strategy:
- *  1. Try the public API first — covers every open position and avoids the
- *     two multicalls the previous on-chain-only path required.
- *  2. Fall back to multicall if the position isn't in the API response (e.g.
- *     fully repaid / closed positions the API may have dropped).
+ * Round-trips:
+ *   - Position cached + ERC20 cached → 0
+ *   - Position cached only           → 0 (ERC20 lives in PositionStaticDetail already)
+ *   - First visit, ERC20 known       → 1 multicall (9 position reads)
+ *   - First visit, ERC20 unknown     → 2 multicalls (9 position + 3 ERC20)
+ *
+ * All fields are contract immutables — no setters exist on the V2 position
+ * for any of them. Cache never invalidates.
  */
 export async function findStaticPosition(address: string): Promise<PositionStaticDetail | null> {
     if (!isAddress(address)) return null;
     const addr = address as Address;
 
-    // Fast path: API lookup.
-    try {
-        const map = await fetchApiMap();
-        const hit = map[addr.toLowerCase()];
-        if (hit) return staticFromApi(hit);
-    } catch {
-        // fall through to RPC
-    }
+    // Best path: full position metadata cached.
+    const cached = loadPosCache(addr);
+    if (cached) return cached;
 
-    // Fallback: on-chain multicall (handles closed/non-listed positions).
     const client = getPublicClient("ethereum");
+
+    // 9 position immutables in one multicall.
     let r: any[];
     try {
         r = await client.multicall({
@@ -157,23 +138,37 @@ export async function findStaticPosition(address: string): Promise<PositionStati
     const original = r[0] as Address;
     const collateral = r[1] as Address;
 
-    const meta = await client.multicall({
-        contracts: [
-            { address: collateral, abi: erc20Abi, functionName: "name" as const },
-            { address: collateral, abi: erc20Abi, functionName: "symbol" as const },
-            { address: collateral, abi: erc20Abi, functionName: "decimals" as const },
-        ],
-        allowFailure: false,
-    });
+    // ERC20 metadata: try cache first (138 positions share ~15 tokens).
+    let erc20 = loadErc20Cache(collateral);
+    if (!erc20) {
+        try {
+            const meta = await client.multicall({
+                contracts: [
+                    { address: collateral, abi: erc20Abi, functionName: "name" as const },
+                    { address: collateral, abi: erc20Abi, functionName: "symbol" as const },
+                    { address: collateral, abi: erc20Abi, functionName: "decimals" as const },
+                ],
+                allowFailure: false,
+            });
+            erc20 = {
+                name: meta[0] as string,
+                symbol: meta[1] as string,
+                decimals: Number(meta[2]),
+            };
+            saveErc20Cache(collateral, erc20);
+        } catch {
+            return null;
+        }
+    }
 
-    return {
+    const result: PositionStaticDetail = {
         address: addr,
         original,
         isOriginal: addr.toLowerCase() === original.toLowerCase(),
         collateral,
-        collateralName: meta[0] as string,
-        collateralSymbol: meta[1] as string,
-        collateralDecimals: Number(meta[2]),
+        collateralName: erc20.name,
+        collateralSymbol: erc20.symbol,
+        collateralDecimals: erc20.decimals,
         limit: r[2] as bigint,
         minimumCollateral: r[3] as bigint,
         expiration: Number(r[4]),
@@ -182,6 +177,9 @@ export async function findStaticPosition(address: string): Promise<PositionStati
         riskPremiumPPM: Number(r[7]),
         reserveContribution: Number(r[8]),
     };
+
+    savePosCache(result);
+    return result;
 }
 
 export async function loadPositionDetail(
