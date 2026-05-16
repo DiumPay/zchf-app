@@ -50,6 +50,14 @@ export const earn = {
         earn_err_saved_too_low: "Not enough deposited in savings.",
         earn_err_target: "Invalid target address",
         earn_footnote: "Withdraw any time. Interest starts accruing 3 days after each deposit.",
+
+        // Yearly Accounts (projection)
+        earn_yearly_title: "Yearly Accounts",
+        earn_yearly_subtitle: "Projected interest based on the current rate. Assumes you keep the full balance saved for the entire year.",
+        earn_yearly_col_year: "Year",
+        earn_yearly_col_interest: "Interest Collected",
+        earn_yearly_col_end_balance: "Year End Balance",
+        earn_yearly_empty: "No savings found",
     },
 
     de: {
@@ -100,6 +108,14 @@ export const earn = {
         earn_err_saved_too_low: "Nicht genügend Guthaben im Sparen.",
         earn_err_target: "Ungültige Zieladresse",
         earn_footnote: "Auszahlung jederzeit möglich. Zinsen beginnen 3 Tage nach jeder Einzahlung anzufallen.",
+
+        // Jährliche Übersicht (Projektion)
+        earn_yearly_title: "Jährliche Übersicht",
+        earn_yearly_subtitle: "Voraussichtliche Zinsen basierend auf dem aktuellen Zinssatz. Es wird angenommen, dass das gesamte Guthaben das ganze Jahr über gespart bleibt.",
+        earn_yearly_col_year: "Jahr",
+        earn_yearly_col_interest: "Zinserträge",
+        earn_yearly_col_end_balance: "Endsaldo",
+        earn_yearly_empty: "Keine Sparguthaben gefunden",
     },
 
     fr: {
@@ -150,6 +166,14 @@ export const earn = {
         earn_err_saved_too_low: "Solde d'épargne insuffisant.",
         earn_err_target: "Adresse de destination invalide",
         earn_footnote: "Retrait possible à tout moment. Les intérêts commencent à courir 3 jours après chaque dépôt.",
+
+        // Comptes annuels (projection)
+        earn_yearly_title: "Comptes annuels",
+        earn_yearly_subtitle: "Intérêts projetés sur la base du taux actuel. Suppose que vous conservez le solde complet pendant toute l'année.",
+        earn_yearly_col_year: "Année",
+        earn_yearly_col_interest: "Intérêts perçus",
+        earn_yearly_col_end_balance: "Solde de fin d'année",
+        earn_yearly_empty: "Aucune épargne trouvée",
     },
 
     it: {
@@ -200,6 +224,14 @@ export const earn = {
         earn_err_saved_too_low: "Saldo nel risparmio insufficiente.",
         earn_err_target: "Indirizzo destinazione non valido",
         earn_footnote: "Prelievo sempre possibile. Gli interessi iniziano a maturare 3 giorni dopo ogni deposito.",
+
+        // Resoconto annuale (proiezione)
+        earn_yearly_title: "Resoconto annuale",
+        earn_yearly_subtitle: "Interessi previsti in base al tasso attuale. Si presume che il saldo completo rimanga depositato per l'intero anno.",
+        earn_yearly_col_year: "Anno",
+        earn_yearly_col_interest: "Interessi maturati",
+        earn_yearly_col_end_balance: "Saldo di fine anno",
+        earn_yearly_empty: "Nessun risparmio trovato",
     },
 
     es: {
@@ -250,5 +282,13 @@ export const earn = {
         earn_err_saved_too_low: "Saldo de ahorro insuficiente.",
         earn_err_target: "Dirección de destino no válida",
         earn_footnote: "Retira en cualquier momento. Los intereses empiezan a generarse 3 días después de cada depósito.",
+
+        // Cuentas anuales (proyección)
+        earn_yearly_title: "Cuentas anuales",
+        earn_yearly_subtitle: "Intereses proyectados según la tasa actual. Asume que mantienes el saldo completo durante todo el año.",
+        earn_yearly_col_year: "Año",
+        earn_yearly_col_interest: "Intereses cobrados",
+        earn_yearly_col_end_balance: "Saldo de fin de año",
+        earn_yearly_empty: "No se encontraron ahorros",
     },
 } as const;

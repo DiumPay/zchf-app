@@ -1,4 +1,4 @@
-// Strings used across multiple pages: nav, wallet, common, menu, footer.
+// Strings used across multiple pages: nav, wallet, common, menu, footer, 404.
 // Anything page-specific belongs in its own file (earn.ts, borrow.ts, ...).
 export const shared = {
   en: {
@@ -33,6 +33,12 @@ export const shared = {
     footer_forum: "GitHub Discussions",
     footer_github: "Source on GitHub",
     footer_docs: "Documentation",
+
+    // 404
+    notfound_title: "Page not found",
+    notfound_meta: "The page you were looking for doesn't exist.",
+    notfound_text: "The page you were looking for doesn't exist or has moved.",
+    notfound_back: "Back to home",
   },
 
   de: {
@@ -67,6 +73,12 @@ export const shared = {
     footer_forum: "GitHub-Diskussionen",
     footer_github: "Quellcode auf GitHub",
     footer_docs: "Dokumentation",
+
+    // 404
+    notfound_title: "Seite nicht gefunden",
+    notfound_meta: "Die gesuchte Seite existiert nicht.",
+    notfound_text: "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+    notfound_back: "Zurück zur Startseite",
   },
 
   fr: {
@@ -101,6 +113,12 @@ export const shared = {
     footer_forum: "Discussions GitHub",
     footer_github: "Code source sur GitHub",
     footer_docs: "Documentation",
+
+    // 404
+    notfound_title: "Page introuvable",
+    notfound_meta: "La page que vous cherchiez n'existe pas.",
+    notfound_text: "La page que vous cherchiez n'existe pas ou a été déplacée.",
+    notfound_back: "Retour à l'accueil",
   },
 
   it: {
@@ -135,6 +153,12 @@ export const shared = {
     footer_forum: "Discussioni GitHub",
     footer_github: "Codice sorgente su GitHub",
     footer_docs: "Documentazione",
+
+    // 404
+    notfound_title: "Pagina non trovata",
+    notfound_meta: "La pagina che cercavi non esiste.",
+    notfound_text: "La pagina che cercavi non esiste o è stata spostata.",
+    notfound_back: "Torna alla home",
   },
 
   es: {
@@ -169,5 +193,11 @@ export const shared = {
     footer_forum: "Discusiones de GitHub",
     footer_github: "Código fuente en GitHub",
     footer_docs: "Documentación",
+
+    // 404
+    notfound_title: "Página no encontrada",
+    notfound_meta: "La página que buscabas no existe.",
+    notfound_text: "La página que buscabas no existe o ha sido movida.",
+    notfound_back: "Volver al inicio",
   },
 } as const;

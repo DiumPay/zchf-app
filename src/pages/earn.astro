@@ -32,6 +32,7 @@ const clientStrings = {
     unit_day: tt("unit_day"),
     unit_hour: tt("unit_hour"),
     unit_min: tt("unit_min"),
+    yearly_empty: tt("earn_yearly_empty"),
 };
 ---
 
@@ -148,6 +149,23 @@ const clientStrings = {
                     </div>
                 </div>
             </Card>
+
+            <!-- Yearly Accounts (projected) -->
+            <Card title={tt("earn_yearly_title")}>
+                <p class="mb-4 text-[13px] opacity-70">{tt("earn_yearly_subtitle")}</p>
+
+                <div class="hidden grid-cols-[1fr_1.5fr_1.5fr] gap-4 border-b border-foreground/10 pb-3 text-[13px] font-bold opacity-70 md:grid">
+                    <span>{tt("earn_yearly_col_year")}</span>
+                    <span class="text-right">{tt("earn_yearly_col_interest")}</span>
+                    <span class="text-right">{tt("earn_yearly_col_end_balance")}</span>
+                </div>
+
+                <ul id="yearly-list" class="divide-y divide-foreground/10"></ul>
+
+                <p id="yearly-empty" class="py-6 text-center text-[14px] opacity-60">
+                    {tt("earn_yearly_empty")}
+                </p>
+            </Card>
         </div>
     </main>
 </Layout>
@@ -184,10 +202,13 @@ const clientStrings = {
         btnConnect: $<HTMLButtonElement>("btn-connect"),
         btnMaxWallet: $<HTMLButtonElement>("btn-max-wallet"),
         btnMaxSaved: $<HTMLButtonElement>("btn-max-saved"),
+        yearlyList: $<HTMLUListElement>("yearly-list"),
+        yearlyEmpty: $("yearly-empty"),
     };
 
     let connected: Address | null = null;
     let walletBalRaw = 0n, savedRaw = 0n, accruedRaw = 0n;
+    let ratePPM = 0;             // Captured from loadModule; used by yearly projection.
     let lastIntent: "deposit" | "withdraw" = "deposit";
 
     // Active chain — initialised from localStorage (set by ChainSelector), default Ethereum
@@ -273,6 +294,59 @@ const clientStrings = {
         else showError(null);
     }
 
+    // ------------------------------------------------------------------
+    // Yearly Accounts — pure forward projection from current state.
+    //
+    // Compounds the current rate annually over a 5-year horizon. Uses the
+    // user's current saved + accrued balance, plus the amount in the input
+    // box if they're in "deposit" intent (so the table previews the result
+    // of the pending action). No historical event log needed.
+    // ------------------------------------------------------------------
+    const PROJECTION_HORIZON_YEARS = 5;
+    const SCALE = 1_000_000n;   // Match PPM precision; avoids float drift on large balances.
+
+    function projectionStartingBalance(): bigint {
+        // Current realised position.
+        let base = savedRaw + accruedRaw;
+        // Preview the pending deposit (if any) so the table reflects "what if I save N more".
+        if (lastIntent === "deposit") {
+            const pending = parseAmount();
+            if (pending > 0n && pending <= walletBalRaw) base += pending;
+        }
+        return base;
+    }
+
+    function renderYearly() {
+        const starting = projectionStartingBalance();
+        if (starting === 0n || ratePPM <= 0) {
+            els.yearlyList.innerHTML = "";
+            els.yearlyEmpty.classList.remove("hidden");
+            return;
+        }
+        els.yearlyEmpty.classList.add("hidden");
+
+        const ratePPMBig = BigInt(ratePPM);
+        const thisYear = new Date().getFullYear();
+        let balance = starting;
+        const rows: string[] = [];
+
+        for (let i = 1; i <= PROJECTION_HORIZON_YEARS; i++) {
+            const interest = (balance * ratePPMBig) / SCALE;
+            const endBalance = balance + interest;
+            rows.push(`<li class="grid grid-cols-1 gap-1 py-3 md:grid-cols-[1fr_1.5fr_1.5fr] md:items-center md:gap-4">
+                <div class="font-medium text-[15px]">${thisYear + i}</div>
+                <div class="text-[14px] md:text-right">
+                    <span class="md:hidden opacity-60">${i18n.yearly_empty ? "" : ""}</span>
+                    ${fmtZCHFPrecise(interest)}
+                </div>
+                <div class="text-[14px] font-medium md:text-right">${fmtZCHFPrecise(endBalance)}</div>
+            </li>`);
+            balance = endBalance;
+        }
+
+        els.yearlyList.innerHTML = rows.join("");
+    }
+
     async function loadModule() {
         const a = addrs();
         const [rate, tvl] = await client().multicall({
@@ -282,8 +356,10 @@ const clientStrings = {
             ],
             allowFailure: false,
         });
+        ratePPM = Number(rate);
         els.rate.textContent = fmtPct(rate);
         els.tvl.textContent = fmtZCHF(tvl);
+        renderYearly();
     }
 
     async function loadAccount(addr: Address) {
@@ -300,6 +376,7 @@ const clientStrings = {
         });
         const [saved, accTicks] = account;
         walletBalRaw = walletBal; savedRaw = saved; accruedRaw = accrued;
+        ratePPM = Number(rate);
 
         els.walletBalance.textContent = fmtZCHFPrecise(walletBal);
         els.saved.textContent = fmtZCHFPrecise(saved);
@@ -310,6 +387,7 @@ const clientStrings = {
            : i18n.status_earning;
 
         validate();
+        renderYearly();
     }
 
     function clearAccount() {
@@ -321,6 +399,7 @@ const clientStrings = {
         els.locked.textContent = "—";
         els.amount.value = "";
         showError(null);
+        renderYearly();
     }
 
     function setConnectedUI(isConnected: boolean) {
@@ -418,13 +497,19 @@ const clientStrings = {
     els.btnCompound.addEventListener("click", run(els.btnCompound, i18n.btn_compounding, compound));
 
     els.btnMaxWallet.addEventListener("click", () => {
-        els.amount.value = formatUnits(walletBalRaw, 18); lastIntent = "deposit"; validate();
+        els.amount.value = formatUnits(walletBalRaw, 18); lastIntent = "deposit"; validate(); renderYearly();
     });
     els.btnMaxSaved.addEventListener("click", () => {
-        els.amount.value = formatUnits(savedRaw, 18); lastIntent = "withdraw"; validate();
+        els.amount.value = formatUnits(savedRaw, 18); lastIntent = "withdraw"; validate(); renderYearly();
     });
 
-    els.amount.addEventListener("input", validate);
+    els.amount.addEventListener("input", () => {
+        // Default to "deposit" intent when the user is typing — the table
+        // previews "if I save this, here's what I'd earn".
+        lastIntent = "deposit";
+        validate();
+        renderYearly();
+    });
     els.toggleOnBehalf.addEventListener("change", () => {
         els.onBehalfRow.classList.toggle("hidden", !els.toggleOnBehalf.checked);
     });
