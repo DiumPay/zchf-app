@@ -130,3 +130,75 @@ export function positionStatus(p: Position): "active" | "cooldown" | "challenged
 export function clearPositionsCache(): void {
     cache = null;
 }
+
+// ---------------------------------------------------------------------------
+// Monitored positions — every still-alive position eligible for challenge.
+// Different endpoint, different shape (has challengedCollateral), so kept
+// separate from loadPositionsCached. We don't reuse `Position` because the
+// monitoring view doesn't care about reserve / interest / availableForClones
+// and needs `minted` + `challengedCollateral` that the borrow view doesn't.
+// ---------------------------------------------------------------------------
+
+const MONITORED_URL = `${API_BASE}/positions/monitored`;
+
+interface ApiMonitoredPosition extends ApiPosition {
+    challengedCollateral: string;
+}
+
+interface ApiMonitoredResponse {
+    num: number;
+    list: ApiMonitoredPosition[];
+}
+
+export interface MonitoredPosition {
+    address: Address;
+    owner: Address;
+    collateral: Address;
+    collateralName: string;
+    collateralSymbol: string;
+    collateralDecimals: number;
+    price: bigint;
+    collateralBalance: bigint;
+    minted: bigint;
+    minimumCollateral: bigint;
+    challengedCollateral: bigint;
+    expiration: number;
+    cooldown: number;
+    challengePeriod: number;
+    annualInterestPPM: number;
+    reserveContribution: number;
+}
+
+let monitoredCache: { data: MonitoredPosition[]; at: number } | null = null;
+
+export async function loadMonitoredCached(): Promise<MonitoredPosition[]> {
+    if (monitoredCache && Date.now() - monitoredCache.at < CACHE_TTL_MS) return monitoredCache.data;
+    const res = await fetch(MONITORED_URL, { headers: { accept: "application/json" } });
+    if (!res.ok) throw new Error(`monitored API ${res.status}`);
+    const json = (await res.json()) as ApiMonitoredResponse;
+    const rows: MonitoredPosition[] = (json.list ?? []).map(p => ({
+        address: p.position,
+        owner: getAddress(p.owner),
+        collateral: getAddress(p.collateral),
+        collateralName: p.collateralName,
+        collateralSymbol: p.collateralSymbol,
+        collateralDecimals: Number(p.collateralDecimals),
+        price: BigInt(p.price),
+        collateralBalance: BigInt(p.collateralBalance),
+        minted: BigInt(p.minted),
+        minimumCollateral: BigInt(p.minimumCollateral),
+        // Grenadier returns "0" when no open challenges. BigInt("0") is fine.
+        challengedCollateral: BigInt(p.challengedCollateral ?? "0"),
+        expiration: p.expiration,
+        cooldown: p.cooldown,
+        challengePeriod: Number(p.challengePeriod),
+        annualInterestPPM: Number(p.annualInterestPPM),
+        reserveContribution: Number(p.reserveContribution),
+    }));
+    monitoredCache = { data: rows, at: Date.now() };
+    return rows;
+}
+
+export function clearMonitoredCache(): void {
+    monitoredCache = null;
+}

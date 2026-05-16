@@ -25,6 +25,7 @@ const DISCONNECTED_MORE: { key: MessageKey; path: string }[] = [
     { key: "nav_my_positions", path: "/mypositions" },
     { key: "nav_invest", path: "/equity" },
     { key: "nav_governance", path: "/governance" },
+    { key: "nav_monitor", path: "/monitoring" },
 ];
 
 const CONNECTED: { key: MessageKey; path: string }[] = [
@@ -36,6 +37,7 @@ const CONNECTED_MORE: { key: MessageKey; path: string }[] = [
     { key: "nav_transfer", path: "/transfer" },
     { key: "nav_invest", path: "/equity" },
     { key: "nav_governance", path: "/governance" },
+    { key: "nav_monitor", path: "/monitoring" },
 ];
 
 const currentPath = Astro.url.pathname;

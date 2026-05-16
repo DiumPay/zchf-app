@@ -13,13 +13,14 @@ import { create } from "./locales/create";
 import { swap } from "./locales/swap";
 import { equity } from "./locales/equity";
 import { governance } from "./locales/governance";
+import { monitoring } from "./locales/monitoring";
 
 export const messages = {
-    en: { ...shared.en, ...earn.en, ...transfer.en, ...borrow.en, ...mint.en, ...mypositions.en, ...create.en, ...swap.en, ...equity.en, ...governance.en },
-    de: { ...shared.de, ...earn.de, ...transfer.de, ...borrow.de, ...mint.de, ...mypositions.de, ...create.de, ...swap.de, ...equity.de, ...governance.de },
-    fr: { ...shared.fr, ...earn.fr, ...transfer.fr, ...borrow.fr, ...mint.fr, ...mypositions.fr, ...create.fr, ...swap.fr, ...equity.fr, ...governance.fr },
-    it: { ...shared.it, ...earn.it, ...transfer.it, ...borrow.it, ...mint.it, ...mypositions.it, ...create.it, ...swap.it, ...equity.it, ...governance.it },
-    es: { ...shared.es, ...earn.es, ...transfer.es, ...borrow.es, ...mint.es, ...mypositions.es, ...create.es, ...swap.es, ...equity.es, ...governance.es },
+    en: { ...shared.en, ...earn.en, ...transfer.en, ...borrow.en, ...mint.en, ...mypositions.en, ...create.en, ...swap.en, ...equity.en, ...governance.en, ...monitoring.en },
+    de: { ...shared.de, ...earn.de, ...transfer.de, ...borrow.de, ...mint.de, ...mypositions.de, ...create.de, ...swap.de, ...equity.de, ...governance.de, ...monitoring.de },
+    fr: { ...shared.fr, ...earn.fr, ...transfer.fr, ...borrow.fr, ...mint.fr, ...mypositions.fr, ...create.fr, ...swap.fr, ...equity.fr, ...governance.fr, ...monitoring.fr },
+    it: { ...shared.it, ...earn.it, ...transfer.it, ...borrow.it, ...mint.it, ...mypositions.it, ...create.it, ...swap.it, ...equity.it, ...governance.it, ...monitoring.it },
+    es: { ...shared.es, ...earn.es, ...transfer.es, ...borrow.es, ...mint.es, ...mypositions.es, ...create.es, ...swap.es, ...equity.es, ...governance.es, ...monitoring.es },
 } as const;
 
 export type Locale = keyof typeof messages;
