@@ -1,0 +1,632 @@
+---
+import Layout from "@layouts/Layout.astro";
+import Card from "@components/Card.astro";
+import Button from "@components/Button.astro";
+import { t, getLocale, localePath, safeJsonForScript } from "@i18n/t";
+import type { Locale } from "@i18n/messages";
+
+const tt = t(Astro.url);
+const locale = getLocale(Astro.url);
+const backHref = localePath(locale as Locale, "/monitoring");
+
+const clientStrings = {
+    cancelled: tt("common_cancelled"),
+    err_not_connected: tt("chal_err_not_connected"),
+    err_amount: tt("chal_err_amount"),
+    err_amount_too_low: tt("chal_err_amount_too_low"),
+    err_amount_too_high: tt("chal_err_amount_too_high"),
+    err_wallet_low: tt("chal_err_wallet_low"),
+    err_closed: tt("chal_err_closed"),
+    err_expired: tt("chal_err_expired"),
+    err_missing_address: tt("chal_missing_address"),
+    err_invalid_address: tt("chal_invalid_address"),
+    err_not_found: tt("chal_not_found"),
+    err_load_failed: tt("mon_error"),
+    btn_approve: tt("chal_btn_approve"),
+    btn_approving: tt("chal_btn_approving"),
+    btn_challenge: tt("chal_btn_challenge"),
+    btn_challenging: tt("chal_btn_challenging"),
+    btn_connect: tt("chal_btn_connect"),
+    toast_approved: tt("chal_toast_approved"),
+    toast_done: tt("chal_toast_done"),
+    field_owner: tt("chal_field_owner"),
+    field_collateral: tt("chal_field_collateral"),
+    field_minted: tt("chal_field_minted"),
+    field_liq_price: tt("chal_field_liq_price"),
+    field_market_price: tt("chal_field_market_price"),
+    field_health: tt("chal_field_health"),
+    field_expiration: tt("chal_field_expiration"),
+    field_challenge_period: tt("chal_field_challenge_period"),
+    preview_starting_price: tt("chal_preview_starting_price"),
+    preview_potential_reward: tt("chal_preview_potential_reward"),
+    preview_min_amount: tt("chal_preview_min_amount"),
+    preview_phase_duration: tt("chal_preview_phase_duration"),
+    balance: tt("chal_balance"),
+    max: tt("chal_max"),
+    no_price: tt("mon_health_no_price"),
+    health_loading: tt("mon_health_loading"),
+    days_short: tt("mon_days_short"),
+    expired: tt("mon_expired"),
+};
+---
+
+<Layout title={`${tt("chal_title")} | Frankencoin dApp`} description="Launch a challenge against a Frankencoin position.">
+    <main class="mx-auto max-w-3xl px-4 py-10 md:px-6 md:py-12">
+        <a href={backHref} class="mb-4 inline-flex items-center gap-1 text-[13px] opacity-70 hover:opacity-100 transition-opacity">
+            ← {tt("chal_back")}
+        </a>
+
+        <header class="mb-8">
+            <h1 class="text-[28px] font-bold tracking-tight">{tt("chal_title")}</h1>
+            <p class="mt-2 text-[14px] opacity-80">{tt("chal_subtitle")}</p>
+        </header>
+
+        <!-- LOADING -->
+        <div id="chal-loading" class="rounded-md border border-foreground/10 bg-background p-6 text-center text-[14px] opacity-70">
+            {tt("chal_loading")}
+        </div>
+
+        <!-- ERROR -->
+        <div id="chal-error" class="hidden rounded-md border border-foreground/10 bg-background p-6 text-center text-[14px]">
+            <p id="chal-error-msg" class="opacity-80"></p>
+            <a href={backHref} class="mt-4 inline-flex items-center justify-center rounded-md border border-foreground/20 px-4 py-2 text-[14px] hover:bg-muted">
+                ← {tt("chal_back")}
+            </a>
+        </div>
+
+        <!-- MAIN CONTENT -->
+        <div id="chal-content" class="hidden">
+            <div class="flex flex-col gap-6">
+            <!-- Position summary -->
+            <Card title={tt("chal_summary_title")}>
+                <div class="mb-4 flex items-center gap-3">
+                    <img id="pos-icon" src="" alt="" class="h-12 w-12 shrink-0 rounded-full" />
+                    <div>
+                        <div id="pos-collateral-amount" class="font-bold text-[18px]"></div>
+                        <div id="pos-collateral-name" class="text-[13px] opacity-70"></div>
+                    </div>
+                </div>
+
+                <dl class="grid grid-cols-1 gap-2 text-[14px] md:grid-cols-2 md:gap-x-6">
+                    <div class="flex justify-between gap-3 border-t border-foreground/10 pt-2">
+                        <dt class="opacity-70">{tt("chal_field_owner")}</dt>
+                        <dd id="pos-owner" class="font-mono text-[12px] truncate"></dd>
+                    </div>
+                    <div class="flex justify-between gap-3 border-t border-foreground/10 pt-2">
+                        <dt class="opacity-70">{tt("chal_field_liq_price")}</dt>
+                        <dd id="pos-liq-price" class="font-medium"></dd>
+                    </div>
+                    <div class="flex justify-between gap-3 border-t border-foreground/10 pt-2">
+                        <dt class="opacity-70">{tt("chal_field_market_price")}</dt>
+                        <dd id="pos-market-price" class="font-medium"></dd>
+                    </div>
+                    <div class="flex justify-between gap-3 border-t border-foreground/10 pt-2">
+                        <dt class="opacity-70">{tt("chal_field_health")}</dt>
+                        <dd id="pos-health" class="font-medium"></dd>
+                    </div>
+                    <div class="flex justify-between gap-3 border-t border-foreground/10 pt-2">
+                        <dt class="opacity-70">{tt("chal_field_collateral")}</dt>
+                        <dd id="pos-coll-balance" class="font-medium"></dd>
+                    </div>
+                    <div class="flex justify-between gap-3 border-t border-foreground/10 pt-2">
+                        <dt class="opacity-70">{tt("chal_field_minted")}</dt>
+                        <dd id="pos-minted" class="font-medium"></dd>
+                    </div>
+                    <div class="flex justify-between gap-3 border-t border-foreground/10 pt-2">
+                        <dt class="opacity-70">{tt("chal_field_expiration")}</dt>
+                        <dd id="pos-expiration" class="font-medium"></dd>
+                    </div>
+                    <div class="flex justify-between gap-3 border-t border-foreground/10 pt-2">
+                        <dt class="opacity-70">{tt("chal_field_challenge_period")}</dt>
+                        <dd id="pos-challenge-period" class="font-medium"></dd>
+                    </div>
+                </dl>
+            </Card>
+
+            <!-- Challenge form -->
+            <Card title={tt("chal_form_title")}>
+                <div class="mb-4">
+                    <label for="amount" class="mb-2 block text-[14px] font-medium">{tt("chal_amount_label")}</label>
+                    <div class="relative">
+                        <input
+                            id="amount"
+                            type="text"
+                            inputmode="decimal"
+                            placeholder="0.0"
+                            class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 pr-24 text-[15px] font-medium focus:border-foreground/40 focus:outline-none disabled:opacity-50"
+                            disabled
+                        />
+                        <button
+                            id="btn-max"
+                            type="button"
+                            class="absolute right-2 top-1/2 -translate-y-1/2 rounded-md border border-foreground/20 px-2 py-1 text-[12px] font-medium hover:bg-muted disabled:opacity-50"
+                            disabled
+                        >
+                            {tt("chal_max")}
+                        </button>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between text-[12px] opacity-70">
+                        <span id="amount-error" class="hidden text-primary"></span>
+                        <span class="ml-auto"><span>{tt("chal_balance")}</span> <span id="wallet-balance">—</span></span>
+                    </div>
+                </div>
+
+                <dl class="mb-4 grid grid-cols-1 gap-2 text-[13px]">
+                    <div class="flex justify-between border-t border-foreground/10 pt-2">
+                        <dt class="opacity-70">{tt("chal_preview_starting_price")}</dt>
+                        <dd id="preview-starting-price" class="font-medium">—</dd>
+                    </div>
+                    <div class="flex justify-between border-t border-foreground/10 pt-2">
+                        <dt class="opacity-70">{tt("chal_preview_potential_reward")}</dt>
+                        <dd id="preview-reward" class="font-medium">—</dd>
+                    </div>
+                    <div class="flex justify-between border-t border-foreground/10 pt-2">
+                        <dt class="opacity-70">{tt("chal_preview_min_amount")}</dt>
+                        <dd id="preview-min-amount" class="font-medium">—</dd>
+                    </div>
+                    <div class="flex justify-between border-t border-foreground/10 pt-2">
+                        <dt class="opacity-70">{tt("chal_preview_phase_duration")}</dt>
+                        <dd id="preview-phase-duration" class="font-medium">—</dd>
+                    </div>
+                </dl>
+
+                <div id="action-disconnected">
+                    <Button id="btn-connect" fullWidth>{tt("chal_btn_connect")}</Button>
+                </div>
+                <div id="action-connected" class="hidden">
+                    <Button id="btn-approve" fullWidth disabled>{tt("chal_btn_approve")}</Button>
+                    <div class="mt-2 hidden" id="btn-challenge-wrap">
+                        <Button id="btn-challenge" fullWidth disabled>{tt("chal_btn_challenge")}</Button>
+                    </div>
+                </div>
+
+                <p class="mt-4 text-[12px] leading-relaxed opacity-70">
+                    {tt("chal_info_text")}
+                </p>
+            </Card>
+            </div>
+        </div>
+    </main>
+</Layout>
+
+<script id="chal-i18n" type="application/json" set:html={safeJsonForScript(clientStrings)}></script>
+<script id="chal-locale" type="application/json" set:html={safeJsonForScript(locale)}></script>
+
+<script>
+    import {
+        formatUnits, parseUnits, isAddress,
+        type Address,
+    } from "viem";
+    import { getPublicClient, makeWalletClient } from "@lib/client";
+    import { getOnboard } from "@lib/onboard";
+    import { toast } from "@lib/toast";
+    import { friendlyError } from "@lib/errors";
+    import { findStaticPosition, loadPositionDetail, liqPriceUnits, type PositionDetail } from "@lib/positionDetail";
+    import { getMarketPriceCHF } from "@lib/prices";
+    import {
+        approveCollateralForChallenge,
+        launchChallenge,
+        getCollateralAllowance,
+        getCollateralBalance,
+    } from "@lib/challengeAction";
+
+    // ---- token icons (same set as monitoring.astro) ----
+    import bossIcon from "@assets/tokens/boss.svg?url";
+    import cbbtcIcon from "@assets/tokens/cbbtc.svg?url";
+    import crvIcon from "@assets/tokens/crv.svg?url";
+    import gnoIcon from "@assets/tokens/gno.svg?url";
+    import lendsIcon from "@assets/tokens/lends.svg?url";
+    import lsethIcon from "@assets/tokens/lseth.svg?url";
+    import paxgIcon from "@assets/tokens/paxg.svg?url";
+    import realuIcon from "@assets/tokens/realu.svg?url";
+    import spyonIcon from "@assets/tokens/spyon.svg?url";
+    import wbtcIcon from "@assets/tokens/wbtc.svg?url";
+    import wethIcon from "@assets/tokens/weth.svg?url";
+    import wstethIcon from "@assets/tokens/wsteth.svg?url";
+    import xautIcon from "@assets/tokens/xaut.svg?url";
+    import ysyboldIcon from "@assets/tokens/ysybold.svg?url";
+    import unknownIcon from "@assets/icons/unknown.svg?url";
+
+    const ICONS: Record<string, string> = {
+        boss: bossIcon, cbbtc: cbbtcIcon, crv: crvIcon, gno: gnoIcon,
+        lends: lendsIcon, lseth: lsethIcon, paxg: paxgIcon, realu: realuIcon,
+        spyon: spyonIcon, wbtc: wbtcIcon, weth: wethIcon, wsteth: wstethIcon,
+        xaut: xautIcon, ysybold: ysyboldIcon,
+    };
+
+    const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
+    const i18n = JSON.parse($("chal-i18n").textContent || "{}") as Record<string, string>;
+    const locale = JSON.parse($("chal-locale").textContent || '"en"') as string;
+    const numberLocale = ({ en: "en-US", de: "de-CH", fr: "fr-CH", it: "it-CH", es: "es-ES" } as Record<string, string>)[locale] ?? "en-US";
+
+    const els = {
+        loading: $("chal-loading"),
+        error: $("chal-error"),
+        errorMsg: $("chal-error-msg"),
+        content: $("chal-content"),
+        icon: $<HTMLImageElement>("pos-icon"),
+        collateralAmount: $("pos-collateral-amount"),
+        collateralName: $("pos-collateral-name"),
+        owner: $("pos-owner"),
+        liqPrice: $("pos-liq-price"),
+        marketPrice: $("pos-market-price"),
+        health: $("pos-health"),
+        collBalance: $("pos-coll-balance"),
+        minted: $("pos-minted"),
+        expiration: $("pos-expiration"),
+        challengePeriod: $("pos-challenge-period"),
+        amount: $<HTMLInputElement>("amount"),
+        btnMax: $<HTMLButtonElement>("btn-max"),
+        walletBalance: $("wallet-balance"),
+        amountError: $("amount-error"),
+        previewStartingPrice: $("preview-starting-price"),
+        previewReward: $("preview-reward"),
+        previewMinAmount: $("preview-min-amount"),
+        previewPhaseDuration: $("preview-phase-duration"),
+        actionDisconnected: $("action-disconnected"),
+        actionConnected: $("action-connected"),
+        btnConnect: $<HTMLButtonElement>("btn-connect"),
+        btnApprove: $<HTMLButtonElement>("btn-approve"),
+        btnChallenge: $<HTMLButtonElement>("btn-challenge"),
+        btnChallengeWrap: $("btn-challenge-wrap"),
+    };
+
+    // ------------------------------------------------------------------
+    // State
+    // ------------------------------------------------------------------
+    let connected: Address | null = null;
+    let position: PositionDetail | null = null;
+    let positionCollateralBalance: bigint = 0n;     // ERC20 balance of position contract
+    let walletBalanceRaw: bigint = 0n;
+    let allowanceRaw: bigint = 0n;
+    let marketPriceChf: number | null = null;
+
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
+    function showError(msg: string) {
+        els.loading.classList.add("hidden");
+        els.content.classList.add("hidden");
+        els.errorMsg.textContent = msg;
+        els.error.classList.remove("hidden");
+    }
+
+    function showAmountError(msg: string | null) {
+        if (msg) {
+            els.amountError.textContent = msg;
+            els.amountError.classList.remove("hidden");
+        } else {
+            els.amountError.classList.add("hidden");
+            els.amountError.textContent = "";
+        }
+    }
+
+    function fmtCollateral(raw: bigint, decimals: number): string {
+        const n = Number(formatUnits(raw, decimals));
+        if (decimals === 0 || n >= 1000) {
+            return n.toLocaleString(numberLocale, { maximumFractionDigits: 0 });
+        }
+        return n.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+    }
+
+    function fmtZchf(n: number): string {
+        if (n >= 100) return n.toLocaleString(numberLocale, { maximumFractionDigits: 0 });
+        return n.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function fmtDate(ts: number): string {
+        return new Date(ts * 1000).toLocaleDateString(numberLocale, {
+            day: "2-digit", month: "short", year: "numeric",
+        });
+    }
+
+    function daysFromNow(ts: number): number {
+        return Math.round((ts * 1000 - Date.now()) / 86_400_000);
+    }
+
+    function fmtHours(seconds: number): string {
+        const h = Math.round(seconds / 3600);
+        return `${h} h`;
+    }
+
+    function shorten(addr: string): string {
+        return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+    }
+
+    function parseAmountInput(): bigint {
+        if (!position) return 0n;
+        try {
+            const v = els.amount.value.trim();
+            if (!v) return 0n;
+            return parseUnits(v, position.collateralDecimals);
+        } catch {
+            return 0n;
+        }
+    }
+
+    function iconFor(symbol: string): string {
+        return ICONS[symbol.toLowerCase()] ?? unknownIcon;
+    }
+
+    // ------------------------------------------------------------------
+    // Address resolution
+    // ------------------------------------------------------------------
+    const queryAddr = new URLSearchParams(window.location.search).get("address");
+
+    async function bootstrap() {
+        if (!queryAddr) return showError(i18n.err_missing_address);
+        if (!isAddress(queryAddr)) return showError(i18n.err_invalid_address);
+
+        const _static = await findStaticPosition(queryAddr).catch(() => null);
+        if (!_static) return showError(i18n.err_not_found);
+
+        await loadPositionState();
+        if (!position) return;
+
+        renderPosition();
+        loadMarketPrice();
+        els.loading.classList.add("hidden");
+        els.content.classList.remove("hidden");
+
+        // Pre-fill amount with full available collateral to mirror official.
+        const max = positionCollateralBalance;
+        els.amount.value = formatUnits(max, position.collateralDecimals);
+        validateAndPreview();
+    }
+
+    async function loadPositionState() {
+        if (!queryAddr) return;
+        const _static = await findStaticPosition(queryAddr);
+        if (!_static) return;
+
+        const acc = connected;
+        const detail = await loadPositionDetail(_static, acc).catch(() => null);
+        if (!detail) return;
+        position = detail;
+
+        // Read the position's own collateral balance — needed for the
+        // "amount <= position collateral" constraint. loadPositionDetail
+        // gives us user balance & allowance but not this.
+        positionCollateralBalance = await getCollateralBalance(
+            getPublicClient("ethereum"),
+            detail.collateral,
+            detail.address,
+        );
+
+        walletBalanceRaw = detail.userBalance;
+        allowanceRaw = detail.allowanceHub;
+    }
+
+    // ------------------------------------------------------------------
+    // Rendering
+    // ------------------------------------------------------------------
+    function renderPosition() {
+        if (!position) return;
+        const p = position;
+
+        els.icon.src = iconFor(p.collateralSymbol);
+        els.collateralAmount.textContent = `${fmtCollateral(positionCollateralBalance, p.collateralDecimals)} ${p.collateralSymbol}`;
+        els.collateralName.textContent = p.collateralName;
+        els.owner.textContent = shorten(p.address);
+
+        const liq = liqPriceUnits(p);
+        els.liqPrice.textContent = `${fmtZchf(liq)} ZCHF`;
+
+        els.collBalance.textContent = `${fmtCollateral(positionCollateralBalance, p.collateralDecimals)} ${p.collateralSymbol}`;
+        els.minted.textContent = `${fmtZchf(Number(formatUnits(p.minted, 18)))} ZCHF`;
+
+        const days = daysFromNow(p.expiration);
+        const dateText = fmtDate(p.expiration);
+        els.expiration.textContent = days < 0
+            ? `${dateText} (${i18n.expired})`
+            : `${dateText} (${days}${i18n.days_short})`;
+
+        els.challengePeriod.textContent = fmtHours(p.challengePeriod);
+        els.marketPrice.textContent = i18n.health_loading;
+        els.health.textContent = i18n.health_loading;
+    }
+
+    async function loadMarketPrice() {
+        if (!position) return;
+        const sym = position.collateralSymbol.toUpperCase();
+        try {
+            const m = await getMarketPriceCHF(sym);
+            marketPriceChf = m;
+        } catch {
+            marketPriceChf = null;
+        }
+        renderMarketAndHealth();
+        validateAndPreview();
+    }
+
+    function renderMarketAndHealth() {
+        if (!position) return;
+        if (marketPriceChf === null || marketPriceChf <= 0) {
+            els.marketPrice.textContent = i18n.no_price;
+            els.health.textContent = i18n.no_price;
+            return;
+        }
+        const liq = liqPriceUnits(position);
+        els.marketPrice.textContent = `${fmtZchf(marketPriceChf)} ZCHF`;
+        if (liq <= 0) {
+            els.health.textContent = i18n.no_price;
+            return;
+        }
+        const health = (marketPriceChf / liq) * 100;
+        let cls = "";
+        if (health < 110) cls = "text-primary font-semibold";
+        else if (health <= 120) cls = "text-amber-600 dark:text-amber-500";
+        els.health.innerHTML = `<span class="${cls}">${health.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</span>`;
+    }
+
+    function renderPreview() {
+        if (!position) return;
+        const amount = parseAmountInput();
+        els.previewStartingPrice.textContent = `${fmtZchf(liqPriceUnits(position))} ZCHF`;
+        // Potential reward: 2% of (price * amount), in ZCHF (raw is 36-decimal).
+        const rewardRaw = (position.price * amount * 2n) / 100n;
+        const rewardZchf = Number(formatUnits(rewardRaw, 36));
+        els.previewReward.textContent = `${fmtZchf(rewardZchf)} ZCHF`;
+        els.previewMinAmount.textContent = `${fmtCollateral(position.minimumCollateral, position.collateralDecimals)} ${position.collateralSymbol}`;
+        els.previewPhaseDuration.textContent = fmtHours(position.challengePeriod);
+    }
+
+    function renderWalletAndButtons() {
+        if (!position) return;
+        if (!connected) {
+            els.actionDisconnected.classList.remove("hidden");
+            els.actionConnected.classList.add("hidden");
+            els.walletBalance.textContent = "—";
+            return;
+        }
+        els.actionDisconnected.classList.add("hidden");
+        els.actionConnected.classList.remove("hidden");
+        els.walletBalance.textContent = `${fmtCollateral(walletBalanceRaw, position.collateralDecimals)} ${position.collateralSymbol}`;
+
+        const amount = parseAmountInput();
+        const needsApproval = amount > allowanceRaw;
+        if (needsApproval) {
+            els.btnApprove.disabled = amount === 0n || !!els.amountError.textContent;
+            els.btnApprove.classList.remove("hidden");
+            els.btnChallengeWrap.classList.add("hidden");
+        } else {
+            els.btnApprove.classList.add("hidden");
+            els.btnChallengeWrap.classList.remove("hidden");
+            els.btnChallenge.disabled = amount === 0n || !!els.amountError.textContent;
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Validation
+    // ------------------------------------------------------------------
+    function validate(): boolean {
+        if (!position) return false;
+        if (position.isClosed) { showAmountError(i18n.err_closed); return false; }
+        if (position.expiration * 1000 < Date.now()) { showAmountError(i18n.err_expired); return false; }
+
+        const amount = parseAmountInput();
+        if (amount === 0n) { showAmountError(null); return false; }
+
+        const min = position.minimumCollateral;
+        if (amount < min) { showAmountError(i18n.err_amount_too_low); return false; }
+        if (amount > positionCollateralBalance) { showAmountError(i18n.err_amount_too_high); return false; }
+        if (connected && amount > walletBalanceRaw) { showAmountError(i18n.err_wallet_low); return false; }
+
+        showAmountError(null);
+        return true;
+    }
+
+    function validateAndPreview() {
+        validate();
+        renderPreview();
+        renderWalletAndButtons();
+    }
+
+    // ------------------------------------------------------------------
+    // Actions
+    // ------------------------------------------------------------------
+    function lockBtn(btn: HTMLButtonElement, label: string) {
+        const labelEl = btn.querySelector(".btn-label") as HTMLElement | null;
+        const original = labelEl?.textContent ?? "";
+        btn.dataset.loading = "1";
+        btn.disabled = true;
+        if (labelEl) labelEl.textContent = label;
+        return () => {
+            delete btn.dataset.loading;
+            btn.disabled = false;
+            if (labelEl) labelEl.textContent = original;
+        };
+    }
+
+    async function handleApprove() {
+        if (!connected || !position) return;
+        const unlock = lockBtn(els.btnApprove, i18n.btn_approving);
+        try {
+            const wc = makeWalletClient(getOnboard().state.get().wallets[0].provider, "ethereum");
+            await approveCollateralForChallenge(
+                wc, getPublicClient("ethereum"),
+                position.collateral, connected,
+            );
+            // Refresh allowance — pull live, not cached.
+            allowanceRaw = await getCollateralAllowance(
+                getPublicClient("ethereum"),
+                position.collateral, connected,
+            );
+            toast(i18n.toast_approved, "success");
+            validateAndPreview();
+        } catch (e) {
+            const { message, isUserCancel } = friendlyError(e);
+            toast(isUserCancel ? i18n.cancelled : message, isUserCancel ? "info" : "error", isUserCancel ? 2500 : 6500);
+        } finally {
+            unlock();
+        }
+    }
+
+    async function handleChallenge() {
+        if (!connected || !position) return;
+        if (!validate()) return;
+        const amount = parseAmountInput();
+        const unlock = lockBtn(els.btnChallenge, i18n.btn_challenging);
+        try {
+            const wc = makeWalletClient(getOnboard().state.get().wallets[0].provider, "ethereum");
+            await launchChallenge(wc, getPublicClient("ethereum"), {
+                position: position.address,
+                collateralAmount: amount,
+                expectedPrice: position.price,   // live `price()` from the most recent fetch
+                account: connected,
+            });
+            toast(i18n.toast_done, "success");
+            // Redirect back to monitoring after a brief pause.
+            setTimeout(() => {
+                window.location.href = `/${locale === "en" ? "" : locale + "/"}monitoring`.replace(/^\/+/, "/");
+            }, 1200);
+        } catch (e) {
+            const { message, isUserCancel } = friendlyError(e);
+            toast(isUserCancel ? i18n.cancelled : message, isUserCancel ? "info" : "error", isUserCancel ? 2500 : 6500);
+        } finally {
+            unlock();
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Event wiring
+    // ------------------------------------------------------------------
+    els.amount.addEventListener("input", validateAndPreview);
+    els.btnMax.addEventListener("click", () => {
+        if (!position) return;
+        // "Max" = min(position's collateral, user wallet balance).
+        const max = walletBalanceRaw < positionCollateralBalance ? walletBalanceRaw : positionCollateralBalance;
+        els.amount.value = formatUnits(max, position.collateralDecimals);
+        validateAndPreview();
+    });
+    els.btnConnect.addEventListener("click", () => {
+        getOnboard().connectWallet();
+    });
+    els.btnApprove.addEventListener("click", handleApprove);
+    els.btnChallenge.addEventListener("click", handleChallenge);
+
+    getOnboard().state.select("wallets").subscribe(async (wallets) => {
+        const w = wallets[0];
+        if (w?.accounts[0]) {
+            connected = w.accounts[0].address as Address;
+            els.amount.disabled = false;
+            els.btnMax.disabled = false;
+            // Refresh allowance + balance for this user.
+            if (position) {
+                await loadPositionState();
+                renderPosition();
+                renderMarketAndHealth();
+            }
+        } else {
+            connected = null;
+            els.amount.disabled = false;
+            els.btnMax.disabled = false;
+        }
+        validateAndPreview();
+    });
+
+    bootstrap().catch(err => {
+        console.error("[challenge] bootstrap failed", err);
+        showError(i18n.err_load_failed);
+    });
+</script>

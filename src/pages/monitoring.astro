@@ -54,6 +54,33 @@ const locale = getLocale(Astro.url);
             <p class="mt-2 text-[14px] opacity-80">{tt("mon_intro_text")}</p>
         </section>
 
+        <section class="mb-6 rounded-md border border-foreground/10 bg-background p-5">
+            <h2 class="text-[16px] font-bold">{tt("mon_auctions_intro_title")}</h2>
+            <p class="mt-2 text-[14px] opacity-80">{tt("mon_auctions_intro_text")}</p>
+        </section>
+
+        <Card title={tt("mon_auctions_table_title")}>
+            <div class="hidden grid-cols-[2.2fr_1.2fr_1fr_1fr_auto] gap-4 border-b border-foreground/10 pb-3 text-[13px] font-bold opacity-70 md:grid">
+                <span>{tt("mon_auc_col_available")}</span>
+                <span>{tt("mon_auc_col_price")}</span>
+                <span>{tt("mon_auc_col_phase")}</span>
+                <span>{tt("mon_auc_col_ends_in")}</span>
+                <span class="w-24"></span>
+            </div>
+
+            <ul id="auc-list" class="divide-y divide-foreground/10">
+                <li id="auc-loading" class="py-6 text-center text-[14px] opacity-60">
+                    {tt("mon_loading")}
+                </li>
+            </ul>
+
+            <p id="auc-empty" class="hidden py-6 text-center text-[14px] opacity-60">
+                {tt("mon_auc_empty")}
+            </p>
+        </Card>
+
+        <div class="mt-6"></div>
+
         <Card title={tt("mon_table_title")}>
             <div
                 data-token-icons={JSON.stringify(TOKEN_ICONS)}
@@ -129,11 +156,17 @@ const locale = getLocale(Astro.url);
     error: tt("mon_error"),
     days_short: tt("mon_days_short"),
     expired: tt("mon_expired"),
+    auc_empty: tt("mon_auc_empty"),
+    auc_btn_buy: tt("mon_auc_btn_buy"),
+    auc_phase_fixed: tt("mon_auc_phase_fixed"),
+    auc_phase_declining: tt("mon_auc_phase_declining"),
+    auc_phase_zero: tt("mon_auc_phase_zero"),
 })}></script>
 
 <script>
     import { loadMonitoredCached, type MonitoredPosition } from "@lib/positions";
     import { getMarketPriceCHF } from "@lib/prices";
+    import { loadActiveChallengesCached, auctionState, fmtDuration, type ActiveChallenge } from "@lib/challenges";
     import { localePath } from "@i18n/t";
     import type { Locale } from "@i18n/messages";
 
@@ -161,14 +194,16 @@ const locale = getLocale(Astro.url);
     const search = $<HTMLInputElement>("mon-search");
     const count = $("mon-count");
 
+    const aucList = $<HTMLUListElement>("auc-list");
+    const aucLoading = $("auc-loading");
+    const aucEmpty = $("auc-empty");
+
     let allPositions: MonitoredPosition[] = [];
-    // Market price per symbol — populated async after positions load. undefined =
-    // not yet attempted, null = fetch failed / no oracle for this symbol.
+    let activeChallenges: ActiveChallenge[] = [];
     const priceMap: Record<string, number | null | undefined> = {};
 
     type SortKey = "name" | "price" | "health" | "challenged" | "expiration";
     type SortDir = "asc" | "desc";
-    // Default sort: ascending health = riskiest at the top. Matches frankencoin.
     let sortKey: SortKey = "health";
     let sortDir: SortDir = "asc";
 
@@ -176,8 +211,6 @@ const locale = getLocale(Astro.url);
         return tokenIcons[symbol.toLowerCase()] ?? unknownIconUrl;
     }
 
-    // BigInt → number with full precision for typical position sizes. We split
-    // whole/frac in BigInt then combine as floats; safe up to ~1e21 collateral.
     function units(raw: bigint, decimals: number): number {
         if (decimals === 0) return Number(raw);
         const scale = 10n ** BigInt(decimals);
@@ -186,9 +219,6 @@ const locale = getLocale(Astro.url);
         return Number(whole) + Number(frac) / Number(scale);
     }
 
-    // Frankencoin shows compact collateral amounts: integers for whole-number
-    // shares (BOSS, REALU, LENDS) and integers for "big" amounts (≥1000), and
-    // 2 fraction digits otherwise.
     function fmtAmount(raw: bigint, decimals: number): string {
         const n = units(raw, decimals);
         if (decimals === 0 || n >= 1000) {
@@ -198,14 +228,10 @@ const locale = getLocale(Astro.url);
     }
 
     function liquidationPriceZchf(p: MonitoredPosition): number {
-        // Position price = liquidation ZCHF per 1 collateral unit, scaled by
-        // 10^(36 - collateralDecimals). Divide back out for human display.
         return Number(p.price) / Math.pow(10, 36 - p.collateralDecimals);
     }
 
     function fmtZchfPrice(n: number): string {
-        // Frankencoin: large prices without decimals ("45 000 ZCHF"), small with
-        // two ("0.12 ZCHF"). Threshold at 100.
         if (n >= 100) return n.toLocaleString(numberLocale, { maximumFractionDigits: 0 });
         return n.toLocaleString(numberLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
@@ -219,11 +245,9 @@ const locale = getLocale(Astro.url);
     }
 
     /**
-     * Health = market price / liquidation price × 100. Mirrors the official
-     * frankencoin.com monitoring page: this is the position-level risk metric
-     * that determines challenge-ability, independent of how much was minted.
-     * A position is challengeable when market price falls below liquidation
-     * price (health < 100%).
+     * Health = market price / liquidation price × 100. Mirrors frankencoin.com
+     * monitoring: the position-level risk metric that determines challenge-
+     * ability, independent of how much was minted.
      */
     function healthFor(p: MonitoredPosition): number | "loading" | "no-price" {
         const sym = p.collateralSymbol.toUpperCase();
@@ -239,7 +263,6 @@ const locale = getLocale(Astro.url);
         const h = healthFor(p);
         if (h === "loading") return `<span class="opacity-50">${esc(i18n.health_loading)}</span>`;
         if (h === "no-price") return `<span class="opacity-60">${esc(i18n.health_no_price)}</span>`;
-        // Match frankencoin's bands: <110% red, ≤120% orange, otherwise green/default.
         let cls = "";
         if (h < 110) cls = "text-primary font-semibold";
         else if (h <= 120) cls = "text-amber-600 dark:text-amber-500";
@@ -266,7 +289,6 @@ const locale = getLocale(Astro.url);
             case "price": return liquidationPriceZchf(p);
             case "health": {
                 const h = healthFor(p);
-                // No-price / loading → bottom of an asc sort (effectively healthy).
                 if (h === "no-price" || h === "loading") return Number.POSITIVE_INFINITY;
                 return h;
             }
@@ -310,8 +332,6 @@ const locale = getLocale(Astro.url);
             const collatAmount = fmtAmount(p.collateralBalance, p.collateralDecimals);
             const liqPrice = liquidationPriceZchf(p);
 
-            // Frankencoin layout: amount + symbol bold on top, collateral name
-            // muted underneath. Price cell echoes the per-unit hint.
             return `<li class="grid grid-cols-1 gap-3 py-4 md:grid-cols-[2.2fr_1.4fr_1fr_1fr_1fr_auto] md:items-center md:gap-4">
                 <div class="flex items-center gap-3">
                     <img src="${icon}" alt="" class="h-9 w-9 shrink-0 rounded-full" />
@@ -377,9 +397,102 @@ const locale = getLocale(Astro.url);
         render(final);
     }
 
-    // Load market prices for every unique collateral symbol in parallel.
-    // Re-render after each settles so health cells light up progressively
-    // instead of waiting for the slowest oracle.
+    // ------------------------------------------------------------
+    // Auctions section
+    // ------------------------------------------------------------
+
+    function phaseLabel(phase: "fixed" | "declining" | "zero"): string {
+        if (phase === "fixed") return i18n.auc_phase_fixed;
+        if (phase === "declining") return i18n.auc_phase_declining;
+        return i18n.auc_phase_zero;
+    }
+
+    function renderAuctions() {
+        // Cross-reference each challenge with its position to get
+        // symbol/decimals/expiration. Skip if the position didn't come back
+        // from /positions/monitored.
+        const byAddr = new Map<string, MonitoredPosition>();
+        for (const p of allPositions) byAddr.set(p.address.toLowerCase(), p);
+
+        const rows: { c: ActiveChallenge; p: MonitoredPosition }[] = [];
+        for (const c of activeChallenges) {
+            const p = byAddr.get(c.position.toLowerCase());
+            if (!p) continue;
+            if (c.size <= c.filledSize) continue;
+            rows.push({ c, p });
+        }
+
+        // Sort by remaining collateral size descending — biggest auctions first.
+        rows.sort((a, b) => {
+            const aRem = units(a.c.size - a.c.filledSize, a.p.collateralDecimals);
+            const bRem = units(b.c.size - b.c.filledSize, b.p.collateralDecimals);
+            return bRem - aRem;
+        });
+
+        if (rows.length === 0) {
+            aucList.innerHTML = "";
+            aucEmpty.classList.remove("hidden");
+            return;
+        }
+        aucEmpty.classList.add("hidden");
+
+        const now = Date.now();
+        aucList.innerHTML = rows.map(({ c, p }) => {
+            const remaining = c.size - c.filledSize;
+            const state = auctionState(c.start, c.duration, c.liqPrice, p.expiration, p.collateralDecimals, now);
+            const icon = iconFor(p.collateralSymbol);
+            return `<li class="grid grid-cols-1 gap-3 py-4 md:grid-cols-[2.2fr_1.2fr_1fr_1fr_auto] md:items-center md:gap-4">
+                <div class="flex items-center gap-3">
+                    <img src="${icon}" alt="" class="h-9 w-9 shrink-0 rounded-full" />
+                    <div>
+                        <div class="font-bold text-[15px]">${fmtAmount(remaining, p.collateralDecimals)} ${esc(p.collateralSymbol)}</div>
+                        <div class="text-[12px] opacity-70">${esc(p.collateralName)}</div>
+                    </div>
+                </div>
+
+                <div class="text-[14px]">
+                    <span class="md:hidden opacity-60">Price: </span>
+                    <div>${fmtZchfPrice(state.priceZchf)} ZCHF</div>
+                    <div class="text-[12px] opacity-60">${esc(i18n.per)} ${esc(p.collateralSymbol)}</div>
+                </div>
+
+                <div class="text-[14px]">
+                    <span class="md:hidden opacity-60">Phase: </span>
+                    ${esc(phaseLabel(state.phase))}
+                </div>
+
+                <div class="text-[14px]">
+                    <span class="md:hidden opacity-60">Ends in: </span>
+                    ${esc(fmtDuration(state.msUntilNextPhase))}
+                </div>
+
+                <div>
+                    <button
+                        type="button"
+                        data-challenge-position="${c.position}"
+                        data-challenge-number="${c.number}"
+                        class="relative inline-flex w-full items-center justify-center gap-2 rounded-md border border-transparent bg-primary px-5 py-2 text-[14px] font-semibold text-[#FAF7F2] transition-colors hover:bg-primary-hover dark:text-[#030303] md:w-auto"
+                    >
+                        ${esc(i18n.auc_btn_buy)}
+                    </button>
+                </div>
+            </li>`;
+        }).join("");
+
+        aucList.querySelectorAll<HTMLButtonElement>("[data-challenge-position]").forEach(btn => {
+            btn.addEventListener("click", () => {
+                const addr = btn.dataset.challengePosition;
+                const num = btn.dataset.challengeNumber;
+                if (!isAddrLike(addr) || !num) return;
+                window.location.href = localePath(locale as Locale, `/monitoring/${addr}/auction/${num}`);
+            });
+        });
+    }
+
+    // ------------------------------------------------------------
+    // Async loads
+    // ------------------------------------------------------------
+
     async function loadPrices() {
         const symbols = Array.from(new Set(allPositions.map(p => p.collateralSymbol.toUpperCase())));
         await Promise.all(symbols.map(async sym => {
@@ -390,6 +503,17 @@ const locale = getLocale(Astro.url);
             }
             applyFilter();
         }));
+    }
+
+    async function loadAuctions() {
+        try {
+            activeChallenges = await loadActiveChallengesCached();
+        } catch (err) {
+            console.error("[monitoring] challenges load failed", err);
+            activeChallenges = [];
+        }
+        aucLoading.remove();
+        renderAuctions();
     }
 
     document.querySelectorAll<HTMLButtonElement>(".sort-btn").forEach(btn => {
@@ -411,9 +535,16 @@ const locale = getLocale(Astro.url);
             syncSortIndicators();
             applyFilter();
             loadPrices();
+            loadAuctions();
         })
         .catch(err => {
             console.error("[monitoring] load failed", err);
             loading.textContent = i18n.error;
+            loadAuctions();
         });
+
+    // Re-render auctions every 30s so "Ends in" and declining price stay live.
+    setInterval(() => {
+        if (activeChallenges.length > 0) renderAuctions();
+    }, 30_000);
 </script>
