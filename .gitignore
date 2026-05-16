@@ -22,3 +22,9 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+astro_tmp_pages_de
+astro_tmp_pages_en
+astro_tmp_pages_fr
+astro_tmp_pages_es
+astro_tmp_pages_it
