@@ -1,6 +1,7 @@
 ---
 import Layout from "@layouts/Layout.astro";
 import Card from "@components/Card.astro";
+import Button from "@components/Button.astro";
 import { t, getLocale, safeJsonForScript } from "@i18n/t";
 import { CHAINS, type ChainKey } from "@config/network";
 
@@ -47,6 +48,8 @@ const i18n = {
     ratesTakesEffect:       tt("gov_rates_takes_effect"),
     ratesReady:             tt("gov_rates_ready"),
     ratesPendingPropose:    tt("gov_rates_pending_propose"),
+    ratesGateBelow:         tt("gov_rates_gate_below"),
+    ratesGateNeed:          tt("gov_rates_gate_need"),
     // minters
     mintersProposalProcess: tt("gov_minters_proposal_process"),
     mintersFee:             tt("gov_minters_fee"),
@@ -130,8 +133,8 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         <!-- ====== New Positions ====== -->
         <section class="space-y-3">
             <h2 class="text-[22px] font-bold tracking-tight">{i18n.positionsTitle}</h2>
-            <p class="text-[14px] opacity-80 max-w-3xl">{i18n.positionsSubtitle}</p>
-            <div id="positions-new" class="text-[14px] opacity-60 py-4">
+            <p class="text-[14px] opacity-90 max-w-3xl">{i18n.positionsSubtitle}</p>
+            <div id="positions-new" class="text-[14px] opacity-70 py-4">
                 {i18n.loading}
             </div>
         </section>
@@ -139,7 +142,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         <!-- ====== Interest Rates ====== -->
         <section class="space-y-3">
             <h2 class="text-[22px] font-bold tracking-tight">{i18n.ratesTitle}</h2>
-            <p class="text-[14px] opacity-80 max-w-3xl">{i18n.ratesSubtitle}</p>
+            <p class="text-[14px] opacity-90 max-w-3xl">{i18n.ratesSubtitle}</p>
 
             <!-- Two-card row: Historical Rates + Propose -->
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -147,11 +150,11 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
                     <div id="rates-history" class="mt-2 space-y-2">
                         <!-- Mint and Save rows, populated client-side. -->
                         <div class="flex items-baseline justify-between border-b border-foreground/10 pb-2">
-                            <span class="text-[13px] font-medium opacity-70">{i18n.ratesMint}</span>
+                            <span class="text-[13px] font-medium opacity-80">{i18n.ratesMint}</span>
                             <span id="rate-mint-current" class="text-[20px] font-bold tracking-tight">—</span>
                         </div>
                         <div class="flex items-baseline justify-between">
-                            <span class="text-[13px] font-medium opacity-70">{i18n.ratesSave}</span>
+                            <span class="text-[13px] font-medium opacity-80">{i18n.ratesSave}</span>
                             <span id="rate-save-current" class="text-[20px] font-bold tracking-tight">—</span>
                         </div>
                         <div id="rate-mint-pending" class="hidden text-[12px] opacity-75 pt-1"></div>
@@ -160,12 +163,12 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
                 </Card>
 
                 <Card title={i18n.ratesPropose}>
-                    <div id="propose-rates-disconnected" class="text-[13px] opacity-70 py-2">
+                    <div id="propose-rates-disconnected" class="text-[13px] opacity-80 py-2">
                         {i18n.delegationConnect}
                     </div>
                     <div id="propose-rates-connected" class="space-y-3 hidden">
                         <div>
-                            <label class="block text-[12px] font-medium opacity-70 mb-1" for="propose-mint-input">{i18n.ratesMint}</label>
+                            <label class="block text-[12px] font-medium opacity-80 mb-1" for="propose-mint-input">{i18n.ratesMint}</label>
                             <div class="flex gap-2">
                                 <div class="relative flex-1">
                                     <input
@@ -173,16 +176,15 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
                                         type="number" step="0.01" min="0" max="100"
                                         class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 pr-8 text-[14px] font-mono focus:border-foreground/40 focus:outline-none"
                                     />
-                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] opacity-60">%</span>
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] opacity-70">%</span>
                                 </div>
-                                <button
-                                    id="propose-mint-btn" type="button" disabled
-                                    class="rounded-md bg-foreground text-background px-4 py-2 text-[13px] font-medium hover:opacity-90 disabled:opacity-50"
-                                >{i18n.ratesProposeBtn}</button>
+                                <Button id="propose-mint-btn" disabled>
+                                    {i18n.ratesProposeBtn}
+                                </Button>
                             </div>
                         </div>
                         <div>
-                            <label class="block text-[12px] font-medium opacity-70 mb-1" for="propose-save-input">{i18n.ratesSave}</label>
+                            <label class="block text-[12px] font-medium opacity-80 mb-1" for="propose-save-input">{i18n.ratesSave}</label>
                             <div class="flex gap-2">
                                 <div class="relative flex-1">
                                     <input
@@ -190,14 +192,14 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
                                         type="number" step="0.01" min="0" max="100"
                                         class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 pr-8 text-[14px] font-mono focus:border-foreground/40 focus:outline-none"
                                     />
-                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] opacity-60">%</span>
+                                    <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[13px] opacity-70">%</span>
                                 </div>
-                                <button
-                                    id="propose-save-btn" type="button" disabled
-                                    class="rounded-md bg-foreground text-background px-4 py-2 text-[13px] font-medium hover:opacity-90 disabled:opacity-50"
-                                >{i18n.ratesProposeBtn}</button>
+                                <Button id="propose-save-btn" disabled>
+                                    {i18n.ratesProposeBtn}
+                                </Button>
                             </div>
                         </div>
+                        <div id="propose-rates-gate" class="hidden text-[12px] opacity-90 rounded-md border border-foreground/15 bg-foreground/5 px-3 py-2"></div>
                     </div>
                 </Card>
             </div>
@@ -205,7 +207,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
             <!-- Open proposals table (only currently-open, not history) -->
             <div class="overflow-x-auto pt-2">
                 <table class="w-full text-[13px]">
-                    <thead class="text-left opacity-70">
+                    <thead class="text-left opacity-80">
                         <tr class="border-b border-foreground/10">
                             <th class="py-2 pr-4 font-medium">{i18n.ratesProposedOn}</th>
                             <th class="py-2 pr-4 font-medium">{i18n.ratesProposer}</th>
@@ -215,7 +217,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
                         </tr>
                     </thead>
                     <tbody id="rates-open-tbody">
-                        <tr><td class="py-3 opacity-60" colspan="5">{i18n.loading}</td></tr>
+                        <tr><td class="py-3 opacity-70" colspan="5">{i18n.loading}</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -230,13 +232,13 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
                 <Card title={i18n.mintersProposalProcess}>
                     <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
                         <div>
-                            <div class="text-[12px] opacity-70 mb-1">{i18n.mintersFee}</div>
+                            <div class="text-[12px] opacity-80 mb-1">{i18n.mintersFee}</div>
                             <div class="rounded-md border border-foreground/15 bg-foreground/3 px-3 py-2.5 text-[14px] font-mono">
                                 1,000 ZCHF
                             </div>
                         </div>
                         <div>
-                            <div class="text-[12px] opacity-70 mb-1">{i18n.mintersPeriod}</div>
+                            <div class="text-[12px] opacity-80 mb-1">{i18n.mintersPeriod}</div>
                             <div class="rounded-md border border-foreground/15 bg-foreground/3 px-3 py-2.5 text-[14px] font-mono">
                                 14 days
                             </div>
@@ -245,28 +247,27 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
                 </Card>
 
                 <Card title={i18n.mintersProposeTitle}>
-                    <div id="propose-minter-disconnected" class="text-[13px] opacity-70 py-2">
+                    <div id="propose-minter-disconnected" class="text-[13px] opacity-80 py-2">
                         {i18n.delegationConnect}
                     </div>
                     <div id="propose-minter-connected" class="space-y-3 hidden">
                         <div>
-                            <label class="block text-[12px] font-medium opacity-70 mb-1" for="propose-minter-addr">{i18n.mintersAddr}</label>
+                            <label class="block text-[12px] font-medium opacity-80 mb-1" for="propose-minter-addr">{i18n.mintersAddr}</label>
                             <input
                                 id="propose-minter-addr" type="text" placeholder="0x…"
                                 class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 text-[14px] font-mono focus:border-foreground/40 focus:outline-none"
                             />
                         </div>
                         <div>
-                            <label class="block text-[12px] font-medium opacity-70 mb-1" for="propose-minter-msg">{i18n.mintersComment}</label>
+                            <label class="block text-[12px] font-medium opacity-80 mb-1" for="propose-minter-msg">{i18n.mintersComment}</label>
                             <input
                                 id="propose-minter-msg" type="text"
                                 class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 text-[14px] focus:border-foreground/40 focus:outline-none"
                             />
                         </div>
-                        <button
-                            id="propose-minter-btn" type="button"
-                            class="w-full rounded-md bg-foreground text-background px-4 py-2.5 text-[13px] font-medium hover:opacity-90 disabled:opacity-50"
-                        >{i18n.mintersBtn}</button>
+                        <Button id="propose-minter-btn" fullWidth>
+                            {i18n.mintersBtn}
+                        </Button>
                     </div>
                 </Card>
             </div>
@@ -274,7 +275,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
             <!-- Top-3 minters table -->
             <div class="overflow-x-auto pt-2">
                 <table class="w-full min-w-180 text-[13px]">
-                    <thead class="text-left opacity-70">
+                    <thead class="text-left opacity-80">
                         <tr class="border-b border-foreground/10">
                             <th class="py-2 pr-4 font-medium">{i18n.mintersDate}</th>
                             <th class="py-2 pr-4 font-medium">{i18n.mintersMinter}</th>
@@ -284,12 +285,12 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
                         </tr>
                     </thead>
                     <tbody id="minters-tbody">
-                        <tr><td class="py-3 opacity-60" colspan="5">{i18n.loading}</td></tr>
+                        <tr><td class="py-3 opacity-70" colspan="5">{i18n.loading}</td></tr>
                     </tbody>
                 </table>
             </div>
             <div class="text-right pt-1">
-                <button id="minters-toggle-all" type="button" class="text-[13px] opacity-80 hover:opacity-100 hover:underline">
+                <button id="minters-toggle-all" type="button" class="text-[13px] opacity-90 hover:opacity-100 hover:underline">
                     {i18n.seeAllModules}
                 </button>
             </div>
@@ -298,12 +299,12 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         <!-- ====== CCIP Bridges ====== -->
         <section class="space-y-3">
             <h2 class="text-[22px] font-bold tracking-tight">{i18n.ccipTitle}</h2>
-            <p class="text-[14px] opacity-80 max-w-3xl">{i18n.ccipSubtitle}</p>
+            <p class="text-[14px] opacity-90 max-w-3xl">{i18n.ccipSubtitle}</p>
 
             <!-- From / To filters -->
             <div class="flex flex-wrap gap-3">
                 <div>
-                    <label class="block text-[12px] opacity-70 mb-1" for="ccip-from">{i18n.ccipFrom}</label>
+                    <label class="block text-[12px] opacity-80 mb-1" for="ccip-from">{i18n.ccipFrom}</label>
                     <select id="ccip-from" class="rounded-md border border-foreground/20 bg-background px-3 py-2 text-[13px] focus:border-foreground/40 focus:outline-none">
                         <option value="ethereum">{CHAINS.ethereum.label}</option>
                         {chainOptionsForClient.filter(c => c.key !== "ethereum").map(c => (
@@ -312,7 +313,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
                     </select>
                 </div>
                 <div>
-                    <label class="block text-[12px] opacity-70 mb-1" for="ccip-to">{i18n.ccipTo}</label>
+                    <label class="block text-[12px] opacity-80 mb-1" for="ccip-to">{i18n.ccipTo}</label>
                     <select id="ccip-to" class="rounded-md border border-foreground/20 bg-background px-3 py-2 text-[13px] focus:border-foreground/40 focus:outline-none">
                         <option value="">{i18n.ccipAllChains}</option>
                         {chainOptionsForClient.map(c => (
@@ -324,7 +325,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
 
             <div class="overflow-x-auto pt-1">
                 <table class="w-full min-w-180 text-[13px]">
-                    <thead class="text-left opacity-70">
+                    <thead class="text-left opacity-80">
                         <tr class="border-b border-foreground/10">
                             <th class="py-2 pr-4 font-medium">{i18n.ccipFrom}</th>
                             <th class="py-2 pr-4 font-medium">{i18n.ccipTo}</th>
@@ -334,7 +335,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
                         </tr>
                     </thead>
                     <tbody id="ccip-tbody">
-                        <tr><td class="py-3 opacity-60" colspan="5">{i18n.ccipLoading}</td></tr>
+                        <tr><td class="py-3 opacity-70" colspan="5">{i18n.ccipLoading}</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -343,55 +344,53 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         <!-- ====== FPS Pool Share Holders ====== -->
         <section class="space-y-3">
             <h2 class="text-[22px] font-bold tracking-tight">{i18n.holdersTitle}</h2>
-            <p id="holders-subtitle" class="text-[14px] opacity-80 max-w-3xl">{i18n.holdersSubtitle}</p>
+            <p id="holders-subtitle" class="text-[14px] opacity-90 max-w-3xl">{i18n.holdersSubtitle}</p>
 
             <!-- Two-card row: Voting Support + Support an Address -->
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Card title={i18n.delegationSupport}>
-                    <div class="flex justify-between text-[12px] font-medium opacity-70 border-b border-foreground/10 pb-1.5">
+                    <div class="flex justify-between text-[12px] font-medium opacity-80 border-b border-foreground/10 pb-1.5">
                         <span>{i18n.delegationFrom}</span>
                         <span>{i18n.delegationVoting}</span>
                     </div>
-                    <div id="delegation-disconnected" class="text-[13px] opacity-70 text-center py-6">
+                    <div id="delegation-disconnected" class="text-[13px] opacity-80 text-center py-6">
                         {i18n.delegationConnect}
                     </div>
                     <div id="delegation-connected" class="hidden">
                         <div id="delegation-rows" class="divide-y divide-foreground/10"></div>
                         <div class="flex justify-between pt-2">
-                            <span class="text-[13px] font-semibold opacity-70">{i18n.delegationTotal}</span>
+                            <span class="text-[13px] font-semibold opacity-80">{i18n.delegationTotal}</span>
                             <span id="delegation-total" class="text-[13px] font-bold">—</span>
                         </div>
                     </div>
-                    <p class="text-[12px] opacity-70 pt-3">{i18n.delegationNote}</p>
+                    <p class="text-[12px] opacity-80 pt-3">{i18n.delegationNote}</p>
                 </Card>
 
                 <Card title={i18n.delegationAction}>
-                    <div id="delegation-action-disconnected" class="text-[13px] opacity-70 py-2">
+                    <div id="delegation-action-disconnected" class="text-[13px] opacity-80 py-2">
                         {i18n.delegationConnect}
                     </div>
                     <div id="delegation-action-connected" class="space-y-4 hidden">
                         <div>
-                            <label class="block text-[12px] font-medium opacity-70 mb-1" for="delegate-input">{i18n.delegationAddress}</label>
+                            <label class="block text-[12px] font-medium opacity-80 mb-1" for="delegate-input">{i18n.delegationAddress}</label>
                             <input
                                 id="delegate-input" type="text" placeholder="0x…"
                                 class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 text-[14px] font-mono focus:border-foreground/40 focus:outline-none"
                             />
                         </div>
                         <div class="flex gap-2">
-                            <button
-                                id="delegate-btn" type="button"
-                                class="flex-1 rounded-md bg-foreground text-background px-4 py-2.5 text-[13px] font-medium hover:opacity-90 disabled:opacity-50"
-                            >{i18n.delegationBtn}</button>
-                            <button
-                                id="delegate-self-btn" type="button"
-                                class="rounded-md border border-foreground/20 px-4 py-2.5 text-[13px] font-medium hover:bg-foreground/5 disabled:opacity-50"
-                            >{i18n.delegationBtnSelf}</button>
+                            <Button id="delegate-btn" fullWidth>
+                                {i18n.delegationBtn}
+                            </Button>
+                            <Button id="delegate-self-btn" variant="secondary">
+                                {i18n.delegationBtnSelf}
+                            </Button>
                         </div>
 
                         <div class="border-t border-foreground/10 pt-4 space-y-3">
                             <div class="text-[14px] font-semibold">{i18n.syncTitle}</div>
                             <div>
-                                <label class="block text-[12px] font-medium opacity-70 mb-1" for="sync-target">{i18n.syncTarget}</label>
+                                <label class="block text-[12px] font-medium opacity-80 mb-1" for="sync-target">{i18n.syncTarget}</label>
                                 <select
                                     id="sync-target"
                                     class="w-full rounded-md border border-foreground/20 bg-background px-3 py-2.5 text-[13px] focus:border-foreground/40 focus:outline-none"
@@ -402,17 +401,16 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
                                 </select>
                             </div>
                             <div class="flex justify-between text-[12px]">
-                                <span class="opacity-70">{i18n.syncVotesOnTarget}</span>
+                                <span class="opacity-80">{i18n.syncVotesOnTarget}</span>
                                 <span id="sync-current-pct" class="font-mono">—</span>
                             </div>
                             <div class="flex justify-between text-[12px]">
-                                <span class="opacity-70">{i18n.syncFee}</span>
-                                <span id="sync-fee" class="font-mono opacity-70">—</span>
+                                <span class="opacity-80">{i18n.syncFee}</span>
+                                <span id="sync-fee" class="font-mono opacity-80">—</span>
                             </div>
-                            <button
-                                id="sync-btn" type="button"
-                                class="w-full rounded-md bg-foreground text-background px-4 py-2.5 text-[13px] font-medium hover:opacity-90 disabled:opacity-50"
-                            >{i18n.syncBtn}</button>
+                            <Button id="sync-btn" fullWidth>
+                                {i18n.syncBtn}
+                            </Button>
                         </div>
                     </div>
                 </Card>
@@ -421,14 +419,14 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
             <!-- Voters table -->
             <div class="overflow-x-auto pt-2">
                 <table class="w-full min-w-120 text-[13px]">
-                    <thead class="text-left opacity-70">
+                    <thead class="text-left opacity-80">
                         <tr class="border-b border-foreground/10">
                             <th class="py-2 pr-4 font-medium">{i18n.holdersAddress}</th>
                             <th class="py-2 text-right font-medium">{i18n.holdersVotingPower}</th>
                         </tr>
                     </thead>
                     <tbody id="holders-tbody">
-                        <tr><td class="py-3 opacity-60" colspan="2">{i18n.loading}</td></tr>
+                        <tr><td class="py-3 opacity-70" colspan="2">{i18n.loading}</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -503,6 +501,24 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         return /^0x[a-fA-F0-9]{40}$/.test(s);
     }
 
+    /**
+     * Toggle loading state on a Button component. Sets `data-loading`
+     * (shows spinner via CSS) and swaps the .btn-label text. Returns a
+     * function that restores the original label.
+     */
+    function setBtnLoading(btn: HTMLButtonElement, pendingLabel: string): () => void {
+        const labelEl = btn.querySelector(".btn-label") as HTMLElement | null;
+        const orig = labelEl?.textContent ?? "";
+        btn.dataset.loading = "1";
+        btn.disabled = true;
+        if (labelEl) labelEl.textContent = pendingLabel;
+        return () => {
+            delete btn.dataset.loading;
+            btn.disabled = false;
+            if (labelEl) labelEl.textContent = orig;
+        };
+    }
+
     // chain id → key lookup
     const CHAIN_ID_TO_KEY: Record<number, ChainKey> = {};
     for (const [k, c] of Object.entries(CHAINS)) {
@@ -566,7 +582,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
                 const hours = Math.floor((startsIn % 86400) / 3600);
                 return `<div class="flex items-center justify-between border-b border-foreground/5 py-2.5">
                     <a class="text-primary hover:underline font-mono text-[12px]" target="_blank" rel="noopener" href="https://etherscan.io/address/${esc(p.position)}">${esc(shortAddr(p.position))}</a>
-                    <span class="text-[12px] opacity-70">${esc(p.collateralSymbol)} · ${days}d ${hours}h</span>
+                    <span class="text-[12px] opacity-80">${esc(p.collateralSymbol)} · ${days}d ${hours}h</span>
                 </div>`;
             }).join("");
         } catch (err) {
@@ -638,7 +654,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
             .sort((a, b) => b.created - a.created);
 
         if (open.length === 0) {
-            tbody.innerHTML = `<tr><td class="py-3 opacity-60" colspan="5">${esc(i18n.ratesNoOpen)}</td></tr>`;
+            tbody.innerHTML = `<tr><td class="py-3 opacity-70" colspan="5">${esc(i18n.ratesNoOpen)}</td></tr>`;
             return;
         }
         tbody.innerHTML = open.map(p => {
@@ -669,7 +685,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         }
         const minters: Minter[] = data.minters.list;
         if (minters.length === 0) {
-            tbody.innerHTML = `<tr><td class="py-3 opacity-60" colspan="5">${esc(i18n.mintersEmpty)}</td></tr>`;
+            tbody.innerHTML = `<tr><td class="py-3 opacity-70" colspan="5">${esc(i18n.mintersEmpty)}</td></tr>`;
             return;
         }
         const slice = showAllMinters ? minters : minters.slice(0, 3);
@@ -743,8 +759,8 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         return null;
     }
     function fmtBucket(b: CCIPBucket) {
-        if (!b.isEnabled) return `<span class="opacity-60">${esc(i18n.ccipDisabled)}</span>`;
-        return `<span class="font-mono text-[12px]">${esc(fmtBig(b.tokens, ZCHF_DECIMALS, 0))} / ${esc(fmtBig(b.capacity, ZCHF_DECIMALS, 0))}</span> <span class="opacity-70">ZCHF</span>`;
+        if (!b.isEnabled) return `<span class="opacity-70">${esc(i18n.ccipDisabled)}</span>`;
+        return `<span class="font-mono text-[12px]">${esc(fmtBig(b.tokens, ZCHF_DECIMALS, 0))} / ${esc(fmtBig(b.capacity, ZCHF_DECIMALS, 0))}</span> <span class="opacity-80">ZCHF</span>`;
     }
 
     // Cache so filter changes are instant.
@@ -802,7 +818,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
     function renderCCIPTable() {
         const tbody = $("ccip-tbody");
         if (!ccipCache) {
-            tbody.innerHTML = `<tr><td class="py-3 opacity-60" colspan="5">${esc(i18n.ccipLoading)}</td></tr>`;
+            tbody.innerHTML = `<tr><td class="py-3 opacity-70" colspan="5">${esc(i18n.ccipLoading)}</td></tr>`;
             return;
         }
         const fromFilter = ($("ccip-from") as HTMLSelectElement).value as ChainKey;
@@ -815,7 +831,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         });
 
         if (rows.length === 0) {
-            tbody.innerHTML = `<tr><td class="py-3 opacity-60" colspan="5">—</td></tr>`;
+            tbody.innerHTML = `<tr><td class="py-3 opacity-70" colspan="5">—</td></tr>`;
             return;
         }
         tbody.innerHTML = rows.map(r => {
@@ -825,7 +841,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
                 ? (destExplorer
                     ? `<a class="text-primary hover:underline font-mono text-[12px]" target="_blank" rel="noopener" href="${esc(destExplorer)}/address/${esc(r.remoteToken)}">${esc(shortAddr(r.remoteToken))}</a>`
                     : `<span class="font-mono text-[12px]">${esc(shortAddr(r.remoteToken))}</span>`)
-                : `<span class="opacity-60">—</span>`;
+                : `<span class="opacity-70">—</span>`;
             return `<tr class="border-b border-foreground/5">
                 <td class="py-3 pr-4 whitespace-nowrap">${esc(CHAINS[r.sourceKey].label)}</td>
                 <td class="py-3 pr-4 whitespace-nowrap">${esc(toLabel)}</td>
@@ -862,7 +878,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         }
         const holders: FPSHolder[] = data.fpsHolders.list.slice(0, 20);
         if (holders.length === 0) {
-            tbody.innerHTML = `<tr><td class="py-3 opacity-70" colspan="2">—</td></tr>`;
+            tbody.innerHTML = `<tr><td class="py-3 opacity-80" colspan="2">—</td></tr>`;
             return;
         }
 
@@ -997,6 +1013,10 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         $("propose-minter-connected").classList.toggle("hidden", !connected);
         $("delegation-connected").classList.toggle("hidden", !connected);
         $("delegation-action-connected").classList.toggle("hidden", !connected);
+        // gates auto-hide on disconnect (re-shown by refreshWalletState if needed)
+        if (!connected) {
+            $("propose-rates-gate").classList.add("hidden");
+        }
     }
 
     async function refreshWalletState(addr: Address) {
@@ -1009,6 +1029,44 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
             cachedVotingPower = vp;
             ($("propose-mint-btn") as HTMLButtonElement).disabled = !vp.qualified;
             ($("propose-save-btn") as HTMLButtonElement).disabled = !vp.qualified;
+
+            // Show / hide the threshold explainer near the propose buttons.
+            //
+            // The 2% threshold is checked in vote-units (votes = balance × duration),
+            // but to give the user something actionable we convert the gap to FPS
+            // at AVG holding duration. Math:
+            //   threshold_votes = totalVotes × 2%
+            //   missing_votes   = threshold_votes − combinedVotes
+            //   missing_fps     = missing_votes × totalSupply / totalVotes
+            //
+            // The last line is the inverse of the votes() formula: at average
+            // duration the FPS equivalent of a vote-amount V is V × supply/votes.
+            const gate = $("propose-rates-gate");
+            if (vp.qualified) {
+                gate.classList.add("hidden");
+            } else {
+                const havePct = vp.totalVotes > 0n
+                    ? Number((vp.combinedVotes * 10000n) / vp.totalVotes) / 100
+                    : 0;
+                let needFpsStr = "—";
+                try {
+                    const stats = await readFPSAverageStats(client);
+                    const thresholdVotes = (vp.totalVotes * 200n) / 10_000n;
+                    const missingVotes = thresholdVotes > vp.combinedVotes
+                        ? thresholdVotes - vp.combinedVotes
+                        : 0n;
+                    // Convert vote-units back to FPS-at-avg-duration.
+                    const missingFps = vp.totalVotes > 0n
+                        ? (missingVotes * stats.totalSupply) / vp.totalVotes
+                        : 0n;
+                    needFpsStr = fmtBig(missingFps, FPS_DECIMALS, 2);
+                } catch (err) {
+                    console.error("[gov] gate stats:", err);
+                }
+                gate.innerHTML = `${esc(i18n.ratesGateBelow.replace("{have}", fmtNum(havePct, 2)))}
+                    <div class="mt-1">${esc(i18n.ratesGateNeed.replace("{fps}", needFpsStr))}</div>`;
+                gate.classList.remove("hidden");
+            }
         } catch (err) {
             console.error("[gov] helpers:", err);
         }
@@ -1106,9 +1164,8 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         if (!connectedAddress) return;
         const btn = $("delegate-btn") as HTMLButtonElement;
         const selfBtn = $("delegate-self-btn") as HTMLButtonElement;
-        const orig = btn.textContent;
-        btn.disabled = true; selfBtn.disabled = true;
-        btn.textContent = i18n.delegationBtnPending;
+        selfBtn.disabled = true;
+        const done = setBtnLoading(btn, i18n.delegationBtnPending);
         try {
             await delegateVoteTo(getWC(), getPublicClient("ethereum"), connectedAddress, target);
             toast(i18n.delegationDone, "success");
@@ -1117,8 +1174,8 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         } catch (err: any) {
             toast(explorerErr(err), isUserCancelErr(err) ? "info" : "error");
         } finally {
-            btn.disabled = false; selfBtn.disabled = false;
-            btn.textContent = orig;
+            done();
+            selfBtn.disabled = false;
         }
     }
     $("delegate-btn").addEventListener("click", () => {
@@ -1143,8 +1200,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
             : (ADDRESSES.ethereum.savings as Address);
 
         const btn = $(`propose-${module}-btn`) as HTMLButtonElement;
-        const orig = btn.textContent;
-        btn.disabled = true; btn.textContent = i18n.ratesProposeBtnPending;
+        const done = setBtnLoading(btn, i18n.ratesProposeBtnPending);
         try {
             await proposeLeadrate(
                 getWC(), getPublicClient("ethereum"),
@@ -1156,8 +1212,9 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         } catch (err: any) {
             toast(explorerErr(err), isUserCancelErr(err) ? "info" : "error");
         } finally {
+            done();
+            // Re-evaluate disabled state — caller may have lost qualification.
             btn.disabled = !cachedVotingPower?.qualified;
-            btn.textContent = orig;
         }
     }
     $("propose-mint-btn").addEventListener("click", () => doProposeRate("mint"));
@@ -1175,8 +1232,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         if (!msg) { toast(i18n.errMsg, "error"); return; }
 
         const btn = $("propose-minter-btn") as HTMLButtonElement;
-        const orig = btn.textContent;
-        btn.disabled = true; btn.textContent = i18n.mintersBtnPending;
+        const done = setBtnLoading(btn, i18n.mintersBtnPending);
         try {
             await suggestMinter(
                 getWC(), getPublicClient("ethereum"), connectedAddress,
@@ -1188,7 +1244,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         } catch (err: any) {
             toast(explorerErr(err), isUserCancelErr(err) ? "info" : "error");
         } finally {
-            btn.disabled = false; btn.textContent = orig;
+            done();
         }
     });
 
@@ -1261,8 +1317,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         const voters = [connectedAddress, ...cachedVotingPower.helpers];
 
         const btn = $("sync-btn") as HTMLButtonElement;
-        const orig = btn.textContent;
-        btn.disabled = true; btn.textContent = i18n.syncBtnPending;
+        const done = setBtnLoading(btn, i18n.syncBtnPending);
         try {
             await syncVotesToChain(
                 getWC(), getPublicClient("ethereum"),
@@ -1280,8 +1335,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
         } catch (err: any) {
             toast(explorerErr(err), isUserCancelErr(err) ? "info" : "error");
         } finally {
-            btn.disabled = false;
-            btn.textContent = orig;
+            done();
         }
     });
 
