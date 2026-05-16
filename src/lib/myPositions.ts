@@ -6,7 +6,7 @@ import { POSITION_V2_ABI as PositionV2ABI } from "@abi/position";
 // dev → local grenadier. prod → deployed grenadier behind cf.
 const API_BASE = import.meta.env.DEV
     ? "http://localhost:8080"
-    : "https://grenadier-zchf.enni.ch";
+    : "https://grenadier.frankencoin.win";
 
 // ============================================================================
 // API TYPES — shape of one position from grenadier

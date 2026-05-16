@@ -563,7 +563,7 @@ const chainOptionsForClient = CCIP_CHAIN_KEYS.map(k => ({ key: k, label: CHAINS[
      */
     async function renderNewPositions() {
         try {
-            const res = await fetch(`${(import.meta as any).env.DEV ? "http://localhost:8080" : "https://grenadier-zchf.enni.ch"}/positions`);
+            const res = await fetch(`${(import.meta as any).env.DEV ? "http://localhost:8080" : "https://grenadier.frankencoin.win"}/positions`);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json() as { list: Array<{ position: string; start: number; closed: boolean; denied: boolean; collateralSymbol: string; minted: string }> };
             const now = Math.floor(Date.now() / 1000);

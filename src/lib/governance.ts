@@ -9,7 +9,7 @@
 
 const GRENADIER_BASE = import.meta.env.DEV
     ? "http://localhost:8080"
-    : "https://grenadier-zchf.enni.ch";
+    : "https://grenadier.frankencoin.win";
 
 // ---------- shapes match grenadier's /governance response ----------
 

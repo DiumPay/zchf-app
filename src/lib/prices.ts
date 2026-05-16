@@ -19,7 +19,7 @@ const FX_TTL_MS = 60 * 60 * 1000;
 // dev → local grenadier. prod → deployed grenadier behind cf.
 const GRENADIER_BASE = import.meta.env.DEV
     ? "http://localhost:8080"
-    : "https://grenadier-zchf.enni.ch";
+    : "https://grenadier.frankencoin.win";
 
 // Tokens grenadier tracks via /prices/ticker. Anything outside this set falls
 // through to the public sources below.

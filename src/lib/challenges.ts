@@ -3,7 +3,7 @@ import { type Address, getAddress } from "viem";
 // dev → local grenadier. prod → deployed grenadier behind cf.
 const API_BASE = import.meta.env.DEV
     ? "http://localhost:8080"
-    : "https://grenadier-zchf.enni.ch";
+    : "https://grenadier.frankencoin.win";
 
 const ACTIVE_CHALLENGES_URL = `${API_BASE}/challenges/active`;
 

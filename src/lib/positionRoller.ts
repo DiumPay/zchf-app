@@ -22,7 +22,7 @@ import { getPublicClient } from "@lib/client";
 // dev → local grenadier. prod → deployed grenadier behind cf.
 const API_BASE = import.meta.env.DEV
     ? "http://localhost:8080"
-    : "https://grenadier-zchf.enni.ch";
+    : "https://grenadier.frankencoin.win";
 
 // ============================================================================
 // TYPES
