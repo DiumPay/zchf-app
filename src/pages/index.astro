@@ -174,13 +174,12 @@ const locale = getLocale(Astro.url);
 })}></script>
 
 <script>
+    // Boot imports — kept lean. viem / contract ABIs are loaded lazily in
+    // loadBridgeHorizon() so they don't bloat the borrow-page main chunk.
     import { loadPositionsCached, liquidationPriceUnits, positionStatus, effectiveInterestPPM, type Position } from "@lib/positions";
     import { getMarketPriceCHF } from "@lib/prices";
     import { localePath } from "@i18n/t";
     import type { Locale } from "@i18n/messages";
-    import { getPublicClient } from "@lib/client";
-    import { STABLECOIN_BRIDGE_ABI } from "@abi/stablecoinBridge";
-    import { ADDRESSES } from "@config/addresses";
 
     const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -466,10 +465,24 @@ const locale = getLocale(Astro.url);
         applyFilter();
     }
 
+    /**
+     * Reads the CHFAU bridge `horizon()` to fill in the swap row's maturity
+     * date. Dynamically imports viem + ABI so they stay out of the borrow
+     * page's main chunk — the only thing on this page that needs them.
+     */
     async function loadBridgeHorizon() {
-        const bridge = ADDRESSES.ethereum.chfauBridge;
-        if (!bridge) return;
         try {
+            const [
+                { getPublicClient },
+                { STABLECOIN_BRIDGE_ABI },
+                { ADDRESSES },
+            ] = await Promise.all([
+                import("@lib/client"),
+                import("@abi/stablecoinBridge"),
+                import("@config/addresses"),
+            ]);
+            const bridge = ADDRESSES.ethereum.chfauBridge;
+            if (!bridge) return;
             const client = getPublicClient("ethereum");
             const h = await client.readContract({
                 address: bridge,
@@ -499,18 +512,25 @@ const locale = getLocale(Astro.url);
 
     search.addEventListener("input", applyFilter);
 
+    // Defer secondary work past first paint so it doesn't compete with LCP.
+    const idle = (cb: () => void) =>
+        "requestIdleCallback" in window
+            ? (window as any).requestIdleCallback(cb, { timeout: 2000 })
+            : setTimeout(cb, 200);
+
     loadPositionsCached()
         .then(positions => {
             allPositions = positions;
             loading.remove();
             syncSortIndicators();
             applyFilter();
-            loadPrices();
+            // Secondary work — push past LCP. Prices and the bridge horizon
+            // are decorative on first paint (cells show "…" / "—" until then).
+            idle(() => loadPrices());
+            idle(() => loadBridgeHorizon());
         })
         .catch(err => {
             console.error(err);
             loading.textContent = i18n.error;
         });
-
-    loadBridgeHorizon();
 </script>

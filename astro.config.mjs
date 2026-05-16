@@ -17,6 +17,7 @@ export default defineConfig({
     trailingSlash: "never",
     build: {
         format: "file",
+        inlineStylesheets: "auto",
     },
     integrations: [
         i18n({
